@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
 
 def write_message(role, content, save = True):
     """
@@ -15,4 +14,16 @@ def write_message(role, content, save = True):
         st.markdown(content)
 
 def get_session_id():
-    return get_script_run_ctx().session_id
+    """Get session ID for Neo4j chat history"""
+    try:
+        # Try the new import path first
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        return get_script_run_ctx().session_id
+    except ImportError:
+        try:
+            # Fallback to old import path
+            from streamlit.runtime.scriptrunner.script_run_context import get_script_run_ctx
+            return get_script_run_ctx().session_id
+        except ImportError:
+            # If both fail, return a simple session ID
+            return "default_session"
