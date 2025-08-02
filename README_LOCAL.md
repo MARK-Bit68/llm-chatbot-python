@@ -87,6 +87,8 @@ NEO4J_USERNAME = "neo4j"
 NEO4J_PASSWORD = "password"
 ```
 
+**Note**: The vector index uses 4096 dimensions to match Ollama's llama2 embeddings.
+
 ## 🧪 Testing
 
 ### Sample Questions to Try

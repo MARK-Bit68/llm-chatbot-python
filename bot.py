@@ -104,7 +104,7 @@ RETURN
         )
         
         retriever = neo4jvector.as_retriever(search_kwargs={"k": top_k})
-        results = retriever.get_relevant_documents(query)
+        results = retriever.invoke(query)
         
         # Convert to our expected format
         formatted_results = []
@@ -115,6 +115,11 @@ RETURN
                 'm.sku_id': doc.metadata.get('sku_id', 'Unknown'),
                 'score': doc.metadata.get('score', 0.0)
             })
+        
+        # Debug: Print what we found
+        st.info(f"🔍 Vector search found {len(formatted_results)} results for query: '{query}'")
+        for i, result in enumerate(formatted_results):
+            st.info(f"Result {i+1}: SKU={result.get('m.sku_id')}, Title={result.get('m.title')}")
         
         return formatted_results
     except Exception as e:
@@ -168,17 +173,19 @@ Response:"""
         
         context = "\n".join(context_parts) if context_parts else "No relevant data found."
         
-        # Create prompt
-        prompt = f"""You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. 
+        # Debug: Show what context we're sending to LLM
+        st.info(f"📤 Sending context to LLM: {len(context)} characters")
+        with st.expander("🔍 Debug: Context being sent to LLM"):
+            st.text(context)
         
-User Question: {user_query}
+        # Create prompt
+        prompt = f"""Answer this FMCG question based on the data:
 
-Relevant Data:
-{context}
+Q: {user_query}
 
-Please provide a helpful response based on the data above. If the data doesn't contain relevant information, say so politely. Focus on supply chain, inventory, and product information.
+Data: {context}
 
-Response:"""
+A:"""
     
     try:
         # Generate response using local LLM
@@ -195,7 +202,7 @@ def handle_submit(message):
     with st.spinner('Analyzing your data...'):
         if neo4j_available:
             # Perform vector search
-            vector_results = vector_search(message, top_k=3)
+            vector_results = vector_search(message, top_k=2)
             
             # Perform Cypher search
             cypher_results = cypher_search(message)
