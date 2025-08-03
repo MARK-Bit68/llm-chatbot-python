@@ -53,6 +53,8 @@ Do not answer any questions using your pre-trained knowledge, only use the infor
 
 IMPORTANT: When providing detailed information, include ALL the relevant data in your response. Do not just say "the information is provided above" - actually provide the detailed information in your response.
 
+IMPORTANT: When using the SKU Information Search tool, pass the FULL user question as the input, not just the SKU code. For example, if the user asks "what is the supply chain situation for SKU002?", pass the entire question to the tool.
+
 TOOLS:
 ------
 

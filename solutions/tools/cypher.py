@@ -21,19 +21,19 @@ Example Cypher Statements:
 
 1. To find the category of a SKU:
 ```
-MATCH (sku:SKU {sku_id: "SKU001"})-[:BELONGS_TO_CATEGORY]->(cat:Category)
+MATCH (sku:SKU {{sku_id: "SKU001"}})-[:BELONGS_TO_CATEGORY]->(cat:Category)
 RETURN cat.name
 ```
 
 2. To find demand plan for a SKU:
 ```
-MATCH (sku:SKU {sku_id: "SKU001"})-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
+MATCH (sku:SKU {{sku_id: "SKU001"}})-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
 RETURN dp.value
 ```
 
 3. To find all SKUs in a category:
 ```
-MATCH (sku:SKU)-[:BELONGS_TO_CATEGORY]->(cat:Category {name: "Category Name"})
+MATCH (sku:SKU)-[:BELONGS_TO_CATEGORY]->(cat:Category {{name: "Category Name"}})
 RETURN sku.sku_id, sku.name
 ```
 
