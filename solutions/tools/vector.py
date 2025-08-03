@@ -1,5 +1,5 @@
 import streamlit as st
-from llm import llm, embeddings
+from llm import llm, get_embeddings
 from graph import graph
 
 # tag::import_vector[]
