@@ -9,7 +9,12 @@ def get_openai_key():
         return st.secrets["OPENAI_API_KEY"]
     except:
         # Fall back to environment variable
-        return os.getenv("OPENAI_API_KEY")
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            print("❌ CRITICAL ERROR: OPENAI_API_KEY not found!")
+            print("   Please set OPENAI_API_KEY in Railway environment variables")
+            print("   This is required for the RAG system to work")
+        return api_key
 
 def get_openai_model():
     """Get OpenAI model from secrets or environment variables"""
@@ -42,10 +47,13 @@ def get_embeddings():
                 embeddings = OpenAIEmbeddings(openai_api_key=api_key)
                 print("✅ Embeddings created successfully")
             else:
-                print("⚠️ No OpenAI API key available")
+                print("❌ CRITICAL ERROR: Cannot create embeddings without OpenAI API key")
+                print("   The RAG system requires embeddings to function properly")
+                print("   Please set OPENAI_API_KEY in Railway environment variables")
                 embeddings = None
         except Exception as e:
-            print(f"Warning: Could not create embeddings: {e}")
+            print(f"❌ CRITICAL ERROR: Could not create embeddings: {e}")
+            print("   This will prevent the RAG system from working properly")
             embeddings = None
     return embeddings
 

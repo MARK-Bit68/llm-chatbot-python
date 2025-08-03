@@ -152,19 +152,27 @@ def quick_ingestion_2_skus(excel_file_path, max_skus=10):
     if graph is None:
         return {'total_rows': 0, 'unique_skus': 0, 'nodes_created': 0, 'error': 'Neo4j not available'}
     
-    # Create embeddings
+    # Create embeddings - CRITICAL for RAG system
     try:
         from llm import get_embeddings
         embeddings = get_embeddings()
         if not embeddings:
-            print("Warning: Embeddings not available, continuing without embeddings")
+            print("❌ CRITICAL ERROR: Embeddings not available")
+            print("   The RAG system requires embeddings to function properly")
+            print("   Please set OPENAI_API_KEY in Railway environment variables")
+            return {
+                'total_rows': 0,
+                'unique_skus': 0,
+                'nodes_created': 0,
+                'error': 'CRITICAL: OpenAI API key not set. Please configure OPENAI_API_KEY in Railway environment variables.'
+            }
     except Exception as e:
-        print(f"Error creating embeddings: {e}")
+        print(f"❌ CRITICAL ERROR creating embeddings: {e}")
         return {
             'total_rows': 0,
             'unique_skus': 0,
             'nodes_created': 0,
-            'error': f'Embeddings error: {e}'
+            'error': f'CRITICAL: Embeddings error: {e}'
         }
     
     # Track all SKUs and their data
