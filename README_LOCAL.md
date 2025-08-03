@@ -108,12 +108,12 @@ The system transforms Excel data into a rich graph structure:
 - **Database**: Community Edition
 - **Port**: 7687 (Bolt), 7474 (Browser)
 - **Credentials**: neo4j/password
-- **Vector Index**: `moviePlots` (1536 dimensions, cosine similarity)
+- **Vector Index**: `skuPlots` (1536 dimensions, cosine similarity)
 
 ### Vector Search
 - **Dimensions**: 1536 (matches OpenAI embeddings)
 - **Similarity**: Cosine similarity
-- **Index**: `moviePlots` on `plotEmbedding` property
+- **Index**: `skuPlots` on `plotEmbedding` property
 - **Retrieval**: Top-k similarity search with SKU prioritization
 
 ## 🧪 Testing

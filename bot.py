@@ -104,7 +104,7 @@ def vector_search(query, top_k=5):
         neo4jvector = Neo4jVector.from_existing_index(
             embeddings,
             graph=graph,
-            index_name="moviePlots",
+            index_name="skuPlots",
             node_label="SKU",
             text_node_property="plot",
             embedding_node_property="plotEmbedding",
@@ -128,14 +128,14 @@ RETURN
         formatted_results = []
         for doc in results:
             formatted_results.append({
-                'm.title': doc.metadata.get('title', 'Unknown'),
-                'm.plot': doc.page_content,
-                'm.sku_id': doc.metadata.get('sku_id', 'Unknown'),
+                'sku.title': doc.metadata.get('title', 'Unknown'),
+                'sku.plot': doc.page_content,
+                'sku.sku_id': doc.metadata.get('sku_id', 'Unknown'),
                 'score': doc.metadata.get('score', 0.0)
             })
         
         # Condensed debug output
-        found_skus = [result.get('m.sku_id') for result in formatted_results]
+        found_skus = [result.get('sku.sku_id') for result in formatted_results]
         st.info(f"🔍 Found {len(formatted_results)} results: {', '.join(found_skus)}")
         
         # Prioritize exact SKU match if query contains a specific SKU
@@ -147,8 +147,8 @@ RETURN
             if sku_match:
                 target_sku = f"SKU{sku_match.group(1).upper()}"
                 # Move matching SKU to front
-                exact_matches = [r for r in formatted_results if r.get('m.sku_id') == target_sku]
-                other_results = [r for r in formatted_results if r.get('m.sku_id') != target_sku]
+                exact_matches = [r for r in formatted_results if r.get('sku.sku_id') == target_sku]
+                other_results = [r for r in formatted_results if r.get('sku.sku_id') != target_sku]
                 formatted_results = exact_matches + other_results
                 if exact_matches:
                     st.info(f"🎯 Prioritized: {target_sku}")
@@ -166,10 +166,10 @@ def cypher_search(query):
     try:
         # Simple keyword-based search
         cypher_query = """
-        MATCH (m:Movie)
-        WHERE toLower(m.title) CONTAINS toLower($query) 
-           OR toLower(m.plot) CONTAINS toLower($query)
-        RETURN m.title, m.plot, m.sku_id
+        MATCH (sku:SKU)
+        WHERE toLower(sku.name) CONTAINS toLower($query) 
+           OR toLower(sku.plot) CONTAINS toLower($query)
+        RETURN sku.name, sku.plot, sku.sku_id
         LIMIT 10
         """
         

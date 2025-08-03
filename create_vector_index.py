@@ -12,13 +12,13 @@ def create_vector_index():
     )
     
     # Drop existing index if it exists
-    drop_query = "DROP INDEX moviePlots IF EXISTS"
+    drop_query = "DROP INDEX skuPlots IF EXISTS"
     graph.query(drop_query)
     print("✅ Dropped existing index")
     
     # Create new vector index
     create_query = """
-    CREATE VECTOR INDEX moviePlots 
+    CREATE VECTOR INDEX skuPlots 
     FOR (sku:SKU) 
     ON (sku.plotEmbedding) 
     OPTIONS {indexConfig: {

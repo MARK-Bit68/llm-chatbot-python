@@ -19,7 +19,7 @@ from langchain_core.prompts import ChatPromptTemplate
 neo4jvector = Neo4jVector.from_existing_index(
     embeddings,                              # <1>
     graph=graph,                             # <2>
-    index_name="moviePlots",                 # <3>
+    index_name="skuPlots",                   # <3>
     node_label="SKU",                        # <4>
     text_node_property="plot",               # <5>
     embedding_node_property="plotEmbedding", # <6>
@@ -66,7 +66,7 @@ plot_retriever = create_retrieval_chain(
 )
 # end::chain[]
 
-# tag::get_movie_plot[]
-def get_movie_plot(input):
+# tag::get_sku_data[]
+def get_sku_data(input):
     return plot_retriever.invoke({"input": input})
-# end::get_movie_plot[]
+# end::get_sku_data[]

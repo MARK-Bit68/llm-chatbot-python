@@ -1,80 +1,42 @@
 #!/bin/bash
 
-echo "🚀 Starting FMCG RAG Chatbot with Optimized Configuration..."
+# Quick chatbot startup script
+# This script starts the FMCG RAG chatbot with basic checks
+
+echo "🚀 Starting FMCG RAG Chatbot..."
 
 # Activate virtual environment
-echo "📦 Activating Python virtual environment..."
+echo "🔧 Activating virtual environment..."
 source .venv/bin/activate
 
-# Kill any existing Ollama processes
-echo "🔄 Stopping any existing Ollama processes..."
-pkill -f ollama
-sleep 2
+# Check Neo4j connection and data
+echo "🔍 Checking Neo4j and data..."
+python3 -c "
+import streamlit as st
+from langchain_neo4j import Neo4jGraph
 
-# Set optimal environment variables
-echo "⚙️  Setting optimal environment variables..."
-export OLLAMA_FLASH_ATTENTION=1
-export OLLAMA_DEBUG=1
-export OLLAMA_HOST=0.0.0.0:11434
-
-echo "🎯 Starting Ollama with GPU acceleration and 131K context window..."
-ollama serve &
-sleep 10
-
-# Check if the custom model exists, if not create it
-echo "🔍 Checking for llama3.2-large-context model..."
-if ! ollama list | grep -q "llama3.2-large-context"; then
-    echo "📦 Creating llama3.2-large-context model with 32K context..."
-    ollama create llama3.2-large-context -f Modelfile
-else
-    echo "✅ Model llama3.2-large-context already exists"
-fi
-
-# Test the model
-echo "🧪 Testing model configuration..."
-python -c "
-from llm import embeddings
-import time
-print('Testing Llama3.2 with 32K context...')
-start = time.time()
-result = embeddings.embed_query('test')
-end = time.time()
-print(f'Embedding dimension: {len(result)}')
-print(f'Time: {end-start:.2f}s')
-print('✅ Model is working correctly!')
+try:
+    graph = Neo4jGraph(
+        url=st.secrets['NEO4J_URI'],
+        username=st.secrets['NEO4J_USERNAME'],
+        password=st.secrets['NEO4J_PASSWORD'],
+    )
+    result = graph.query('MATCH (sku:SKU) RETURN count(sku) as count')
+    count = result[0]['count']
+    print(f'✅ Neo4j connected. Found {count} SKU nodes')
+    
+    if count == 0:
+        print('⚠️  No SKU data found. Use the sidebar to process Excel data.')
+    else:
+        print('✅ SKU data available for queries.')
+        
+except Exception as e:
+    print(f'❌ Neo4j connection failed: {e}')
+    print('Please ensure Neo4j is running: brew services start neo4j')
 "
-
-# Check if data exists in Neo4j
-echo "🔍 Checking Neo4j database..."
-python -c "
-from graph import get_graph
-graph = get_graph()
-result = graph.query('MATCH (m:Movie) RETURN count(m) as count')
-count = result[0]['count']
-print(f'📊 Found {count} nodes in database')
-if count == 0:
-    print('⚠️  No data found. Running ingestion...')
-    import subprocess
-    subprocess.run(['python', 'quick_ingestion_2_skus.py'])
-    print('✅ Data ingestion completed!')
-else:
-    print('✅ Data already exists in database')
-"
-
-echo ""
-echo "🎉 Starting FMCG RAG Chatbot..."
-echo "📊 Model: llama3.2-large-context"
-echo "🧠 Context window: 131,072 tokens"
-echo "🔢 Embedding dimensions: 3072"
-echo "⚡ GPU acceleration: Enabled"
-echo "🌐 Ollama Server: http://localhost:11434"
-echo "🌐 Chatbot URL: http://localhost:8501"
-echo ""
-echo "💡 Test questions:"
-echo "   - What is the inventory plan for SKU001?"
-echo "   - What is the category of SKU001?"
-echo "   - Tell me about SKU001's financial details"
-echo ""
 
 # Start the chatbot
+echo "🎯 Starting chatbot..."
+echo "🌐 Available at: http://localhost:8501"
+echo ""
 streamlit run bot.py 

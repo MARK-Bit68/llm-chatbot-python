@@ -1,43 +1,38 @@
 import pytest
+import streamlit as st
+from llm import llm, embeddings
+from graph import graph
 
-def test_secrets():
-    import streamlit as st
+def test_vector_tool():
+    """Test the vector search tool"""
+    from tools.vector import get_sku_data
+    assert get_sku_data("Aliens land on earth") is not None
 
-    def check_secret(key):
-        assert len(st.secrets[key]) > 0, f"{key} not found in secrets.toml"
-    
+def test_cypher_tool():
+    """Test the cypher query tool"""
+    from tools.cypher import cypher_qa
+    assert cypher_qa("What is the category of SKU001?") is not None
+
+def test_vector_index():
+    """Test that the vector index exists"""
     try:
-        check_secret("OPENAI_API_KEY")
-        check_secret("OPENAI_MODEL")
-        check_secret("NEO4J_URI")
-        check_secret("NEO4J_USERNAME")
-        check_secret("NEO4J_PASSWORD")
+        from langchain_neo4j import Neo4jVector
+        neo4jvector = Neo4jVector.from_existing_index(
+            embeddings,
+            graph=graph,
+            index_name="skuPlots",
+            node_label="SKU",
+            text_node_property="plot",
+            embedding_node_property="plotEmbedding"
+        )
+        assert neo4jvector is not None
+    except Exception as e:
+        assert False, "The skuPlots index does not exist. Run the Cypher script to create it."
 
-    except FileNotFoundError:
-        assert False, "secrets.toml file not found"
-
-def test_vector():
-    try:
-        from tools.vector import get_movie_plot
-        assert get_movie_plot("Aliens land on earth") is not None
-
-        vector_exists = True
-
-    except ValueError:
-        assert False, "The moviePlots index does not exist. Run the Cypher script - https://raw.githubusercontent.com/neo4j-graphacademy/courses/refs/heads/main/asciidoc/courses/llm-chatbot-python/modules/3-tools/lessons/1-vector-tool/reset.cypher"
-
-    assert True
-
-def test_bot_conversation():
-    from streamlit.testing.v1 import AppTest
-
-    at = AppTest.from_file(script_path="solutions/bot.py",default_timeout=60).run()
-    assert not at.exception, "Bot failed to start"
-
-    question = "What is a good movie about aliens landing on earth?"
-
-    at.chat_input[0].set_value(question).run()
-
-    assert at.chat_message[0].markdown[0].value == "Hi, I'm the GraphAcademy Chatbot!  How can I help you?"
-    assert at.chat_message[1].markdown[0].value == question
-    assert len(at.chat_message[2].markdown[0].value) > 0, "No response from the bot"
+def test_agent():
+    """Test the agent with a simple question"""
+    from solutions.agent import generate_response
+    question = "What is the category of SKU001?"
+    response = generate_response(question)
+    assert response is not None
+    assert len(response) > 0

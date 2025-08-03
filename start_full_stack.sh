@@ -1,117 +1,116 @@
 #!/bin/bash
 
-echo "🚀 Starting Complete FMCG RAG Stack with All Optimizations"
-echo "=========================================================="
+# Full stack startup script for FMCG RAG Chatbot
+# This script starts all required services and components
 
-# Check if Neo4j is running
-echo "🔍 Checking Neo4j status..."
-if ! pgrep -f "neo4j" > /dev/null; then
-    echo "⚠️  Neo4j not detected. Please start Neo4j first:"
-    echo "   brew services start neo4j"
-    echo "   or"
-    echo "   neo4j start"
-    echo ""
-    read -p "Press Enter to continue anyway, or Ctrl+C to stop..."
+echo "🚀 Starting FMCG RAG Chatbot Full Stack..."
+
+# Check if virtual environment exists
+if [ ! -d ".venv" ]; then
+    echo "📦 Creating virtual environment..."
+    python3 -m venv .venv
 fi
 
 # Activate virtual environment
-echo "📦 Activating Python virtual environment..."
+echo "🔧 Activating virtual environment..."
 source .venv/bin/activate
 
-# Kill any existing Ollama processes
-echo "🔄 Stopping any existing Ollama processes..."
-pkill -f ollama
-sleep 2
+# Install dependencies
+echo "📚 Installing dependencies..."
+pip install -r requirements.txt
 
-# Set optimal environment variables
-echo "⚙️  Setting optimal environment variables..."
-export OLLAMA_FLASH_ATTENTION=1
-export OLLAMA_DEBUG=1
-export OLLAMA_HOST=0.0.0.0:11434
-
-echo "🎯 Starting Ollama with GPU acceleration and 131K context window..."
-ollama serve &
-sleep 10
-
-# Check if the custom model exists, if not create it
-echo "🔍 Checking for llama3.2-large-context model..."
-if ! ollama list | grep -q "llama3.2-large-context"; then
-    echo "📦 Creating llama3.2-large-context model with 32K context..."
-    ollama create llama3.2-large-context -f Modelfile
+# Check if Neo4j is running
+echo "🔍 Checking Neo4j status..."
+if ! brew services list | grep -q "neo4j.*started"; then
+    echo "🔄 Starting Neo4j..."
+    brew services start neo4j
+    echo "⏳ Waiting for Neo4j to start..."
+    sleep 10
 else
-    echo "✅ Model llama3.2-large-context already exists"
+    echo "✅ Neo4j is already running"
 fi
 
-# Test the model
-echo "🧪 Testing model configuration..."
-python -c "
-from llm import embeddings
-import time
-print('Testing Llama3.2 with 32K context...')
-start = time.time()
-result = embeddings.embed_query('test')
-end = time.time()
-print(f'Embedding dimension: {len(result)}')
-print(f'Time: {end-start:.2f}s')
-print('✅ Model is working correctly!')
+# Check Neo4j connection
+echo "🔗 Testing Neo4j connection..."
+python3 -c "
+import streamlit as st
+from langchain_neo4j import Neo4jGraph
+
+try:
+    graph = Neo4jGraph(
+        url=st.secrets['NEO4J_URI'],
+        username=st.secrets['NEO4J_USERNAME'],
+        password=st.secrets['NEO4J_PASSWORD'],
+    )
+    graph.query('RETURN 1 as test')
+    print('✅ Neo4j connection successful')
+except Exception as e:
+    print(f'❌ Neo4j connection failed: {e}')
+    exit(1)
 "
 
-# Check if data exists in Neo4j
-echo "🔍 Checking Neo4j database..."
-python -c "
-from graph import get_graph
-graph = get_graph()
-result = graph.query('MATCH (m:Movie) RETURN count(m) as count')
-count = result[0]['count']
-print(f'📊 Found {count} nodes in database')
-if count == 0:
-    print('⚠️  No data found. Running ingestion...')
-    import subprocess
-    subprocess.run(['python', 'quick_ingestion_2_skus.py'])
-    print('✅ Data ingestion completed!')
-else:
-    print('✅ Data already exists in database')
+# Check if data exists
+echo "📊 Checking existing data..."
+python3 -c "
+import streamlit as st
+from langchain_neo4j import Neo4jGraph
+
+try:
+    graph = Neo4jGraph(
+        url=st.secrets['NEO4J_URI'],
+        username=st.secrets['NEO4J_USERNAME'],
+        password=st.secrets['NEO4J_PASSWORD'],
+    )
+    result = graph.query('MATCH (sku:SKU) RETURN count(sku) as count')
+    sku_count = result[0]['count']
+    print(f'📈 Found {sku_count} SKU nodes in database')
+    
+    if sku_count == 0:
+        print('⚠️  No SKU data found. You may need to process Excel data first.')
+    else:
+        print('✅ SKU data found in database')
+        
+    # Check vector index
+    result = graph.query('SHOW INDEXES')
+    indexes = [r['name'] for r in result if 'skuPlots' in str(r.get('name', ''))]
+    if indexes:
+        print(f'✅ Vector index found: {indexes[0]}')
+    else:
+        print('⚠️  Vector index not found. You may need to create it.')
+        
+except Exception as e:
+    print(f'❌ Error checking data: {e}')
 "
 
-# Create vector index if needed
-echo "🔍 Checking vector index..."
-python -c "
-from graph import get_graph
-graph = get_graph()
-result = graph.query('SHOW INDEXES')
-indexes = [r['name'] for r in result if 'moviePlots' in str(r.get('name', ''))]
-if not indexes:
-    print('📦 Creating vector index...')
-    import subprocess
-    subprocess.run(['python', 'create_vector_index.py'])
-    print('✅ Vector index created!')
-else:
-    print('✅ Vector index already exists')
-"
+# Check if Ollama is running
+echo "🤖 Checking Ollama status..."
+if ! pgrep -x "ollama" > /dev/null; then
+    echo "🔄 Starting Ollama..."
+    ollama serve &
+    echo "⏳ Waiting for Ollama to start..."
+    sleep 5
+else
+    echo "✅ Ollama is already running"
+fi
 
-echo ""
-echo "🎉 Stack Status:"
-echo "=========================================================="
-echo "✅ Ollama Server: Running with 131K context"
-echo "✅ Model: llama3.2-large-context (3072 dimensions)"
-echo "✅ GPU Acceleration: Enabled"
-echo "✅ Neo4j Database: Connected"
-echo "✅ Vector Index: Ready"
-echo "✅ Data: Ingested and ready"
-echo ""
-echo "🌐 URLs:"
-echo "   - Ollama API: http://localhost:11434"
-echo "   - Chatbot UI: http://localhost:8501"
-echo "   - Neo4j Browser: http://localhost:7474"
-echo ""
-echo "💡 Test Questions:"
-echo "   - What is the inventory plan for SKU001?"
-echo "   - What is the category of SKU001?"
-echo "   - Tell me about SKU001's financial details"
-echo "   - What are the logistics details for SKU002?"
-echo ""
-echo "🚀 Starting FMCG RAG Chatbot..."
-echo "=========================================================="
+# Check if required models are available
+echo "📋 Checking required models..."
+if ! ollama list | grep -q "llama2"; then
+    echo "📥 Pulling llama2 model..."
+    ollama pull llama2
+else
+    echo "✅ llama2 model is available"
+fi
 
 # Start the chatbot
+echo "🎯 Starting FMCG RAG Chatbot..."
+echo "🌐 The chatbot will be available at: http://localhost:8501"
+echo "📊 Neo4j Browser available at: http://localhost:7474"
+echo ""
+echo "💡 Tips:"
+echo "  - Use the sidebar to upload and process Excel data"
+echo "  - Create vector index for similarity search"
+echo "  - Try sample questions about your FMCG data"
+echo ""
+echo "🔄 Starting Streamlit..."
 streamlit run bot.py 

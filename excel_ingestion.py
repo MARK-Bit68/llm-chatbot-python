@@ -39,7 +39,7 @@ def get_graph_connection():
         return None
 
 def create_graph_schema(sku_data, graph):
-    """Create proper graph schema instead of flat movie nodes"""
+    """Create proper graph schema instead of flat SKU nodes"""
     for sku_id, data in sku_data.items():
         try:
             # Create SKU node
@@ -245,7 +245,7 @@ def upload_fmcg_excel():
                         
                         - **Total rows processed**: {results['total_rows']}
                         - **Unique SKUs found**: {results['unique_skus']}
-                        - **Movie nodes created**: {results['nodes_created']}
+                        - **SKU nodes created**: {results['nodes_created']}
                         
                         Your FMCG data has been transformed and is ready for chat!
                         """)

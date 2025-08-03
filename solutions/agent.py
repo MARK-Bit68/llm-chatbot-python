@@ -10,7 +10,7 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain import hub
 from utils import get_session_id
 
-from solutions.tools.vector import get_movie_plot
+from solutions.tools.vector import get_sku_data
 from solutions.tools.cypher import cypher_qa
 from solutions.tools.data_parser import parse_sku_data
 
@@ -32,7 +32,7 @@ tools = [
     Tool.from_function(
         name="SKU Information Search",  
         description="Use this tool to find SKU data by passing the full user question. This tool searches for SKU information and returns plot text that contains all the SKU data.",
-        func=get_movie_plot, 
+        func=get_sku_data, 
     ),
     Tool.from_function(
         name="FMCG Data Query",

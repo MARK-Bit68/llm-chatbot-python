@@ -1,23 +1,18 @@
 import streamlit as st
 from utils import write_message
-# tag::import_agent[]
-from agent import generate_response
-# end::import_agent[]
+from solutions.agent import generate_response
+from graph import graph
+from llm import embeddings
 
-# tag::setup[]
 # Page Config
-st.set_page_config("Ebert", page_icon=":movie_camera:")
-# end::setup[]
+st.set_page_config("FMCG RAG Chatbot", page_icon=":chart_with_upwards_trend:")
 
-# tag::session[]
 # Set up Session State
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": "Hi, I'm the GraphAcademy Chatbot!  How can I help you?"},
     ]
-# end::session[]
 
-# tag::submit[]
 # Submit handler
 def handle_submit(message):
     """
@@ -32,11 +27,8 @@ def handle_submit(message):
         # Call the agent
         response = generate_response(message)
         write_message('assistant', response)
-        
-# end::submit[]
 
 
-# tag::chat[]
 # Display messages in Session State
 for message in st.session_state.messages:
     write_message(message['role'], message['content'], save=False)
@@ -48,4 +40,3 @@ if prompt := st.chat_input("What is up?"):
 
     # Generate a response
     handle_submit(prompt)
-# end::chat[]
