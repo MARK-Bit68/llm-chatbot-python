@@ -59,44 +59,46 @@ Do not answer any questions using your pre-trained knowledge, only use the infor
 
 IMPORTANT: When providing detailed information, include ALL the relevant data in your response. Do not just say "the information is provided above" - actually provide the detailed information in your response.
 
-IMPORTANT: When using the SKU Information Search tool, pass the FULL user question as the input, not just the SKU code. For example, if the user asks "what is the supply chain situation for SKU002?", pass the entire question to the tool.
+IMPORTANT: When using the SKU Information Search tool, pass the FULL user question as the input, not just the SKU code.
 
-IMPORTANT: When using the FMCG Data Query tool, if the query returns plot text data, you must parse the financial information (unit_price, unit_cost, revenue, cogs, gross_profit) from the text. The financial data is embedded in the plot text and needs to be extracted using pattern matching.
-
-IMPORTANT: For demand and volume calculations:
-1. Extract monthly demand data from plot text (e.g., "jan_2024: 396", "feb_2024: 523")
-2. Calculate the average monthly demand by summing all monthly values and dividing by the number of months
-3. For annual calculations, multiply monthly average by 12
-4. Always verify your calculations by checking the data format: "month_year: value"
-5. If you see multiple values separated by "|", extract only the demand values (first part before "|")
+IMPORTANT: For basic SKU information requests (like "Tell me about SKU001"):
+1. Use "SKU Information Search" to find the SKU and get its plot text
+2. Use "SKU Data Parser" to extract and format the specific information requested
+3. Provide a clear, structured response with the parsed data
+4. ALWAYS include the complete extracted data in your Final Answer
+5. NEVER say "I don't know" if you have data from the tools - use the data to provide a complete response
+6. NEVER repeat the same tool call - move to the next step in the workflow
 
 IMPORTANT: For "what-if" scenarios and cost impact analysis:
-1. Extract current unit cost and demand data
-2. Calculate the proposed change (e.g., 10X demand increase)
-3. Apply reasonable business logic for cost estimation:
-   - Economies of scale typically reduce unit costs by 5-15% for 10X volume
-   - Consider bulk purchasing discounts
-   - Factor in production efficiency gains
-4. Provide a range estimate with confidence level
-5. Always state assumptions made
+1. Use "SKU Information Search" to get the SKU's plot text
+2. Use "SKU Data Parser" to extract data and apply the multiplier
+3. Provide business analysis based on the parsed data
+4. ALWAYS use the SKU Data Parser tool for volume/cost impact analysis - never do manual calculations
+5. NEVER repeat the same tool call - follow the sequence: Search → Parse → Answer
 
-IMPORTANT: For accurate data parsing, use the SKU Data Parser tool when you need to:
-- Extract financial data (unit_price, unit_cost, revenue, cogs, gross_profit)
-- Calculate average monthly demand from monthly data
-- Analyze cost impact of demand changes
-- Perform "what-if" scenario analysis
+IMPORTANT: Tool Selection Guidelines:
+- Use "SKU Information Search" for general SKU information and similarity search
+- Use "FMCG Data Query" for complex Cypher queries and structured data retrieval
+- Use "SKU Data Parser" for data extraction and "what-if" scenarios
+- Use "General Chat" for general FMCG supply chain questions
 
-IMPORTANT: When the user asks "what-if" questions about cost changes, demand increases, or volume analysis, ALWAYS use the SKU Data Parser tool first to get accurate calculations, then provide business analysis based on the parsed data.
+IMPORTANT: When you get data from SKU Information Search, ALWAYS use SKU Data Parser to extract structured information before providing your final answer.
 
-IMPORTANT: When using the SKU Data Parser tool for "what-if" scenarios:
-1. Pass the plot text as the first parameter
-2. Pass the demand multiplier as the second parameter (e.g., 10.0 for 10X increase)
-3. Use the returned cost_analysis for business insights
-4. Always verify the calculations are reasonable
+CRITICAL WORKFLOW: For any SKU question, follow this exact sequence:
+1. Use "SKU Information Search" (ONCE)
+2. Use "SKU Data Parser" (ONCE) 
+3. Provide "Final Answer" (ONCE)
+4. STOP - Do not repeat any tool calls
 
-Example: For a 10X demand increase, call the tool with (plot_text, 10.0)
+IMPORTANT: For "what-if" questions about volume changes, cost impacts, or demand multipliers, you MUST use the SKU Data Parser tool with the plot text and multiplier as parameters.
 
-The SKU Data Parser tool will provide accurate numerical calculations and cost impact analysis.
+CRITICAL: NEVER do manual calculations in your Final Answer. Always use the SKU Data Parser tool for any numerical analysis or "what-if" scenarios.
+
+CRITICAL: When the user asks about a specific SKU (like SKU001), make sure to use that SKU's data, not any other SKU's data.
+
+CRITICAL: After using SKU Information Search, you MUST use SKU Data Parser before providing your final answer. Do not repeat the same tool call.
+
+CRITICAL: You have a maximum of 3 tool calls. Use them wisely: 1) SKU Information Search, 2) SKU Data Parser, 3) Final Answer.
 
 TOOLS:
 ------
@@ -121,12 +123,9 @@ Thought: Do I need to use a tool? No
 Final Answer: [your complete detailed response here]
 ```
 
-IMPORTANT: Always end your response with "Final Answer:" followed by your actual answer. Include ALL relevant details in your response.
+IMPORTANT: Always end your response with "Final Answer:" followed by your actual answer. Include ALL relevant details in your response. NEVER say "I don't know" or "the information is not available" if you have data from the tools.
 
 Begin!
-
-Previous conversation history:
-{chat_history}
 
 New input: {input}
 {agent_scratchpad}
@@ -136,7 +135,8 @@ agent = create_react_agent(llm, tools, agent_prompt)
 agent_executor = AgentExecutor(
     agent=agent,
     tools=tools,
-    verbose=True
+    verbose=True,
+    handle_parsing_errors=True
     )
 
 chat_agent = RunnableWithMessageHistory(
@@ -152,9 +152,15 @@ def generate_response(user_input):
     and returns a response to be rendered in the UI
     """
 
-    response = chat_agent.invoke(
-        {"input": user_input},
-        {"configurable": {"session_id": get_session_id()}},)
+    try:
+        # Use the agent executor directly for more control
+        response = agent_executor.invoke({"input": user_input})
+    except Exception as e:
+        # Handle parsing errors more gracefully
+        error_msg = str(e)
+        if "OUTPUT_PARSING_FAILURE" in error_msg or "Parsing LLM output" in error_msg:
+            return "I encountered an error while processing your request. Please try rephrasing your question or ask for specific information about a SKU."
+        return f"Error: {error_msg}"
 
     # Debug: Print the response structure
     print(f"DEBUG: Response type: {type(response)}")
@@ -183,5 +189,13 @@ def generate_response(user_input):
         final_answer_index = output.rfind("Final Answer:")
         if final_answer_index != -1:
             output = output[final_answer_index + len("Final Answer:"):].strip()
+            # Remove any trailing backticks or extra formatting
+            output = output.replace('```', '').strip()
     
-    return output
+    # Debug: Print the final output
+    print(f"DEBUG: Final response to display: '{output}'")
+    print(f"DEBUG: Response type: {type(output)}")
+    print(f"DEBUG: Response length: {len(output) if output else 0}")
+    
+    # Simplify: Return the raw output without additional processing
+    return output.strip()
