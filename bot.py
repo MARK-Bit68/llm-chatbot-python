@@ -207,15 +207,16 @@ def vector_search(query, top_k=5):
     try:
         from langchain_neo4j import Neo4jVector
         
-        # Create Neo4jVector retriever
-        neo4jvector = Neo4jVector.from_existing_index(
-            embeddings,
-            graph=graph,
-            index_name="skuPlots",
-            node_label="SKU",
-            text_node_property="plot",
-            embedding_node_property="plotEmbedding",
-            retrieval_query="""
+        # Try to get existing index
+        try:
+            neo4jvector = Neo4jVector.from_existing_index(
+                embeddings,
+                graph=graph,
+                index_name="skuPlots",
+                node_label="SKU",
+                text_node_property="plot",
+                embedding_node_property="plotEmbedding",
+                retrieval_query="""
 RETURN
     node.plot AS text,
     score,
@@ -226,7 +227,13 @@ RETURN
         data_type: node.data_type
     } AS metadata
 """
-        )
+            )
+        except ValueError as e:
+            if "does not exist" in str(e):
+                st.warning("Vector index not available. Please load data and create the vector index first.")
+                return []
+            else:
+                raise e
         
         retriever = neo4jvector.as_retriever(search_kwargs={"k": top_k})
         results = retriever.invoke(query)

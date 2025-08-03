@@ -16,14 +16,18 @@ from langchain_core.prompts import ChatPromptTemplate
 
 
 # tag::vector[]
-neo4jvector = Neo4jVector.from_existing_index(
-    embeddings,                              # <1>
-    graph=graph,                             # <2>
-    index_name="skuPlots",                   # <3>
-    node_label="SKU",                        # <4>
-    text_node_property="plot",               # <5>
-    embedding_node_property="plotEmbedding", # <6>
-    retrieval_query="""
+def get_neo4j_vector():
+    """Get Neo4j vector index, creating it if it doesn't exist"""
+    try:
+        # Try to get existing index
+        neo4jvector = Neo4jVector.from_existing_index(
+            embeddings,                              # <1>
+            graph=graph,                             # <2>
+            index_name="skuPlots",                   # <3>
+            node_label="SKU",                        # <4>
+            text_node_property="plot",               # <5>
+            embedding_node_property="plotEmbedding", # <6>
+            retrieval_query="""
 RETURN
     node.plot AS text,
     score,
@@ -34,11 +38,21 @@ RETURN
         data_type: node.data_type
     } AS metadata
 """
-)
-# end::vector[]
+        )
+        return neo4jvector
+    except ValueError as e:
+        if "does not exist" in str(e):
+            # Index doesn't exist, return None
+            return None
+        else:
+            # Other error, re-raise
+            raise e
+
+# Initialize vector index (will be None if index doesn't exist)
+neo4jvector = get_neo4j_vector()
 
 # tag::retriever[]
-retriever = neo4jvector.as_retriever()
+retriever = neo4jvector.as_retriever() if neo4jvector else None
 # end::retriever[]
 
 # tag::prompt[]
@@ -68,5 +82,11 @@ plot_retriever = create_retrieval_chain(
 
 # tag::get_sku_data[]
 def get_sku_data(input):
-    return plot_retriever.invoke({"input": input})
+    if not neo4jvector or not retriever:
+        return "Vector index not available. Please load data and create the vector index first."
+    
+    try:
+        return plot_retriever.invoke({"input": input})
+    except Exception as e:
+        return f"Error accessing vector index: {str(e)}"
 # end::get_sku_data[]
