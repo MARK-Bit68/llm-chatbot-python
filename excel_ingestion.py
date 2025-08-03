@@ -38,9 +38,72 @@ def get_graph_connection():
         st.info("💡 Please install and start Neo4j to process Excel data.")
         return None
 
+def create_graph_schema(sku_data, graph):
+    """Create proper graph schema instead of flat movie nodes"""
+    for sku_id, data in sku_data.items():
+        try:
+            # Create SKU node
+            sku_query = """
+            MERGE (sku:SKU {sku_id: $sku_id, name: $name})
+            """
+            graph.query(sku_query, {
+                'sku_id': sku_id,
+                'name': data['all_properties'].get('product_name', f'Product {sku_id}')
+            })
+
+            # Create Category node and relationship
+            category = data['all_properties'].get('category', 'Unknown')
+            category_query = """
+            MERGE (cat:Category {name: $category})
+            MERGE (sku)-[:BELONGS_TO_CATEGORY]->(cat)
+            """
+            graph.query(category_query, {
+                'category': category,
+                'sku_id': sku_id
+            })
+
+            # Create Demand Plan node and relationship
+            demand_plan = data['all_properties'].get('demand_plan', 'Unknown')
+            demand_query = """
+            MERGE (dp:DemandPlan {value: $demand_plan})
+            MERGE (sku)-[:HAS_DEMAND_PLAN]->(dp)
+            """
+            graph.query(demand_query, {
+                'demand_plan': demand_plan,
+                'sku_id': sku_id
+            })
+
+            # Create Supply Plan node and relationship
+            supply_plan = data['all_properties'].get('supply_plan', 'Unknown')
+            supply_query = """
+            MERGE (sp:SupplyPlan {value: $supply_plan})
+            MERGE (sku)-[:HAS_SUPPLY_PLAN]->(sp)
+            """
+            graph.query(supply_query, {
+                'supply_plan': supply_plan,
+                'sku_id': sku_id
+            })
+
+            # Create Inventory node and relationship
+            inventory = data['all_properties'].get('inventory', 'Unknown')
+            inventory_query = """
+            MERGE (inv:Inventory {value: $inventory})
+            MERGE (sku)-[:HAS_INVENTORY]->(inv)
+            """
+            graph.query(inventory_query, {
+                'inventory': inventory,
+                'sku_id': sku_id
+            })
+
+        except Exception as e:
+            print(f"Error creating graph schema for SKU {sku_id}: {e}")
+            continue
+
+# Update the extract_fmcg_data function to use the new graph schema
+
 def extract_fmcg_data(excel_file_path):
     """
-    Extract FMCG S&OP data and transform into movie schema
+    Extract FMCG S&OP data and transform into a graph schema
     """
     print(f"Starting FMCG S&OP data extraction from {excel_file_path}")
     
@@ -149,82 +212,13 @@ def extract_fmcg_data(excel_file_path):
     print(f"\nTotal rows processed: {total_rows_processed}")
     print(f"Unique SKUs found: {len(sku_data)}")
     
-    # Create movie nodes
-    nodes_created = 0
-    for sku_id, data in sku_data.items():
-        try:
-            # Create title from available properties
-            title_candidates = []
-            for key, value in data['all_properties'].items():
-                if any(word in key.lower() for word in ['name', 'title', 'product', 'item', 'description']):
-                    title_candidates.append(value)
-            
-            title = title_candidates[0] if title_candidates else f"FMCG Product {sku_id}"
-            
-            # Create plot from all properties
-            plot_parts = []
-            for key, value in data['all_properties'].items():
-                if key.lower() not in ['sku_code', 'sku', 'sku_id']:
-                    plot_parts.append(f"{key}: {value}")
-            
-            plot = " | ".join(plot_parts) if plot_parts else f"FMCG product information for {title}"
-            
-            # Generate embedding
-            text_for_embedding = f"{title} {plot}"
-            embedding = embeddings.embed_query(text_for_embedding)
-            
-            # Create movie node
-            movie_properties = {
-                'title': title,
-                'plot': plot,
-                'tmdbId': sku_id,
-                'plotEmbedding': embedding,
-                'sku_id': sku_id,
-                'sheet_count': data['sheet_count'],
-                'sheets': json.dumps(list(data['sheets'].keys())),
-                'data_type': 'fmcg_sop'
-            }
-            
-            # Add all other properties
-            for key, value in data['all_properties'].items():
-                if key not in ['title', 'plot', 'tmdbId', 'sku_id', 'sheet_count', 'sheets', 'data_type']:
-                    movie_properties[key] = value
-            
-            # Insert into Neo4j
-            cypher_query = """
-            MERGE (m:Movie {tmdbId: $tmdbId})
-            SET m += $properties
-            """
-            
-            graph.query(cypher_query, {
-                'tmdbId': sku_id,
-                'properties': movie_properties
-            })
-            
-            # Create Category nodes for each sheet
-            for sheet_name in data['sheets'].keys():
-                category_query = """
-                MERGE (c:Category {name: $category_name})
-                MERGE (m:Movie {tmdbId: $sku_id})
-                MERGE (m)-[:IN_CATEGORY]->(c)
-                """
-                
-                graph.query(category_query, {
-                    'category_name': sheet_name,
-                    'sku_id': sku_id
-                })
-            
-            nodes_created += 1
-            
-        except Exception as e:
-            print(f"Error creating node for SKU {sku_id}: {e}")
-            continue
+    # Create graph schema
+    create_graph_schema(sku_data, graph)
     
-    print(f"\nSuccessfully created {nodes_created} movie nodes")
     return {
         'total_rows': total_rows_processed,
         'unique_skus': len(sku_data),
-        'nodes_created': nodes_created
+        'nodes_created': len(sku_data)
     }
 
 # Streamlit integration

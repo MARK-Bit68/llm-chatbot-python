@@ -5,7 +5,7 @@ from llm import llm
 from graph import graph
 
 CYPHER_GENERATION_TEMPLATE = """
-You are an expert Neo4j Developer translating user questions into Cypher to answer questions about movies and provide recommendations.
+You are an expert Neo4j Developer translating user questions into Cypher to answer questions about FMCG supply chain data and provide recommendations.
 Convert the user's question based on the schema.
 
 Use only the provided relationship types and properties in the schema.
@@ -15,41 +15,26 @@ Do not return entire nodes or embedding properties.
 
 Fine Tuning:
 
-For movie titles that begin with "The", move "the" to the end. For example "The 39 Steps" becomes "39 Steps, The" or "the matrix" becomes "Matrix, The".
+For SKU codes, use the exact SKU format (e.g., "SKU001", "SKU002").
 
 Example Cypher Statements:
 
-1. To find who acted in a movie:
+1. To find the category of a SKU:
 ```
-MATCH (p:Person)-[r:ACTED_IN]->(m:Movie {{title: "Movie Title"}})
-RETURN p.name, r.role
-```
-
-2. To find who directed a movie:
-```
-MATCH (p:Person)-[r:DIRECTED]->(m:Movie {{title: "Movie Title"}})
-RETURN p.name
+MATCH (sku:SKU {sku_id: "SKU001"})-[:BELONGS_TO_CATEGORY]->(cat:Category)
+RETURN cat.name
 ```
 
-3. How to find how many degrees of separation there are between two people:
+2. To find demand plan for a SKU:
 ```
-MATCH path = shortestPath(
-  (p1:Person {{name: "Actor 1"}})-[:ACTED_IN|DIRECTED*]-(p2:Person {{name: "Actor 2"}})
-)
-WITH path, p1, p2, relationships(path) AS rels
-RETURN
-  p1 {{ .name, .born, link:'https://www.themoviedb.org/person/'+ p1.tmdbId }} AS start,
-  p2 {{ .name, .born, link:'https://www.themoviedb.org/person/'+ p2.tmdbId }} AS end,
-  reduce(output = '', i in range(0, length(path)-1) |
-    output + CASE
-      WHEN i = 0 THEN
-       startNode(rels[i]).name + CASE WHEN type(rels[i]) = 'ACTED_IN' THEN ' played '+ rels[i].role +' in 'ELSE ' directed ' END + endNode(rels[i]).title
-       ELSE
-         ' with '+ startNode(rels[i]).name + ', who '+ CASE WHEN type(rels[i]) = 'ACTED_IN' THEN 'played '+ rels[i].role +' in '
-    ELSE 'directed '
-      END + endNode(rels[i]).title
-      END
-  ) AS pathBetweenPeople
+MATCH (sku:SKU {sku_id: "SKU001"})-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
+RETURN dp.value
+```
+
+3. To find all SKUs in a category:
+```
+MATCH (sku:SKU)-[:BELONGS_TO_CATEGORY]->(cat:Category {name: "Category Name"})
+RETURN sku.sku_id, sku.name
 ```
 
 Schema:

@@ -10,32 +10,32 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain import hub
 from utils import get_session_id
 
-from tools.vector import get_movie_plot
-from tools.cypher import cypher_qa
+from solutions.tools.vector import get_movie_plot
+from solutions.tools.cypher import cypher_qa
 
 chat_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a movie expert providing information about movies."),
+        ("system", "You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, SKUs, categories, demand plans, supply plans, and inventory information."),
         ("human", "{input}"),
     ]
 )
 
-movie_chat = chat_prompt | llm | StrOutputParser()
+fmcg_chat = chat_prompt | llm | StrOutputParser()
 
 tools = [
     Tool.from_function(
         name="General Chat",
-        description="For general movie chat not covered by other tools",
-        func=movie_chat.invoke,
+        description="For general FMCG supply chain chat not covered by other tools",
+        func=fmcg_chat.invoke,
     ), 
     Tool.from_function(
-        name="Movie Plot Search",  
-        description="For when you need to find information about movies based on a plot",
+        name="SKU Information Search",  
+        description="For when you need to find information about SKUs and their properties",
         func=get_movie_plot, 
     ),
     Tool.from_function(
-        name="Movie information",
-        description="Provide information about movies questions using Cypher",
+        name="FMCG Data Query",
+        description="Provide information about FMCG data using Cypher queries",
         func = cypher_qa
     )
 ]
@@ -44,11 +44,14 @@ def get_memory(session_id):
     return Neo4jChatMessageHistory(session_id=session_id, graph=graph)
 
 agent_prompt = PromptTemplate.from_template("""
-You are a movie expert providing information about movies.
+You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, SKUs, categories, demand plans, supply plans, and inventory information.
+
 Be as helpful as possible and return as much information as possible.
-Do not answer any questions that do not relate to movies, actors or directors.
+Do not answer any questions that do not relate to FMCG supply chain data, SKUs, categories, or supply chain operations.
 
 Do not answer any questions using your pre-trained knowledge, only use the information provided in the context.
+
+IMPORTANT: When providing detailed information, include ALL the relevant data in your response. Do not just say "the information is provided above" - actually provide the detailed information in your response.
 
 TOOLS:
 ------
@@ -70,8 +73,10 @@ When you have a response to say to the Human, or if you do not need to use a too
 
 ```
 Thought: Do I need to use a tool? No
-Final Answer: [your response here]
+Final Answer: [your complete detailed response here]
 ```
+
+IMPORTANT: Always end your response with "Final Answer:" followed by your actual answer. Include ALL relevant details in your response.
 
 Begin!
 
@@ -106,4 +111,32 @@ def generate_response(user_input):
         {"input": user_input},
         {"configurable": {"session_id": get_session_id()}},)
 
-    return response['output']
+    # Debug: Print the response structure
+    print(f"DEBUG: Response type: {type(response)}")
+    print(f"DEBUG: Response content: {response}")
+
+    # Handle different response structures
+    if isinstance(response, dict):
+        if 'output' in response:
+            output = response['output']
+        elif 'result' in response:
+            output = response['result']
+        else:
+            # Return the entire response as a string for debugging
+            output = str(response)
+    else:
+        output = str(response)
+    
+    # Clean up the response - remove trailing backticks and extra whitespace
+    output = output.strip()
+    if output.endswith('```'):
+        output = output[:-3].strip()
+    
+    # If the response contains "Final Answer:", extract everything after it
+    if "Final Answer:" in output:
+        # Find the last occurrence of "Final Answer:" and get everything after it
+        final_answer_index = output.rfind("Final Answer:")
+        if final_answer_index != -1:
+            output = output[final_answer_index + len("Final Answer:"):].strip()
+    
+    return output

@@ -29,10 +29,9 @@ RETURN
     score,
     {
         title: node.title,
-        directors: [ (person)-[:DIRECTED]->(node) | person.name ],
-        actors: [ (person)-[r:ACTED_IN]->(node) | [person.name, r.role] ],
+        sku_id: node.sku_id,
         tmdbId: node.tmdbId,
-        source: 'https://www.themoviedb.org/movie/'+ node.tmdbId
+        data_type: node.data_type
     } AS metadata
 """
 )
@@ -44,7 +43,7 @@ retriever = neo4jvector.as_retriever()
 
 # tag::prompt[]
 instructions = (
-    "Use the given context to answer the question."
+    "Use the given context to answer the question about FMCG supply chain data."
     "If you don't know the answer, say you don't know."
     "Context: {context}"
 )

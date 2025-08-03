@@ -1,8 +1,8 @@
 import streamlit as st
 from utils import write_message
-from llm import llm, embeddings
+from solutions.agent import generate_response
 from graph import graph
-import json
+from llm import embeddings
 
 # Page Config
 st.set_page_config("FMCG RAG Chatbot", page_icon=":chart_with_upwards_trend:")
@@ -37,7 +37,7 @@ with st.sidebar:
             with st.spinner("Processing 2 SKUs for quick test..."):
                 try:
                     from quick_ingestion_2_skus import quick_ingestion_2_skus
-                    results = quick_ingestion_2_skus("FMCG S&OP Working Excel.xlsx", max_skus=2)
+                    results = quick_ingestion_2_skus("FMCG S&OP Working Excel.xlsx", max_skus=10)
                     if 'sample_questions' in results:
                         st.success(f"✅ Processed {results['nodes_created']} SKUs with embeddings")
                         st.info("📝 Sample questions generated! Try asking about the uploaded data.")
@@ -161,62 +161,8 @@ def cypher_search(query):
         st.error(f"Cypher search error: {e}")
         return []
 
-def generate_response(user_query, context_results):
-    """Generate response using local LLM with context"""
-    
-    if not neo4j_available:
-        # Fallback response when Neo4j is not available
-        prompt = f"""You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant.
-        
-User Question: {user_query}
-
-Note: The database is not currently available, so I cannot provide specific data-driven responses.
-
-Please provide a helpful response about FMCG supply chain concepts, but note that I cannot access specific data at the moment.
-
-Response:"""
-    else:
-        # Prepare context with better structure
-        context_parts = []
-        for i, result in enumerate(context_results):
-            if isinstance(result, dict):
-                title = result.get('m.title', result.get('title', 'Unknown'))
-                plot = result.get('m.plot', result.get('plot', ''))
-                sku = result.get('m.sku_id', result.get('sku_id', ''))
-                context_parts.append(f"=== DATA SET {i+1} ===\nProduct: {title}\nSKU: {sku}\nDetails: {plot}\n")
-        
-        context = "\n".join(context_parts) if context_parts else "No relevant data found."
-        
-        # Debug: Show what context we're sending to LLM
-        st.info(f"📤 Sending context to LLM: {len(context)} characters")
-        with st.expander("🔍 Debug: Context being sent to LLM"):
-            st.text(context)
-        
-        # Create prompt
-        prompt = f"""You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. Answer this question based on the provided data.
-
-IMPORTANT: Focus ONLY on the specific SKU mentioned in the question. If the question asks about a particular SKU, only use data for that SKU in your response.
-
-Question: {user_query}
-
-Available Data: {context}
-
-Instructions:
-1. Identify which SKU the question is asking about
-2. Use ONLY the data for that specific SKU
-3. Provide a clear, detailed answer based on that SKU's data
-4. If the question asks about a specific SKU but that SKU's data is not available, say so clearly
-
-Answer:"""
-    
-    try:
-        # Generate response using local LLM
-        response = llm.invoke(prompt)
-        return response
-    except Exception as e:
-        return f"I apologize, but I encountered an error generating a response: {str(e)}"
-
 # Submit handler
+
 def handle_submit(message):
     """
     Submit handler with RAG implementation
@@ -235,7 +181,12 @@ def handle_submit(message):
             all_results = []
         
         # Generate response
-        response = generate_response(message, all_results)
+        response = generate_response(message)
+        
+        # Debug: Print the response before displaying
+        print(f"DEBUG: Final response to display: '{response}'")
+        print(f"DEBUG: Response type: {type(response)}")
+        print(f"DEBUG: Response length: {len(response) if response else 0}")
         
         # Display response
         write_message('assistant', response)

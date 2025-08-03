@@ -5,7 +5,7 @@ Quick data ingestion for testing - processes only 2 SKUs and generates sample qu
 
 import pandas as pd
 import streamlit as st
-from langchain_ollama import OllamaEmbeddings
+from langchain_openai import OpenAIEmbeddings
 import json
 import re
 import time
@@ -87,7 +87,7 @@ def generate_sample_questions(sku_data):
     questions.extend(general_questions)
     return questions
 
-def quick_ingestion_2_skus(excel_file_path, max_skus=2):
+def quick_ingestion_2_skus(excel_file_path, max_skus=10):
     """
     Quick ingestion of first 2 SKUs for testing
     """
@@ -104,9 +104,8 @@ def quick_ingestion_2_skus(excel_file_path, max_skus=2):
     
     # Create embeddings
     try:
-        embeddings = OllamaEmbeddings(
-            model="llama3.2-large-context",
-            base_url="http://localhost:11434"
+        embeddings = OpenAIEmbeddings(
+            openai_api_key=st.secrets["OPENAI_API_KEY"]
         )
     except Exception as e:
         print(f"Error creating embeddings: {e}")
