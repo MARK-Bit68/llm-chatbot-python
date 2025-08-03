@@ -77,12 +77,12 @@ question_answer_chain = create_stuff_documents_chain(llm, prompt)
 plot_retriever = create_retrieval_chain(
     retriever, 
     question_answer_chain
-)
+) if retriever else None
 # end::chain[]
 
 # tag::get_sku_data[]
 def get_sku_data(input):
-    if not neo4jvector or not retriever:
+    if not neo4jvector or not retriever or not plot_retriever:
         return "Vector index not available. Please load data and create the vector index first."
     
     try:
