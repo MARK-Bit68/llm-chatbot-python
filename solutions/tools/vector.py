@@ -18,14 +18,15 @@ from langchain_core.prompts import ChatPromptTemplate
 # tag::vector[]
 def get_neo4j_vector():
     """Get Neo4j vector index, creating it if it doesn't exist"""
-    if not embeddings:
+    embeddings_instance = get_embeddings()
+    if not embeddings_instance:
         print("Warning: Embeddings not available")
         return None
         
     try:
         # Try to get existing index
         neo4jvector = Neo4jVector.from_existing_index(
-            embeddings,                              # <1>
+            embeddings_instance,                      # <1>
             graph=graph,                             # <2>
             index_name="skuPlots",                   # <3>
             node_label="SKU",                        # <4>

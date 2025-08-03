@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from llm import embeddings
+from llm import get_embeddings
 import json
 import re
 
@@ -131,7 +131,8 @@ def extract_fmcg_data(excel_file_path):
     
     # Use embeddings from llm module (already imported)
     try:
-        if not embeddings:
+        embeddings_instance = get_embeddings()
+        if not embeddings_instance:
             print("Warning: Embeddings not available, skipping embedding creation")
             # Continue without embeddings for now
             pass

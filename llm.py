@@ -31,11 +31,23 @@ except Exception as e:
     print(f"Warning: Could not create LLM: {e}")
     llm = None
 
-# Create the Embedding model
-try:
-    embeddings = OpenAIEmbeddings(
-        openai_api_key=get_openai_key()
-    )
-except Exception as e:
-    print(f"Warning: Could not create embeddings: {e}")
-    embeddings = None
+# Create the Embedding model lazily
+def get_embeddings():
+    """Get embeddings, creating them if needed"""
+    global embeddings
+    if embeddings is None:
+        try:
+            api_key = get_openai_key()
+            if api_key:
+                embeddings = OpenAIEmbeddings(openai_api_key=api_key)
+                print("✅ Embeddings created successfully")
+            else:
+                print("⚠️ No OpenAI API key available")
+                embeddings = None
+        except Exception as e:
+            print(f"Warning: Could not create embeddings: {e}")
+            embeddings = None
+    return embeddings
+
+# Initialize embeddings as None - will be created when needed
+embeddings = None
