@@ -139,20 +139,40 @@ chat_agent = RunnableWithMessageHistory(
 
 def format_response_with_llm(text):
     """
-    Use LLM to intelligently format and clean text response
+    Use LLM to intelligently format and clean text response with robust concatenation fixing
     """
+    # Single-stage intelligent formatting that handles both concatenation and general formatting
     formatting_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a text formatting expert. Your task is to clean and format text responses to make them more readable while preserving all important information.
 
-Guidelines:
-- Fix concatenated words (e.g., "leadingto" → "leading to")
-- Add proper spacing around numbers and codes (e.g., "SKU001" → "SKU 001", "WH1" → "WH 1")
-- Preserve all markdown formatting (bold, bullet points, line breaks)
-- Ensure consistent bullet point formatting
-- Remove excessive line breaks
-- Keep the original meaning and structure intact
+CRITICAL RULES:
+1. **Detect and fix concatenated words**: Look for words that are stuck together without spaces and separate them intelligently
+   - Examples: "indicatesapotential" → "indicates a potential", "unitcost" → "unit cost", "profitmargin" → "profit margin"
+   - Use your understanding of English to determine where words should be separated
+   - Don't separate proper nouns, codes, or numbers (e.g., "SKU001", "$10.90", "CountryB")
 
-Format this text:"""),
+2. **Add proper spacing around codes and identifiers**:
+   - "SKU001" → "SKU 001"
+   - "WH1" → "WH 1"
+   - "Product123" → "Product 123"
+
+3. **Preserve all markdown formatting**:
+   - Keep bold formatting (**text**)
+   - Keep bullet points (- item)
+   - Keep line breaks and structure
+   - Keep tables and formatting
+
+4. **Maintain readability**:
+   - Ensure consistent spacing
+   - Remove excessive line breaks
+   - Keep the original meaning and structure intact
+
+5. **Be intelligent about context**:
+   - Don't change domain-specific terms that are intentionally concatenated
+   - Don't change numbers, currency, or codes
+   - Focus on making text more readable while preserving accuracy
+
+Return the cleaned and formatted text:"""),
         ("human", "{text}")
     ])
     
