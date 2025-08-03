@@ -14,6 +14,17 @@ from solutions.tools.vector import get_sku_data
 from solutions.tools.cypher import cypher_qa, enhanced_cypher_qa
 from solutions.tools.data_parser import parse_sku_data
 
+# Domain configuration - can be easily changed for different domains
+DOMAIN_CONFIG = {
+    "domain_name": "FMCG (Fast Moving Consumer Goods) supply chain",
+    "entity_type": "SKU",
+    "entity_label": "SKU",
+    "entity_id_field": "sku_id",
+    "domain_expertise": "supply chain data, inventory, demand, and financial data",
+    "entity_plural": "SKUs",
+    "entity_singular": "SKU"
+}
+
 chat_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", "You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data."),
@@ -25,24 +36,24 @@ chat_prompt = ChatPromptTemplate.from_messages(
 # Define tools
 tools = [
     Tool(
-        name="SKU Information Search",
-        func=get_sku_data,
-        description="Search for SKU information using vector similarity. Use this for questions about specific SKUs, their details, categories, or general product information."
-    ),
-    Tool(
-        name="SKU Data Parser",
-        func=parse_sku_data,
-        description="Parse and structure SKU data for detailed analysis. Use this when you need to extract specific financial, demand, or inventory data from SKU information."
-    ),
-    Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description="Execute dynamic database queries to get precise information. Use this for questions about: all SKUs, price ranges, categories, countries, specific SKU details, or any structured data queries. This tool can generate custom Cypher queries based on the question."
+        description=f"Execute dynamic database queries to get precise information. Use this for questions about: specific {DOMAIN_CONFIG['entity_plural']} (e.g., 'Tell me about [{DOMAIN_CONFIG['entity_id_field']}]'), all {DOMAIN_CONFIG['entity_plural']}, price ranges, categories, countries, or any structured data queries. This tool can generate custom Cypher queries based on the question and is PREFERRED for specific {DOMAIN_CONFIG['entity_singular']} queries."
+    ),
+    Tool(
+        name="Entity Information Search",
+        func=get_sku_data,
+        description=f"Search for {DOMAIN_CONFIG['entity_singular']} information using vector similarity. Use this for questions about general product information, categories, or when you need semantic similarity search. Use this as a FALLBACK when the Enhanced Database Query doesn't provide sufficient information."
+    ),
+    Tool(
+        name="Entity Data Parser",
+        func=parse_sku_data,
+        description=f"Parse and structure {DOMAIN_CONFIG['entity_singular']} data for detailed analysis. Use this when you need to extract specific financial, demand, or inventory data from {DOMAIN_CONFIG['entity_singular']} information."
     ),
     Tool(
         name="General Chat",
-        func=lambda x: "I can help you with FMCG supply chain questions. Please ask about specific SKUs, categories, pricing, inventory, or supply chain operations.",
-        description="General conversation and guidance about FMCG supply chain topics."
+        func=lambda x: f"I can help you with {DOMAIN_CONFIG['domain_name']} questions. Please ask about specific {DOMAIN_CONFIG['entity_plural']}, categories, pricing, inventory, or supply chain operations.",
+        description=f"General conversation and guidance about {DOMAIN_CONFIG['domain_name']} topics."
     )
 ]
 
@@ -50,29 +61,33 @@ def get_memory(session_id):
     return Neo4jChatMessageHistory(session_id=session_id, graph=graph)
 
 agent_prompt = PromptTemplate.from_template("""
-You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
+You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, inventory, demand, and financial data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
 
-CRITICAL WORKFLOW RULES:
-1. For ANY SKU question, you MUST follow this EXACT sequence:
-   - Step 1: Use "SKU Information Search" ONCE to get the SKU data
-   - Step 2: Use "SKU Data Parser" ONCE to extract structured information
-   - Step 3: Provide "Final Answer" with the parsed data
-   - STOP - Do not repeat any tool calls
+CRITICAL TOOL SELECTION RULES:
+1. For SPECIFIC SKU queries (e.g., "Tell me about [sku_id]", "What is the category of [sku_id]"):
+   - ALWAYS use "Enhanced Database Query" FIRST - it generates precise Cypher queries
+   - This tool can create exact matches like MATCH (sku:SKU {{sku_id: '[sku_id]'}})
+   - DO NOT use "Entity Information Search" for specific SKU queries
 
-2. NEVER repeat the same tool call - this causes infinite loops
-3. NEVER call "SKU Information Search" more than once per question
-4. ALWAYS use "SKU Data Parser" after getting data from "SKU Information Search"
-5. You have a maximum of 3 tool calls per question
+2. For GENERAL queries (e.g., "What categories do we have?", "Show me products with highest [metric]"):
+   - Use "Enhanced Database Query" - it handles complex analytical queries
+
+3. For SEMANTIC SEARCH queries (e.g., "Find products similar to [category]", "What products are like [sku_id]"):
+   - Use "Entity Information Search" as a fallback for similarity-based searches
+
+4. For DATA PARSING (after getting SKU data):
+   - Use "Entity Data Parser" to extract structured information from raw data
 
 TOOL USAGE GUIDELINES:
-- "SKU Information Search": Use for finding SKU data by passing the full user question
-- "SKU Data Parser": Use for extracting structured data from SKU plot text
-- "FMCG Data Query": Use for complex Cypher queries
-- "General Chat": Use for general FMCG questions
+- "Enhanced Database Query": PREFERRED for specific SKU queries and analytical questions
+- "Entity Information Search": Use only for semantic similarity searches
+- "Entity Data Parser": Use for extracting structured data from SKU plot text
+- "General Chat": Use for general FMCG supply chain questions
 
 SPECIFIC INSTRUCTIONS:
-- When the user asks about inventory plans, demand data, or specific SKU information, use the Search → Parse → Answer workflow
-- When the user asks "what-if" scenarios (like cost impact of demand changes), use the Search → Parse → Answer workflow
+- When the user asks about a specific SKU (e.g., "Tell me about [sku_id]"), use "Enhanced Database Query"
+- When the user asks about all SKUs, categories, or analytical questions, use "Enhanced Database Query"
+- When the user asks for similar products or semantic searches, use "Entity Information Search"
 - Always provide complete, detailed information in your Final Answer
 - Never say "I don't know" if you have data from the tools
 
