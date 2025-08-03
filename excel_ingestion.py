@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from langchain_community.embeddings import OllamaEmbeddings
+from llm import embeddings
 import json
 import re
 
@@ -129,14 +129,12 @@ def extract_fmcg_data(excel_file_path):
             'error': 'Neo4j not available'
         }
     
-    # Create embeddings
+    # Use embeddings from llm module (already imported)
     try:
-        embeddings = OllamaEmbeddings(
-            model="llama2",
-            base_url="http://localhost:11434"
-        )
+        # embeddings is already imported from llm module
+        pass
     except Exception as e:
-        print(f"Error creating embeddings: {e}")
+        print(f"Error with embeddings: {e}")
         return {
             'total_rows': 0,
             'unique_skus': 0,
