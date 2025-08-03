@@ -154,9 +154,10 @@ def quick_ingestion_2_skus(excel_file_path, max_skus=10):
     
     # Create embeddings
     try:
-        embeddings = OpenAIEmbeddings(
-            openai_api_key=st.secrets["OPENAI_API_KEY"]
-        )
+        from llm import get_embeddings
+        embeddings = get_embeddings()
+        if not embeddings:
+            print("Warning: Embeddings not available, continuing without embeddings")
     except Exception as e:
         print(f"Error creating embeddings: {e}")
         return {
