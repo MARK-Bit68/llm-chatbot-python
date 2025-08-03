@@ -21,13 +21,21 @@ def get_openai_model():
         return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Create the LLM
-llm = ChatOpenAI(
-    openai_api_key=get_openai_key(),
-    model=get_openai_model(),
-    temperature=0.1  # Low temperature for factual, consistent responses
-)
+try:
+    llm = ChatOpenAI(
+        openai_api_key=get_openai_key(),
+        model=get_openai_model(),
+        temperature=0.1  # Low temperature for factual, consistent responses
+    )
+except Exception as e:
+    print(f"Warning: Could not create LLM: {e}")
+    llm = None
 
 # Create the Embedding model
-embeddings = OpenAIEmbeddings(
-    openai_api_key=get_openai_key()
-)
+try:
+    embeddings = OpenAIEmbeddings(
+        openai_api_key=get_openai_key()
+    )
+except Exception as e:
+    print(f"Warning: Could not create embeddings: {e}")
+    embeddings = None

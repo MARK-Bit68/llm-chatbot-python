@@ -131,8 +131,10 @@ def extract_fmcg_data(excel_file_path):
     
     # Use embeddings from llm module (already imported)
     try:
-        # embeddings is already imported from llm module
-        pass
+        if not embeddings:
+            print("Warning: Embeddings not available, skipping embedding creation")
+            # Continue without embeddings for now
+            pass
     except Exception as e:
         print(f"Error with embeddings: {e}")
         return {
