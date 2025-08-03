@@ -1,14 +1,22 @@
 import streamlit as st
+import os
 from langchain_neo4j import Neo4jGraph
 
 def create_vector_index():
     """Create vector index for embeddings"""
     
+    def get_neo4j_config(key, default=""):
+        """Get Neo4j config from secrets or environment variables"""
+        try:
+            return st.secrets[key]
+        except:
+            return os.getenv(key, default)
+    
     # Connect to Neo4j
     graph = Neo4jGraph(
-        url=st.secrets["NEO4J_URI"],
-        username=st.secrets["NEO4J_USERNAME"],
-        password=st.secrets["NEO4J_PASSWORD"],
+        url=get_neo4j_config("NEO4J_URI"),
+        username=get_neo4j_config("NEO4J_USERNAME", "neo4j"),
+        password=get_neo4j_config("NEO4J_PASSWORD"),
     )
     
     # Drop existing index if it exists

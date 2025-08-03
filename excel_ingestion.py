@@ -23,11 +23,19 @@ def get_graph_connection():
     """Get Neo4j connection with error handling"""
     try:
         from langchain_neo4j import Neo4jGraph
+        import os
+        
+        def get_neo4j_config(key, default=""):
+            """Get Neo4j config from secrets or environment variables"""
+            try:
+                return st.secrets[key]
+            except:
+                return os.getenv(key, default)
         
         graph = Neo4jGraph(
-            url=st.secrets["NEO4J_URI"],
-            username=st.secrets["NEO4J_USERNAME"], 
-            password=st.secrets["NEO4J_PASSWORD"],
+            url=get_neo4j_config("NEO4J_URI"),
+            username=get_neo4j_config("NEO4J_USERNAME", "neo4j"),
+            password=get_neo4j_config("NEO4J_PASSWORD"),
         )
         
         # Test the connection
