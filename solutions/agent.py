@@ -31,17 +31,17 @@ tools = [
     ), 
     Tool.from_function(
         name="SKU Information Search",  
-        description="For when you need to find information about SKUs and their properties",
+        description="Use this tool to find SKU data by passing the full user question. This tool searches for SKU information and returns plot text that contains all the SKU data.",
         func=get_movie_plot, 
     ),
     Tool.from_function(
         name="FMCG Data Query",
-        description="Provide information about FMCG data using Cypher queries",
+        description="Use this tool for complex Cypher queries and structured data retrieval from the FMCG database",
         func = cypher_qa
     ),
     Tool.from_function(
         name="SKU Data Parser",
-        description="Use this tool for 'what-if' scenarios, cost impact analysis, and demand calculations. Parse financial and demand data from SKU plot text for accurate numerical calculations. Input should be the plot text from a SKU node.",
+        description="Use this tool to extract structured data from SKU plot text. This tool parses financial data, demand data, and can perform 'what-if' analysis with multipliers. Input should be the plot text from SKU Information Search.",
         func = parse_sku_data
     )
 ]
@@ -52,65 +52,29 @@ def get_memory(session_id):
 agent_prompt = PromptTemplate.from_template("""
 You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, SKUs, categories, demand plans, supply plans, and inventory information.
 
-Be as helpful as possible and return as much information as possible.
-Do not answer any questions that do not relate to FMCG supply chain data, SKUs, categories, or supply chain operations.
+CRITICAL WORKFLOW RULES:
+1. For ANY SKU question, you MUST follow this EXACT sequence:
+   - Step 1: Use "SKU Information Search" ONCE to get the SKU data
+   - Step 2: Use "SKU Data Parser" ONCE to extract structured information
+   - Step 3: Provide "Final Answer" with the parsed data
+   - STOP - Do not repeat any tool calls
 
-Do not answer any questions using your pre-trained knowledge, only use the information provided in the context.
+2. NEVER repeat the same tool call - this causes infinite loops
+3. NEVER call "SKU Information Search" more than once per question
+4. ALWAYS use "SKU Data Parser" after getting data from "SKU Information Search"
+5. You have a maximum of 3 tool calls per question
 
-IMPORTANT: When providing detailed information, include ALL the relevant data in your response. Do not just say "the information is provided above" - actually provide the detailed information in your response.
+TOOL USAGE GUIDELINES:
+- "SKU Information Search": Use for finding SKU data by passing the full user question
+- "SKU Data Parser": Use for extracting structured data from SKU plot text
+- "FMCG Data Query": Use for complex Cypher queries
+- "General Chat": Use for general FMCG questions
 
-IMPORTANT: When using the SKU Information Search tool, pass the FULL user question as the input, not just the SKU code.
-
-IMPORTANT: For basic SKU information requests (like "Tell me about SKU001"):
-1. Use "SKU Information Search" to find the SKU and get its plot text
-2. Use "SKU Data Parser" to extract and format the specific information requested
-3. Provide a clear, structured response with the parsed data
-4. ALWAYS include the complete extracted data in your Final Answer
-5. NEVER say "I don't know" if you have data from the tools - use the data to provide a complete response
-6. NEVER repeat the same tool call - move to the next step in the workflow
-
-IMPORTANT: For "what-if" scenarios and cost impact analysis:
-1. Use "SKU Information Search" to get the SKU's plot text
-2. Use "SKU Data Parser" to extract data and apply the multiplier
-3. Provide business analysis based on the parsed data
-4. ALWAYS use the SKU Data Parser tool for volume/cost impact analysis - never do manual calculations
-5. NEVER repeat the same tool call - follow the sequence: Search → Parse → Answer
-
-IMPORTANT: Tool Selection Guidelines:
-- Use "SKU Information Search" for general SKU information and similarity search
-- Use "FMCG Data Query" for complex Cypher queries and structured data retrieval
-- Use "SKU Data Parser" for data extraction and "what-if" scenarios
-- Use "General Chat" for general FMCG supply chain questions
-
-IMPORTANT: When you get data from SKU Information Search, ALWAYS use SKU Data Parser to extract structured information before providing your final answer.
-
-CRITICAL WORKFLOW: For any SKU question, follow this exact sequence:
-1. Use "SKU Information Search" (ONCE)
-2. Use "SKU Data Parser" (ONCE) 
-3. Provide "Final Answer" (ONCE)
-4. STOP - Do not repeat any tool calls
-
-IMPORTANT: For "what-if" questions about volume changes, cost impacts, or demand multipliers, you MUST use the SKU Data Parser tool with the plot text and multiplier as parameters.
-
-CRITICAL: NEVER do manual calculations in your Final Answer. Always use the SKU Data Parser tool for any numerical analysis or "what-if" scenarios.
-
-CRITICAL: For "what-if" scenarios, you MUST:
-1. Use SKU Information Search to get the plot text
-2. Use SKU Data Parser with the plot text and multiplier (e.g., 10.0 for 10X)
-3. Use ONLY the results from SKU Data Parser in your Final Answer
-4. NEVER perform any calculations yourself - the tool does all the math
-
-CRITICAL: When using SKU Data Parser for "what-if" scenarios:
-- First parameter: the plot text from SKU Information Search
-- Second parameter: the multiplier (e.g., 10.0 for 10X increase)
-- Use the returned cost_analysis for your Final Answer
-- DO NOT calculate anything manually
-
-CRITICAL: When the user asks about a specific SKU (like SKU001), make sure to use that SKU's data, not any other SKU's data.
-
-CRITICAL: After using SKU Information Search, you MUST use SKU Data Parser before providing your final answer. Do not repeat the same tool call.
-
-CRITICAL: You have a maximum of 3 tool calls. Use them wisely: 1) SKU Information Search, 2) SKU Data Parser, 3) Final Answer.
+SPECIFIC INSTRUCTIONS:
+- When the user asks about inventory plans, demand data, or specific SKU information, use the Search → Parse → Answer workflow
+- When the user asks "what-if" scenarios (like cost impact of demand changes), use the Search → Parse → Answer workflow
+- Always provide complete, detailed information in your Final Answer
+- Never say "I don't know" if you have data from the tools
 
 TOOLS:
 ------
@@ -135,10 +99,6 @@ Thought: Do I need to use a tool? No
 Final Answer: [your complete detailed response here]
 ```
 
-IMPORTANT: Always end your response with "Final Answer:" followed by your actual answer. Include ALL relevant details in your response. NEVER say "I don't know" or "the information is not available" if you have data from the tools.
-
-CRITICAL: NEVER mix tool calls with Final Answer. Complete ALL tool calls first, then provide your Final Answer.
-
 Begin!
 
 New input: {input}
@@ -150,7 +110,9 @@ agent_executor = AgentExecutor(
     agent=agent,
     tools=tools,
     verbose=True,
-    handle_parsing_errors=True
+    handle_parsing_errors=True,
+    max_iterations=5,
+    early_stopping_method="generate"
     )
 
 chat_agent = RunnableWithMessageHistory(
