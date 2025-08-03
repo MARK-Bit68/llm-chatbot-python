@@ -17,14 +17,62 @@ if "messages" not in st.session_state:
 if "sample_questions" not in st.session_state:
     st.session_state.sample_questions = []
 
+# Initialize selected question in session state
+if "selected_question" not in st.session_state:
+    st.session_state.selected_question = ""
+
+# Default sample questions for new users
+default_questions = [
+    "What is the category of SKU001?",
+    "Tell me about SKU001",
+    "What is the inventory plan for SKU001?",
+    "Show me the demand plan for SKU001",
+    "What are the financial details for SKU001?",
+    "What SKUs are in the Master Data?",
+    "What categories of products do we have?",
+    "Which countries are our products from?",
+    "What is the price range of our products?",
+    "Tell me about our supply chain operations"
+]
+
 # Check Neo4j status
 neo4j_available = graph is not None
+
+def check_data_available():
+    """Check if there's data in the database to query"""
+    if not neo4j_available:
+        return False
+    
+    try:
+        # Check if there are any SKU nodes in the database
+        result = graph.query("MATCH (sku:SKU) RETURN count(sku) as count")
+        count = result[0]['count'] if result else 0
+        return count > 0
+    except Exception as e:
+        print(f"Error checking data availability: {e}")
+        return False
+
+# Check if data is available
+data_available = check_data_available()
 
 # Sidebar for data upload
 with st.sidebar:
     st.header("📊 Data Management")
     
     if neo4j_available:
+        # Data status indicator
+        st.subheader("📊 Data Status")
+        if data_available:
+            try:
+                result = graph.query("MATCH (sku:SKU) RETURN count(sku) as count")
+                count = result[0]['count'] if result else 0
+                st.success(f"✅ Data available: {count} SKUs loaded")
+            except Exception as e:
+                st.error(f"❌ Error checking data: {e}")
+        else:
+            st.warning("⚠️ No data available")
+            st.info("Process data to enable chat functionality")
+        
         # Excel upload section
         st.subheader("Upload FMCG Data")
         try:
@@ -62,11 +110,34 @@ with st.sidebar:
                     except Exception as e:
                         st.error(f"Error: {str(e)}")
         
-        # Display sample questions if available
+        # Display clickable sample questions if available
         if st.session_state.sample_questions:
-            with st.expander("📋 Sample Questions to Try", expanded=True):
+            st.subheader("📋 Sample Questions to Try")
+            if data_available:
+                st.info("💡 Click any question below to automatically ask it:")
+                
                 for i, question in enumerate(st.session_state.sample_questions[:10], 1):
-                    st.write(f"{i}. {question}")
+                    # Create a button for each question with better styling
+                    if st.button(f"❓ {question}", key=f"question_{i}", help=f"Click to ask: {question}", use_container_width=True):
+                        st.session_state.selected_question = question
+                        st.rerun()
+            else:
+                st.warning("⚠️ No data available. Process some data first to enable questions.")
+                st.info("Use the 'Quick Test' or 'Process Full Dataset' buttons above to load data.")
+        else:
+            # Show default questions for new users
+            st.subheader("📋 Try These Questions")
+            if data_available:
+                st.info("💡 Click any question below to automatically ask it:")
+                
+                for i, question in enumerate(default_questions, 1):
+                    # Create a button for each default question with better styling
+                    if st.button(f"❓ {question}", key=f"default_question_{i}", help=f"Click to ask: {question}", use_container_width=True):
+                        st.session_state.selected_question = question
+                        st.rerun()
+            else:
+                st.warning("⚠️ No data available. Process some data first to enable questions.")
+                st.info("Use the 'Quick Test' or 'Process Full Dataset' buttons above to load data.")
         
         # Full dataset processing
         if st.button("📊 Process Full Dataset"):
@@ -215,8 +286,30 @@ for message in st.session_state.messages:
 
 # Handle any user input
 if question := st.chat_input("Ask about your FMCG data..."):
-    # Display user message in chat message container
-    write_message('user', question)
+    # Clear the selected question after it's used
+    st.session_state.selected_question = ""
+    
+    # Check if data is available before processing
+    if not data_available:
+        write_message('assistant', "⚠️ No data available to query. Please process some data first using the sidebar options.")
+    else:
+        # Display user message in chat message container
+        write_message('user', question)
 
-    # Generate a response
-    handle_submit(question)
+        # Generate a response
+        handle_submit(question)
+
+# Handle selected question from sidebar
+if st.session_state.selected_question:
+    # Check if data is available before processing
+    if not data_available:
+        write_message('assistant', "⚠️ No data available to query. Please process some data first using the sidebar options.")
+    else:
+        # Display user message in chat message container
+        write_message('user', st.session_state.selected_question)
+
+        # Generate a response
+        handle_submit(st.session_state.selected_question)
+    
+    # Clear the selected question after it's used
+    st.session_state.selected_question = ""
