@@ -168,6 +168,34 @@ def generate_response(user_input):
             # Remove any trailing backticks or extra formatting
             output = output.replace('```', '').strip()
     
+    # Fix formatting issues - add spaces between concatenated words while preserving markdown
+    import re
+    
+    # Fix specific concatenated patterns while preserving markdown
+    output = re.sub(r'leadingto', 'leading to', output)
+    output = re.sub(r'grossprofitof', 'gross profit of', output)
+    output = re.sub(r'approximately', ' approximately', output)
+    
+    # Fix SKU formatting (add space between SKU and numbers)
+    output = re.sub(r'([A-Z]{3})(\d+)', r'\1 \2', output)
+    
+    # Fix WH formatting (add space between WH and numbers)
+    output = re.sub(r'([A-Z]{2})(\d+)', r'\1 \2', output)
+    
+    # Add space before capital letters that are not at the start of a sentence or after markdown
+    # But preserve markdown formatting like ** and -
+    output = re.sub(r'([a-z])([A-Z])', r'\1 \2', output)
+    
+    # Fix bullet point formatting - ensure consistent spacing
+    output = re.sub(r'^- +', '- ', output)  # Ensure single space after bullet
+    output = re.sub(r'^-  +', '- ', output)  # Remove extra spaces after bullet
+    
+    # Fix multiple spaces but preserve markdown formatting
+    output = re.sub(r' +', ' ', output)
+    
+    # Ensure proper line breaks for better readability
+    output = re.sub(r'\n\n+', '\n\n', output)  # Remove excessive line breaks
+    
     # Debug: Print the final output
     print(f"DEBUG: Final response to display: '{output}'")
     print(f"DEBUG: Response type: {type(output)}")
