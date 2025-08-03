@@ -1,11 +1,12 @@
 import streamlit as st
+
+# Page Config - MUST be called first
+st.set_page_config("FMCG RAG Chatbot", page_icon=":chart_with_upwards_trend:")
+
 from utils import write_message
 from solutions.agent import generate_response
 from graph import graph
 from llm import embeddings
-
-# Page Config
-st.set_page_config("FMCG RAG Chatbot", page_icon=":chart_with_upwards_trend:")
 
 # Set up Session State
 if "messages" not in st.session_state:
