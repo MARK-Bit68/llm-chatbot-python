@@ -22,13 +22,19 @@ def setup_test_environment():
     # Check if secrets are available
     try:
         api_key = st.secrets["OPENAI_API_KEY"]
-        print("✅ OpenAI API key found")
+        print("✅ OpenAI API key found in secrets")
     except:
-        print("❌ OpenAI API key not found in .streamlit/secrets.toml")
-        print("Please ensure you have:")
-        print("OPENAI_API_KEY = 'your-api-key-here'")
-        print("in your .streamlit/secrets.toml file")
-        return False
+        # Try environment variable as fallback
+        import os
+        api_key = os.getenv("OPENAI_API_KEY")
+        if api_key:
+            print("✅ OpenAI API key found in environment variables")
+        else:
+            print("❌ OpenAI API key not found in secrets or environment variables")
+            print("Please ensure you have:")
+            print("OPENAI_API_KEY = 'your-api-key-here'")
+            print("in your .streamlit/secrets.toml file or as environment variable")
+            return False
     
     return True
 
