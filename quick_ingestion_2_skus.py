@@ -44,7 +44,7 @@ def get_graph_connection():
         return None
 
 def generate_sample_questions(sku_data):
-    """Generate sample questions based on the ingested SKU data"""
+    """Generate comprehensive sample questions based on the ingested SKU data"""
     questions = []
     
     for sku_id, data in sku_data.items():
@@ -65,13 +65,16 @@ def generate_sample_questions(sku_data):
             f"Show me the demand plan for {sku_id}",
             f"What is the inventory plan for {sku_id}?",
             f"Give me the financial details for {sku_id}",
-            f"What are the logistics details for {sku_id}?"
+            f"What are the logistics details for {sku_id}?",
+            f"What is the profit margin for {sku_id}?",
+            f"Show me all details for {sku_id}"
         ]
         
         questions.extend(sku_questions)
     
-    # Add general questions
+    # Add comprehensive general questions
     general_questions = [
+        # Basic Information
         "What SKUs are in the Master Data?",
         "Show me all SKUs from the Demand Plan",
         "What products are in the Supply Plan?",
@@ -81,7 +84,46 @@ def generate_sample_questions(sku_data):
         "What categories of products do we have?",
         "Which countries are our products from?",
         "What is the price range of our products?",
-        "Tell me about our supply chain operations"
+        "Tell me about our supply chain operations",
+        
+        # Financial Analysis
+        "Show me products with highest profit margins",
+        "Which products have the lowest unit costs?",
+        "What is the average profit margin across all products?",
+        "Show me products with profit margins above 50%",
+        "Which products have the best cost-to-price ratio?",
+        "What is the total value of our inventory?",
+        "Which products have the highest revenue potential?",
+        
+        # Supply Chain Analysis
+        "Which products have the longest lead times?",
+        "What is the average lead time across all products?",
+        "Show me products with lead times over 20 days",
+        "What is the supply chain plan for SKU002?",
+        
+        # Category and Market Analysis
+        "How many products are in each category?",
+        "Which category has the highest average price?",
+        "Show me products by country",
+        "What is the price distribution by category?",
+        
+        # Comparative Analysis
+        "Show me the top 5 most profitable products",
+        "Which products have similar pricing strategies?",
+        "What is the price difference between highest and lowest priced products?",
+        "Which products have the highest and lowest profit margins?",
+        
+        # Advanced Analytics
+        "Compare SKU001 and SKU003",
+        "What are the financial metrics for SKU005?",
+        "Show me all details for SKU004",
+        "Which products have the highest profit margins?",
+        "What is the average unit cost by category?",
+        "Show me products with unit prices above $10",
+        "Which products have the lowest profit margins?",
+        "What is the price range by country?",
+        "Show me products with lead times under 15 days",
+        "Which category has the most products?"
     ]
     
     questions.extend(general_questions)
