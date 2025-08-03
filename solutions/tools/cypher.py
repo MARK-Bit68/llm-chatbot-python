@@ -1,76 +1,215 @@
-from langchain_neo4j import GraphCypherQAChain
-from langchain.prompts.prompt import PromptTemplate
-
+import streamlit as st
 from llm import llm
 from graph import graph
+from langchain_core.prompts import ChatPromptTemplate
 
-CYPHER_GENERATION_TEMPLATE = """
-You are an expert Neo4j Developer translating user questions into Cypher to answer questions about FMCG supply chain data and provide recommendations.
-Convert the user's question based on the schema.
+def generate_dynamic_cypher_query(question, available_data=None):
+    """
+    Generate a dynamic Cypher query based on the user's question and available data
+    """
+    
+    # Create a prompt for the LLM to generate Cypher queries
+    cypher_generation_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a Cypher query expert for Neo4j. Your task is to generate precise Cypher queries based on user questions.
 
-Use only the provided relationship types and properties in the schema.
-Do not use any other relationship types or properties that are not provided.
+IMPORTANT: The data structure is different than typical. SKU nodes have this structure:
+- sku_id: The SKU identifier
+- name: Product name  
+- plot: A pipe-separated string containing all data (category, country, unit_price, unit_cost, etc.)
+- data_type: Type of data
+- plotEmbedding: Vector embedding (don't return this)
 
-Do not return entire nodes or embedding properties.
+The plot field contains data like: "category: Legumes | country: Country B | unit_price: 10.9 | unit_cost: 5.24 | lead_time_days: 22 | ..."
 
-Fine Tuning:
+To extract data from the plot field, use Cypher string functions with proper syntax:
+- To get category: split(split(sku.plot, 'category: ')[1], ' | ')[0] as category
+- To get unit_price: split(split(sku.plot, 'unit_price: ')[1], ' | ')[0] as unit_price
+- To get unit_cost: split(split(sku.plot, 'unit_cost: ')[1], ' | ')[0] as unit_cost
+- To get country: split(split(sku.plot, 'country: ')[1], ' | ')[0] as country
 
-For SKU codes, use the exact SKU format (e.g., "SKU001", "SKU002").
+Example queries:
+- Basic SKU list: MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 10
+- Price analysis: MATCH (sku:SKU) WITH sku, split(split(sku.plot, 'unit_price: ')[1], ' | ')[0] as price RETURN sku.sku_id, sku.name, price WHERE price IS NOT NULL
+- Category count: MATCH (sku:SKU) RETURN split(split(sku.plot, 'category: ')[1], ' | ')[0] as category, count(*) as count
 
-Example Cypher Statements:
+IMPORTANT RULES:
+- DO NOT return plotEmbedding as it contains large data
+- Use proper nested split syntax: split(split(sku.plot, 'field: ')[1], ' | ')[0]
+- Handle cases where data might not exist in the plot
+- Generate ONLY the Cypher query, no explanations
+- Make queries specific to the user's question
 
-1. To find the category of a SKU:
-```
-MATCH (sku:SKU {{sku_id: "SKU001"}})-[:BELONGS_TO_CATEGORY]->(cat:Category)
-RETURN cat.name
-```
+Generate the Cypher query:"""),
+        ("human", "{question}")
+    ])
+    
+    try:
+        # Generate the query using the LLM
+        chain = cypher_generation_prompt | llm
+        response = chain.invoke({
+            "question": question,
+            "available_data": available_data or "No specific context provided"
+        })
+        
+        # Extract the query from the response
+        query = response.content.strip()
+        
+        # Clean up the query (remove markdown formatting if present)
+        if query.startswith("```cypher"):
+            query = query.replace("```cypher", "").replace("```", "").strip()
+        elif query.startswith("```"):
+            query = query.replace("```", "").strip()
+        
+        # Validate the query has basic Cypher structure
+        if not query.upper().startswith("MATCH"):
+            # Generate a safe fallback query
+            query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 10"
+        
+        # Ensure we don't return large fields
+        if "plotEmbedding" in query:
+            # Remove plotEmbedding from the query
+            query = query.replace("plotEmbedding", "").replace("sku.plotEmbedding", "")
+        
+        return query
+    except Exception as e:
+        print(f"Error generating Cypher query: {e}")
+        # Return a safe fallback query
+        return "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 5"
 
-2. To find demand plan for a SKU:
-```
-MATCH (sku:SKU {{sku_id: "SKU001"}})-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
-RETURN dp.monthly_data
-```
+def execute_dynamic_query(question, available_data=None):
+    """
+    Execute a dynamically generated Cypher query and return structured results
+    """
+    try:
+        # Generate the query
+        query = generate_dynamic_cypher_query(question, available_data)
+        
+        if not query:
+            return {"error": "Failed to generate query"}
+        
+        print(f"Generated Cypher query: {query}")
+        
+        # Execute the query
+        results = graph.query(query)
+        
+        return {
+            "query": query,
+            "results": results,
+            "count": len(results) if results else 0
+        }
+    except Exception as e:
+        return {"error": f"Query execution failed: {str(e)}"}
 
-3. To find all SKUs in a category:
-```
-MATCH (sku:SKU)-[:BELONGS_TO_CATEGORY]->(cat:Category {{name: "Legumes"}})
-RETURN sku.sku_id, sku.name
-```
+def analyze_and_format_results(question, results, count):
+    """
+    Use LLM to intelligently analyze and format query results
+    """
+    
+    # Create a prompt for the LLM to analyze and format results
+    analysis_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a data analyst expert. Your task is to analyze database query results and format them into a clear, informative response.
 
-4. To find financial information for a SKU:
-```
-MATCH (sku:SKU {{sku_id: "SKU001"}})
-RETURN sku.plot
-```
-Note: Financial data (unit_price, unit_cost, revenue, cogs, gross_profit) is embedded in the plot text and needs to be parsed from the returned text.
+Given a user question and the query results, create a well-structured response that:
+1. Answers the user's question directly
+2. Formats the data in a readable way
+3. Provides insights when possible
+4. Uses markdown formatting for better presentation
 
-5. To find demand and financial data for what-if analysis:
-```
-MATCH (sku:SKU {{sku_id: "SKU001"}})-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
-MATCH (sku:SKU {{sku_id: "SKU001"}})
-RETURN dp.monthly_data, sku.plot
-```
-Note: This returns both demand data and financial data for cost impact analysis.
+Guidelines:
+- Use bullet points for lists
+- Use bold formatting for key information
+- Group related information together
+- Provide context and insights when relevant
+- Keep responses concise but informative
+- Format numbers appropriately (currency, percentages, etc.)
+- Handle empty or null values gracefully
 
-6. To find inventory information for a SKU:
-```
-MATCH (sku:SKU {{sku_id: "SKU001"}})-[:HAS_INVENTORY]->(inv:Inventory)
-RETURN inv.monthly_data
-```
+User Question: {question}
+Number of Results: {count}
+Query Results: {results}
 
-Schema:
-{schema}
+Format the response:"""),
+        ("human", "{question}")
+    ])
+    
+    try:
+        # Convert results to a readable format
+        results_str = str(results[:20])  # Limit to first 20 results to avoid token limits
+        
+        # Generate the analysis using the LLM
+        chain = analysis_prompt | llm
+        response = chain.invoke({
+            "question": question,
+            "count": count,
+            "results": results_str
+        })
+        
+        return response.content.strip()
+    except Exception as e:
+        print(f"Error analyzing results: {e}")
+        # Fallback to simple formatting
+        return f"Found {count} result(s):\n" + "\n".join([f"- {result}" for result in results[:10]])
 
-Question:
-{question}
-"""
+def enhanced_cypher_qa(question):
+    """
+    Enhanced Cypher QA with dynamic query generation and intelligent response formatting
+    """
+    try:
+        # First, try to get some context about available data
+        context_query = """
+        MATCH (sku:SKU) 
+        RETURN count(sku) as total_skus
+        LIMIT 1
+        """
+        
+        context_result = graph.query(context_query)
+        available_data = context_result[0] if context_result else {}
+        
+        # Execute dynamic query
+        query_result = execute_dynamic_query(question, available_data)
+        
+        if "error" in query_result:
+            return f"Error: {query_result['error']}"
+        
+        # Format the results using intelligent analysis
+        results = query_result["results"]
+        count = query_result["count"]
+        
+        if count == 0:
+            return "No data found matching your query."
+        
+        # Use LLM to analyze and format the results
+        formatted_response = analyze_and_format_results(question, results, count)
+        
+        return formatted_response
+        
+    except Exception as e:
+        return f"Error processing query: {str(e)}"
 
-cypher_prompt = PromptTemplate.from_template(CYPHER_GENERATION_TEMPLATE)
+# Keep the original simple cypher_search for backward compatibility
+def cypher_search(query):
+    """Simple keyword-based search (legacy function)"""
+    if not graph:
+        return []
+    
+    try:
+        # Simple keyword-based search
+        cypher_query = """
+        MATCH (sku:SKU)
+        WHERE toLower(sku.name) CONTAINS toLower($query) 
+           OR toLower(sku.plot) CONTAINS toLower($query)
+        RETURN sku.name, sku.plot, sku.sku_id
+        LIMIT 10
+        """
+        
+        results = graph.query(cypher_query, {'query': query})
+        return results
+    except Exception as e:
+        print(f"Cypher search error: {e}")
+        return []
 
-cypher_qa = GraphCypherQAChain.from_llm(
-    llm,
-    graph=graph,
-    verbose=True,
-    cypher_prompt=cypher_prompt,
-    allow_dangerous_requests=True
-)
+def cypher_qa(question):
+    """
+    Legacy function for backward compatibility - now uses enhanced version
+    """
+    return enhanced_cypher_qa(question)

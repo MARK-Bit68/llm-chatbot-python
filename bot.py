@@ -23,16 +23,52 @@ if "selected_question" not in st.session_state:
 
 # Default sample questions for new users
 default_questions = [
-    "What is the category of SKU001?",
+    # Basic SKU Information
+    "What SKUs are in the Master Data?",
     "Tell me about SKU001",
+    "What is the category of SKU001?",
+    "Which countries are our products from?",
+    
+    # Financial Analysis
+    "What is the price range of our products?",
+    "Show me products with highest profit margins",
+    "Which products have the lowest unit costs?",
+    "What is the average profit margin across all products?",
+    "Show me products with profit margins above 50%",
+    
+    # Supply Chain Analysis
     "What is the inventory plan for SKU001?",
     "Show me the demand plan for SKU001",
     "What are the financial details for SKU001?",
-    "What SKUs are in the Master Data?",
+    "Tell me about our supply chain operations",
+    "Which products have the longest lead times?",
+    "What is the average lead time across all products?",
+    
+    # Category and Market Analysis
     "What categories of products do we have?",
-    "Which countries are our products from?",
-    "What is the price range of our products?",
-    "Tell me about our supply chain operations"
+    "How many products are in each category?",
+    "Which category has the highest average price?",
+    "Show me products by country",
+    "What is the price distribution by category?",
+    
+    # Advanced Analytics
+    "Show me products with the best cost-to-price ratio",
+    "Which products have the highest revenue potential?",
+    "What is the total value of our inventory?",
+    "Show me products with lead times over 20 days",
+    "Which products have the highest and lowest profit margins?",
+    
+    # Specific Product Analysis
+    "Tell me about SKU003",
+    "What are the financial metrics for SKU005?",
+    "Show me all details for SKU004",
+    "What is the supply chain plan for SKU002?",
+    
+    # Comparative Analysis
+    "Compare SKU001 and SKU003",
+    "Show me the top 5 most profitable products",
+    "Which products have similar pricing strategies?",
+    "What is the price difference between highest and lowest priced products?"
 ]
 
 # Check Neo4j status

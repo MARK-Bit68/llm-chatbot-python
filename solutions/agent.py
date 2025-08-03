@@ -11,38 +11,38 @@ from langchain import hub
 from utils import get_session_id
 
 from solutions.tools.vector import get_sku_data
-from solutions.tools.cypher import cypher_qa
+from solutions.tools.cypher import cypher_qa, enhanced_cypher_qa
 from solutions.tools.data_parser import parse_sku_data
 
 chat_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, SKUs, categories, demand plans, supply plans, and inventory information."),
+        ("system", "You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data."),
         ("human", "{input}"),
+        ("assistant", "{agent_scratchpad}")
     ]
 )
 
-fmcg_chat = chat_prompt | llm | StrOutputParser()
-
+# Define tools
 tools = [
-    Tool.from_function(
-        name="General Chat",
-        description="For general FMCG supply chain chat not covered by other tools",
-        func=fmcg_chat.invoke,
-    ), 
-    Tool.from_function(
-        name="SKU Information Search",  
-        description="Use this tool to find SKU data by passing the full user question. This tool searches for SKU information and returns plot text that contains all the SKU data.",
-        func=get_sku_data, 
+    Tool(
+        name="SKU Information Search",
+        func=get_sku_data,
+        description="Search for SKU information using vector similarity. Use this for questions about specific SKUs, their details, categories, or general product information."
     ),
-    Tool.from_function(
-        name="FMCG Data Query",
-        description="Use this tool for complex Cypher queries and structured data retrieval from the FMCG database",
-        func = cypher_qa
-    ),
-    Tool.from_function(
+    Tool(
         name="SKU Data Parser",
-        description="Use this tool to extract structured data from SKU plot text. This tool parses financial data, demand data, and can perform 'what-if' analysis with multipliers. Input should be the plot text from SKU Information Search.",
-        func = parse_sku_data
+        func=parse_sku_data,
+        description="Parse and structure SKU data for detailed analysis. Use this when you need to extract specific financial, demand, or inventory data from SKU information."
+    ),
+    Tool(
+        name="Enhanced Database Query",
+        func=enhanced_cypher_qa,
+        description="Execute dynamic database queries to get precise information. Use this for questions about: all SKUs, price ranges, categories, countries, specific SKU details, or any structured data queries. This tool can generate custom Cypher queries based on the question."
+    ),
+    Tool(
+        name="General Chat",
+        func=lambda x: "I can help you with FMCG supply chain questions. Please ask about specific SKUs, categories, pricing, inventory, or supply chain operations.",
+        description="General conversation and guidance about FMCG supply chain topics."
     )
 ]
 
@@ -50,7 +50,7 @@ def get_memory(session_id):
     return Neo4jChatMessageHistory(session_id=session_id, graph=graph)
 
 agent_prompt = PromptTemplate.from_template("""
-You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, SKUs, categories, demand plans, supply plans, and inventory information.
+You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
 
 CRITICAL WORKFLOW RULES:
 1. For ANY SKU question, you MUST follow this EXACT sequence:
@@ -122,6 +122,33 @@ chat_agent = RunnableWithMessageHistory(
     history_messages_key="chat_history",
 )
 
+def format_response_with_llm(text):
+    """
+    Use LLM to intelligently format and clean text response
+    """
+    formatting_prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are a text formatting expert. Your task is to clean and format text responses to make them more readable while preserving all important information.
+
+Guidelines:
+- Fix concatenated words (e.g., "leadingto" → "leading to")
+- Add proper spacing around numbers and codes (e.g., "SKU001" → "SKU 001", "WH1" → "WH 1")
+- Preserve all markdown formatting (bold, bullet points, line breaks)
+- Ensure consistent bullet point formatting
+- Remove excessive line breaks
+- Keep the original meaning and structure intact
+
+Format this text:"""),
+        ("human", "{text}")
+    ])
+    
+    try:
+        chain = formatting_prompt | llm
+        response = chain.invoke({"text": text})
+        return response.content.strip()
+    except Exception as e:
+        print(f"Error formatting text: {e}")
+        return text
+
 def generate_response(user_input):
     """
     Create a handler that calls the Conversational agent
@@ -168,38 +195,12 @@ def generate_response(user_input):
             # Remove any trailing backticks or extra formatting
             output = output.replace('```', '').strip()
     
-    # Fix formatting issues - add spaces between concatenated words while preserving markdown
-    import re
-    
-    # Fix specific concatenated patterns while preserving markdown
-    output = re.sub(r'leadingto', 'leading to', output)
-    output = re.sub(r'grossprofitof', 'gross profit of', output)
-    output = re.sub(r'approximately', ' approximately', output)
-    
-    # Fix SKU formatting (add space between SKU and numbers)
-    output = re.sub(r'([A-Z]{3})(\d+)', r'\1 \2', output)
-    
-    # Fix WH formatting (add space between WH and numbers)
-    output = re.sub(r'([A-Z]{2})(\d+)', r'\1 \2', output)
-    
-    # Add space before capital letters that are not at the start of a sentence or after markdown
-    # But preserve markdown formatting like ** and -
-    output = re.sub(r'([a-z])([A-Z])', r'\1 \2', output)
-    
-    # Fix bullet point formatting - ensure consistent spacing
-    output = re.sub(r'^- +', '- ', output)  # Ensure single space after bullet
-    output = re.sub(r'^-  +', '- ', output)  # Remove extra spaces after bullet
-    
-    # Fix multiple spaces but preserve markdown formatting
-    output = re.sub(r' +', ' ', output)
-    
-    # Ensure proper line breaks for better readability
-    output = re.sub(r'\n\n+', '\n\n', output)  # Remove excessive line breaks
+    # Use LLM to intelligently format the response
+    formatted_output = format_response_with_llm(output)
     
     # Debug: Print the final output
-    print(f"DEBUG: Final response to display: '{output}'")
-    print(f"DEBUG: Response type: {type(output)}")
-    print(f"DEBUG: Response length: {len(output) if output else 0}")
+    print(f"DEBUG: Final response to display: '{formatted_output}'")
+    print(f"DEBUG: Response type: {type(formatted_output)}")
+    print(f"DEBUG: Response length: {len(formatted_output) if formatted_output else 0}")
     
-    # Simplify: Return the raw output without additional processing
-    return output.strip()
+    return formatted_output.strip()
