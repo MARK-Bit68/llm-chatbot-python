@@ -201,85 +201,128 @@ def quick_ingestion_2_skus(excel_file_path, max_skus=10):
     print(f"\nTotal rows processed: {total_rows_processed}")
     print(f"Unique SKUs found: {len(sku_data)}")
     
-    # Create movie nodes
+    # Create FMCG graph schema nodes
     nodes_created = 0
     for sku_id, data in sku_data.items():
         try:
-            # Create title from available properties
-            title_candidates = []
+            # Create SKU node
+            sku_query = """
+            MERGE (sku:SKU {sku_id: $sku_id, name: $name})
+            """
+            graph.query(sku_query, {
+                'sku_id': sku_id,
+                'name': data['all_properties'].get('product_name', f'Product {sku_id}')
+            })
+
+            # Create Category node and relationship
+            category = data['all_properties'].get('category', 'Unknown')
+            category_query = """
+            MERGE (cat:Category {name: $category})
+            MERGE (sku:SKU {sku_id: $sku_id})
+            MERGE (sku)-[:BELONGS_TO_CATEGORY]->(cat)
+            """
+            graph.query(category_query, {
+                'category': category,
+                'sku_id': sku_id
+            })
+
+            # Create Demand Plan node and relationship
+            # Extract monthly demand data
+            monthly_demand = {}
             for key, value in data['all_properties'].items():
-                if any(word in key.lower() for word in ['name', 'title', 'product', 'item', 'description']):
-                    title_candidates.append(value)
+                if key.startswith('jan_') or key.startswith('feb_') or key.startswith('mar_') or key.startswith('apr_') or key.startswith('may_') or key.startswith('jun_') or key.startswith('jul_') or key.startswith('aug_') or key.startswith('sep_') or key.startswith('oct_') or key.startswith('nov_') or key.startswith('dec_'):
+                    # Extract demand part from the combined data
+                    if '|' in str(value):
+                        demand_value = str(value).split('|')[0].strip()
+                        monthly_demand[key] = demand_value
+                    else:
+                        monthly_demand[key] = value
             
-            title = title_candidates[0] if title_candidates else f"FMCG Product {sku_id}"
+            # Create DemandPlan node with monthly data
+            demand_plan_data = json.dumps(monthly_demand) if monthly_demand else "Unknown"
+            demand_query = """
+            MERGE (dp:DemandPlan {sku_id: $sku_id, monthly_data: $demand_plan})
+            MERGE (sku:SKU {sku_id: $sku_id})
+            MERGE (sku)-[:HAS_DEMAND_PLAN]->(dp)
+            """
+            graph.query(demand_query, {
+                'demand_plan': demand_plan_data,
+                'sku_id': sku_id
+            })
+
+            # Create Supply Plan node and relationship
+            supply_plan = data['all_properties'].get('supply_plan', 'Unknown')
+            supply_query = """
+            MERGE (sp:SupplyPlan {value: $supply_plan})
+            MERGE (sku:SKU {sku_id: $sku_id})
+            MERGE (sku)-[:HAS_SUPPLY_PLAN]->(sp)
+            """
+            graph.query(supply_query, {
+                'supply_plan': supply_plan,
+                'sku_id': sku_id
+            })
+
+            # Create Inventory node and relationship
+            # Extract monthly inventory data
+            monthly_inventory = {}
+            for key, value in data['all_properties'].items():
+                if key.startswith('jan_') or key.startswith('feb_') or key.startswith('mar_') or key.startswith('apr_') or key.startswith('may_') or key.startswith('jun_') or key.startswith('jul_') or key.startswith('aug_') or key.startswith('sep_') or key.startswith('oct_') or key.startswith('nov_') or key.startswith('dec_'):
+                    # Extract inventory part from the combined data
+                    if 'Inventory Plan:' in str(value):
+                        inventory_value = str(value).split('Inventory Plan:')[1].split('|')[0].strip()
+                        monthly_inventory[key] = inventory_value
             
-            # Create plot from all properties
+            # Create Inventory node with monthly data
+            inventory_data = json.dumps(monthly_inventory) if monthly_inventory else "Unknown"
+            inventory_query = """
+            MERGE (inv:Inventory {sku_id: $sku_id, monthly_data: $inventory})
+            MERGE (sku:SKU {sku_id: $sku_id})
+            MERGE (sku)-[:HAS_INVENTORY]->(inv)
+            """
+            graph.query(inventory_query, {
+                'inventory': inventory_data,
+                'sku_id': sku_id
+            })
+
+            # Create text representation for embeddings
             plot_parts = []
             for key, value in data['all_properties'].items():
                 if key.lower() not in ['sku_code', 'sku', 'sku_id']:
                     plot_parts.append(f"{key}: {value}")
             
-            plot = " | ".join(plot_parts) if plot_parts else f"FMCG product information for {title}"
+            plot = " | ".join(plot_parts) if plot_parts else f"FMCG product information for {sku_id}"
             
-            # Generate embedding (with timeout)
+            # Generate embedding
             print(f"Generating embedding for {sku_id}...")
-            text_for_embedding = f"{title} {plot}"
+            text_for_embedding = f"FMCG Product {sku_id} {plot}"
             
-            # Add timeout for embedding generation
             start_time = time.time()
             embedding = embeddings.embed_query(text_for_embedding)
             embedding_time = time.time() - start_time
             print(f"✅ Embedding generated for {sku_id} in {embedding_time:.2f}s")
             
-            # Create movie node
-            movie_properties = {
-                'title': title,
-                'plot': plot,
-                'tmdbId': sku_id,
-                'plotEmbedding': embedding,
-                'sku_id': sku_id,
-                'sheet_count': data['sheet_count'],
-                'sheets': json.dumps(list(data['sheets'].keys())),
-                'data_type': 'fmcg_sop'
-            }
-            
-            # Add all other properties
-            for key, value in data['all_properties'].items():
-                if key not in ['title', 'plot', 'tmdbId', 'sku_id', 'sheet_count', 'sheets', 'data_type']:
-                    movie_properties[key] = value
-            
-            # Insert into Neo4j
-            cypher_query = """
-            MERGE (m:Movie {tmdbId: $tmdbId})
-            SET m += $properties
+            # Store embedding in SKU node
+            embedding_query = """
+            MATCH (sku:SKU {sku_id: $sku_id})
+            SET sku.plotEmbedding = $embedding,
+                sku.plot = $plot,
+                sku.data_type = 'fmcg_sop'
             """
             
-            graph.query(cypher_query, {
-                'tmdbId': sku_id,
-                'properties': movie_properties
+            graph.query(embedding_query, {
+                'sku_id': sku_id,
+                'embedding': embedding,
+                'plot': plot
             })
             
-            # Create Category nodes for each sheet
-            for sheet_name in data['sheets'].keys():
-                category_query = """
-                MERGE (c:Category {name: $category_name})
-                MERGE (m:Movie {tmdbId: $sku_id})
-                MERGE (m)-[:IN_CATEGORY]->(c)
-                """
-                
-                graph.query(category_query, {
-                    'category_name': sheet_name,
-                    'sku_id': sku_id
-                })
-            
             nodes_created += 1
-            print(f"✅ Created node for {sku_id}")
+            print(f"✅ Created FMCG graph nodes for {sku_id}")
             
         except Exception as e:
-            print(f"Error creating node for SKU {sku_id}: {e}")
+            print(f"Error creating FMCG graph nodes for SKU {sku_id}: {e}")
             continue
     
-    print(f"\nSuccessfully created {nodes_created} movie nodes")
+    print(f"\nSuccessfully created {nodes_created} FMCG graph nodes")
     
     # Generate sample questions
     sample_questions = generate_sample_questions(sku_data)

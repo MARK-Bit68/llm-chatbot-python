@@ -19,8 +19,8 @@ def create_vector_index():
     # Create new vector index
     create_query = """
     CREATE VECTOR INDEX moviePlots 
-    FOR (m:Movie) 
-    ON (m.plotEmbedding) 
+    FOR (sku:SKU) 
+    ON (sku.plotEmbedding) 
     OPTIONS {indexConfig: {
       `vector.dimensions`: 1536,
       `vector.similarity_function`: 'cosine'

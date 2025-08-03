@@ -13,6 +13,10 @@ if "messages" not in st.session_state:
         {"role": "assistant", "content": "Hi, I'm your FMCG S&OP RAG Chatbot! I can help you analyze your supply chain data. How can I assist you today?"},
     ]
 
+# Initialize sample questions in session state
+if "sample_questions" not in st.session_state:
+    st.session_state.sample_questions = []
+
 # Check Neo4j status
 neo4j_available = graph is not None
 
@@ -32,23 +36,37 @@ with st.sidebar:
         # Manual data processing
         st.subheader("Process Existing File")
         
-        # Quick test with 2 SKUs
-        if st.button("🚀 Quick Test (2 SKUs)"):
-            with st.spinner("Processing 2 SKUs for quick test..."):
-                try:
-                    from quick_ingestion_2_skus import quick_ingestion_2_skus
-                    results = quick_ingestion_2_skus("FMCG S&OP Working Excel.xlsx", max_skus=10)
-                    if 'sample_questions' in results:
-                        st.success(f"✅ Processed {results['nodes_created']} SKUs with embeddings")
-                        st.info("📝 Sample questions generated! Try asking about the uploaded data.")
-                        # Show sample questions
-                        with st.expander("📋 Sample Questions to Try"):
-                            for i, question in enumerate(results['sample_questions'][:10], 1):
-                                st.write(f"{i}. {question}")
-                    else:
-                        st.error(f"Error: {results.get('error', 'Unknown error')}")
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
+        # Quick test with configurable SKU count
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            quick_test_skus = st.number_input(
+                "Number of SKUs for Quick Test",
+                min_value=1,
+                max_value=50,
+                value=10,
+                help="Number of SKUs to process for quick testing"
+            )
+        with col2:
+            if st.button(f"🚀 Quick Test ({quick_test_skus} SKUs)"):
+                with st.spinner(f"Processing {quick_test_skus} SKUs for quick test..."):
+                    try:
+                        from quick_ingestion_2_skus import quick_ingestion_2_skus
+                        results = quick_ingestion_2_skus("FMCG S&OP Working Excel.xlsx", max_skus=quick_test_skus)
+                        if 'sample_questions' in results:
+                            st.success(f"✅ Processed {results['nodes_created']} SKUs with embeddings")
+                            st.info("📝 Sample questions generated! Try asking about the uploaded data.")
+                            # Store sample questions in session state
+                            st.session_state.sample_questions = results['sample_questions']
+                        else:
+                            st.error(f"Error: {results.get('error', 'Unknown error')}")
+                    except Exception as e:
+                        st.error(f"Error: {str(e)}")
+        
+        # Display sample questions if available
+        if st.session_state.sample_questions:
+            with st.expander("📋 Sample Questions to Try", expanded=True):
+                for i, question in enumerate(st.session_state.sample_questions[:10], 1):
+                    st.write(f"{i}. {question}")
         
         # Full dataset processing
         if st.button("📊 Process Full Dataset"):
@@ -87,7 +105,7 @@ def vector_search(query, top_k=5):
             embeddings,
             graph=graph,
             index_name="moviePlots",
-            node_label="Movie",
+            node_label="SKU",
             text_node_property="plot",
             embedding_node_property="plotEmbedding",
             retrieval_query="""
@@ -95,9 +113,9 @@ RETURN
     node.plot AS text,
     score,
     {
-        title: node.title,
+        title: node.name,
         sku_id: node.sku_id,
-        tmdbId: node.tmdbId,
+        tmdbId: node.sku_id,
         data_type: node.data_type
     } AS metadata
 """
@@ -116,15 +134,14 @@ RETURN
                 'score': doc.metadata.get('score', 0.0)
             })
         
-        # Debug: Print what we found
-        st.info(f"🔍 Vector search found {len(formatted_results)} results for query: '{query}'")
-        for i, result in enumerate(formatted_results):
-            st.info(f"Result {i+1}: SKU={result.get('m.sku_id')}, Title={result.get('m.title')}")
+        # Condensed debug output
+        found_skus = [result.get('m.sku_id') for result in formatted_results]
+        st.info(f"🔍 Found {len(formatted_results)} results: {', '.join(found_skus)}")
         
         # Prioritize exact SKU match if query contains a specific SKU
         query_lower = query.lower()
         if 'sku' in query_lower:
-            # Extract SKU number from query (e.g., "sku001" -> "SKU001")
+            # Extract SKU number from query (e.g., "sku002" -> "SKU002")
             import re
             sku_match = re.search(r'sku(\d+)', query_lower)
             if sku_match:
@@ -133,7 +150,8 @@ RETURN
                 exact_matches = [r for r in formatted_results if r.get('m.sku_id') == target_sku]
                 other_results = [r for r in formatted_results if r.get('m.sku_id') != target_sku]
                 formatted_results = exact_matches + other_results
-                st.info(f"🎯 Prioritized exact SKU match: {target_sku}")
+                if exact_matches:
+                    st.info(f"🎯 Prioritized: {target_sku}")
         
         return formatted_results
     except Exception as e:

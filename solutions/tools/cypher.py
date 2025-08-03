@@ -28,13 +28,34 @@ RETURN cat.name
 2. To find demand plan for a SKU:
 ```
 MATCH (sku:SKU {{sku_id: "SKU001"}})-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
-RETURN dp.value
+RETURN dp.monthly_data
 ```
 
 3. To find all SKUs in a category:
 ```
-MATCH (sku:SKU)-[:BELONGS_TO_CATEGORY]->(cat:Category {{name: "Category Name"}})
+MATCH (sku:SKU)-[:BELONGS_TO_CATEGORY]->(cat:Category {{name: "Legumes"}})
 RETURN sku.sku_id, sku.name
+```
+
+4. To find financial information for a SKU:
+```
+MATCH (sku:SKU {{sku_id: "SKU001"}})
+RETURN sku.plot
+```
+Note: Financial data (unit_price, unit_cost, revenue, cogs, gross_profit) is embedded in the plot text and needs to be parsed from the returned text.
+
+5. To find demand and financial data for what-if analysis:
+```
+MATCH (sku:SKU {{sku_id: "SKU001"}})-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
+MATCH (sku:SKU {{sku_id: "SKU001"}})
+RETURN dp.monthly_data, sku.plot
+```
+Note: This returns both demand data and financial data for cost impact analysis.
+
+6. To find inventory information for a SKU:
+```
+MATCH (sku:SKU {{sku_id: "SKU001"}})-[:HAS_INVENTORY]->(inv:Inventory)
+RETURN inv.monthly_data
 ```
 
 Schema:

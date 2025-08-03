@@ -20,7 +20,7 @@ neo4jvector = Neo4jVector.from_existing_index(
     embeddings,                              # <1>
     graph=graph,                             # <2>
     index_name="moviePlots",                 # <3>
-    node_label="Movie",                      # <4>
+    node_label="SKU",                        # <4>
     text_node_property="plot",               # <5>
     embedding_node_property="plotEmbedding", # <6>
     retrieval_query="""
@@ -28,9 +28,9 @@ RETURN
     node.plot AS text,
     score,
     {
-        title: node.title,
+        title: node.name,
         sku_id: node.sku_id,
-        tmdbId: node.tmdbId,
+        tmdbId: node.sku_id,
         data_type: node.data_type
     } AS metadata
 """

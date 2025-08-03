@@ -12,6 +12,7 @@ from utils import get_session_id
 
 from solutions.tools.vector import get_movie_plot
 from solutions.tools.cypher import cypher_qa
+from solutions.tools.data_parser import parse_sku_data
 
 chat_prompt = ChatPromptTemplate.from_messages(
     [
@@ -37,6 +38,11 @@ tools = [
         name="FMCG Data Query",
         description="Provide information about FMCG data using Cypher queries",
         func = cypher_qa
+    ),
+    Tool.from_function(
+        name="SKU Data Parser",
+        description="Use this tool for 'what-if' scenarios, cost impact analysis, and demand calculations. Parse financial and demand data from SKU plot text for accurate numerical calculations. Input should be the plot text from a SKU node.",
+        func = parse_sku_data
     )
 ]
 
@@ -54,6 +60,43 @@ Do not answer any questions using your pre-trained knowledge, only use the infor
 IMPORTANT: When providing detailed information, include ALL the relevant data in your response. Do not just say "the information is provided above" - actually provide the detailed information in your response.
 
 IMPORTANT: When using the SKU Information Search tool, pass the FULL user question as the input, not just the SKU code. For example, if the user asks "what is the supply chain situation for SKU002?", pass the entire question to the tool.
+
+IMPORTANT: When using the FMCG Data Query tool, if the query returns plot text data, you must parse the financial information (unit_price, unit_cost, revenue, cogs, gross_profit) from the text. The financial data is embedded in the plot text and needs to be extracted using pattern matching.
+
+IMPORTANT: For demand and volume calculations:
+1. Extract monthly demand data from plot text (e.g., "jan_2024: 396", "feb_2024: 523")
+2. Calculate the average monthly demand by summing all monthly values and dividing by the number of months
+3. For annual calculations, multiply monthly average by 12
+4. Always verify your calculations by checking the data format: "month_year: value"
+5. If you see multiple values separated by "|", extract only the demand values (first part before "|")
+
+IMPORTANT: For "what-if" scenarios and cost impact analysis:
+1. Extract current unit cost and demand data
+2. Calculate the proposed change (e.g., 10X demand increase)
+3. Apply reasonable business logic for cost estimation:
+   - Economies of scale typically reduce unit costs by 5-15% for 10X volume
+   - Consider bulk purchasing discounts
+   - Factor in production efficiency gains
+4. Provide a range estimate with confidence level
+5. Always state assumptions made
+
+IMPORTANT: For accurate data parsing, use the SKU Data Parser tool when you need to:
+- Extract financial data (unit_price, unit_cost, revenue, cogs, gross_profit)
+- Calculate average monthly demand from monthly data
+- Analyze cost impact of demand changes
+- Perform "what-if" scenario analysis
+
+IMPORTANT: When the user asks "what-if" questions about cost changes, demand increases, or volume analysis, ALWAYS use the SKU Data Parser tool first to get accurate calculations, then provide business analysis based on the parsed data.
+
+IMPORTANT: When using the SKU Data Parser tool for "what-if" scenarios:
+1. Pass the plot text as the first parameter
+2. Pass the demand multiplier as the second parameter (e.g., 10.0 for 10X increase)
+3. Use the returned cost_analysis for business insights
+4. Always verify the calculations are reasonable
+
+Example: For a 10X demand increase, call the tool with (plot_text, 10.0)
+
+The SKU Data Parser tool will provide accurate numerical calculations and cost impact analysis.
 
 TOOLS:
 ------
