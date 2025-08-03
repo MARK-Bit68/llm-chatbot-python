@@ -105,7 +105,7 @@ def quick_ingestion_2_skus(excel_file_path, max_skus=2):
     # Create embeddings
     try:
         embeddings = OllamaEmbeddings(
-            model="llama2",
+            model="llama3.2-large-context",
             base_url="http://localhost:11434"
         )
     except Exception as e:

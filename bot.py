@@ -121,6 +121,20 @@ RETURN
         for i, result in enumerate(formatted_results):
             st.info(f"Result {i+1}: SKU={result.get('m.sku_id')}, Title={result.get('m.title')}")
         
+        # Prioritize exact SKU match if query contains a specific SKU
+        query_lower = query.lower()
+        if 'sku' in query_lower:
+            # Extract SKU number from query (e.g., "sku001" -> "SKU001")
+            import re
+            sku_match = re.search(r'sku(\d+)', query_lower)
+            if sku_match:
+                target_sku = f"SKU{sku_match.group(1).upper()}"
+                # Move matching SKU to front
+                exact_matches = [r for r in formatted_results if r.get('m.sku_id') == target_sku]
+                other_results = [r for r in formatted_results if r.get('m.sku_id') != target_sku]
+                formatted_results = exact_matches + other_results
+                st.info(f"🎯 Prioritized exact SKU match: {target_sku}")
+        
         return formatted_results
     except Exception as e:
         st.error(f"Vector search error: {e}")
@@ -162,14 +176,14 @@ Please provide a helpful response about FMCG supply chain concepts, but note tha
 
 Response:"""
     else:
-        # Prepare context
+        # Prepare context with better structure
         context_parts = []
-        for result in context_results:
+        for i, result in enumerate(context_results):
             if isinstance(result, dict):
                 title = result.get('m.title', result.get('title', 'Unknown'))
                 plot = result.get('m.plot', result.get('plot', ''))
                 sku = result.get('m.sku_id', result.get('sku_id', ''))
-                context_parts.append(f"Product: {title}\nSKU: {sku}\nDetails: {plot}\n")
+                context_parts.append(f"=== DATA SET {i+1} ===\nProduct: {title}\nSKU: {sku}\nDetails: {plot}\n")
         
         context = "\n".join(context_parts) if context_parts else "No relevant data found."
         
@@ -179,13 +193,21 @@ Response:"""
             st.text(context)
         
         # Create prompt
-        prompt = f"""Answer this FMCG question based on the data:
+        prompt = f"""You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. Answer this question based on the provided data.
 
-Q: {user_query}
+IMPORTANT: Focus ONLY on the specific SKU mentioned in the question. If the question asks about a particular SKU, only use data for that SKU in your response.
 
-Data: {context}
+Question: {user_query}
 
-A:"""
+Available Data: {context}
+
+Instructions:
+1. Identify which SKU the question is asking about
+2. Use ONLY the data for that specific SKU
+3. Provide a clear, detailed answer based on that SKU's data
+4. If the question asks about a specific SKU but that SKU's data is not available, say so clearly
+
+Answer:"""
     
     try:
         # Generate response using local LLM
@@ -202,7 +224,7 @@ def handle_submit(message):
     with st.spinner('Analyzing your data...'):
         if neo4j_available:
             # Perform vector search
-            vector_results = vector_search(message, top_k=2)
+            vector_results = vector_search(message, top_k=5)
             
             # Perform Cypher search
             cypher_results = cypher_search(message)

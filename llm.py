@@ -4,12 +4,12 @@ from langchain_ollama import OllamaEmbeddings
 
 # Create the LLM
 llm = Ollama(
-    model="llama2",
+    model="llama3.2-large-context",
     base_url="http://localhost:11434"
 )
 
 # Create the Embedding model
 embeddings = OllamaEmbeddings(
-    model="llama2",
+    model="llama3.2-large-context",
     base_url="http://localhost:11434"
 )

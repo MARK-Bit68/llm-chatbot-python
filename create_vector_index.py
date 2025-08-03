@@ -22,7 +22,7 @@ def create_vector_index():
     FOR (m:Movie) 
     ON (m.plotEmbedding) 
     OPTIONS {indexConfig: {
-      `vector.dimensions`: 4096,
+      `vector.dimensions`: 3072,
       `vector.similarity_function`: 'cosine'
     }}
     """
