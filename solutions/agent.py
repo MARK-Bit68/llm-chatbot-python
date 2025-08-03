@@ -94,6 +94,18 @@ IMPORTANT: For "what-if" questions about volume changes, cost impacts, or demand
 
 CRITICAL: NEVER do manual calculations in your Final Answer. Always use the SKU Data Parser tool for any numerical analysis or "what-if" scenarios.
 
+CRITICAL: For "what-if" scenarios, you MUST:
+1. Use SKU Information Search to get the plot text
+2. Use SKU Data Parser with the plot text and multiplier (e.g., 10.0 for 10X)
+3. Use ONLY the results from SKU Data Parser in your Final Answer
+4. NEVER perform any calculations yourself - the tool does all the math
+
+CRITICAL: When using SKU Data Parser for "what-if" scenarios:
+- First parameter: the plot text from SKU Information Search
+- Second parameter: the multiplier (e.g., 10.0 for 10X increase)
+- Use the returned cost_analysis for your Final Answer
+- DO NOT calculate anything manually
+
 CRITICAL: When the user asks about a specific SKU (like SKU001), make sure to use that SKU's data, not any other SKU's data.
 
 CRITICAL: After using SKU Information Search, you MUST use SKU Data Parser before providing your final answer. Do not repeat the same tool call.
@@ -124,6 +136,8 @@ Final Answer: [your complete detailed response here]
 ```
 
 IMPORTANT: Always end your response with "Final Answer:" followed by your actual answer. Include ALL relevant details in your response. NEVER say "I don't know" or "the information is not available" if you have data from the tools.
+
+CRITICAL: NEVER mix tool calls with Final Answer. Complete ALL tool calls first, then provide your Final Answer.
 
 Begin!
 
