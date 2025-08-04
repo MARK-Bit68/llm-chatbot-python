@@ -45,7 +45,7 @@ tools = [
     Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description=f"Execute dynamic database queries to get precise information. Use this for questions about: specific {DOMAIN_CONFIG['entity_plural']} (e.g., 'Tell me about [{DOMAIN_CONFIG['entity_id_field']}]'), all {DOMAIN_CONFIG['entity_plural']}, price ranges, categories, countries, or any structured data queries. This tool can generate custom Cypher queries based on the question and is PREFERRED for specific {DOMAIN_CONFIG['entity_singular']} queries."
+        description=f"Execute dynamic database queries to get precise information. Use this for questions about: ALL {DOMAIN_CONFIG['entity_plural']} (e.g., 'What {DOMAIN_CONFIG['entity_plural']} are in the Master Data?', 'Show me all {DOMAIN_CONFIG['entity_plural']}'), specific {DOMAIN_CONFIG['entity_plural']} (e.g., 'Tell me about [{DOMAIN_CONFIG['entity_id_field']}]'), categories, countries, price ranges, or any structured data queries. This tool can generate custom Cypher queries based on the question and is PREFERRED for queries about multiple {DOMAIN_CONFIG['entity_plural']} or general data exploration."
     ),
     Tool(
         name="Entity Information Search",
@@ -74,32 +74,36 @@ agent_prompt = PromptTemplate.from_template("""
 You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, inventory, demand, and financial data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
 
 CRITICAL TOOL SELECTION RULES:
-1. For SPECIFIC SKU queries (e.g., "Tell me about [sku_id]", "What is the category of [sku_id]"):
+1. For QUESTIONS ABOUT ALL SKUs (e.g., "What SKUs are in the Master Data?", "Show me all SKUs", "List all products"):
+   - ALWAYS use "Enhanced Database Query" - it can query ALL SKUs in the database
+   - Use queries like MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot LIMIT 10
+
+2. For SPECIFIC SKU queries (e.g., "Tell me about [sku_id]", "What is the category of [sku_id]"):
    - ALWAYS use "Enhanced Database Query" FIRST - it generates precise Cypher queries
    - This tool can create exact matches like MATCH (sku:SKU {{sku_id: '[sku_id]'}})
-   - DO NOT use "Entity Information Search" for specific SKU queries
 
-2. For GENERAL queries (e.g., "What categories do we have?", "Show me products with highest [metric]"):
+3. For GENERAL queries (e.g., "What categories do we have?", "Show me products with highest [metric]"):
    - Use "Enhanced Database Query" - it handles complex analytical queries
 
-3. For SEMANTIC SEARCH queries (e.g., "Find products similar to [category]", "What products are like [sku_id]"):
+4. For SEMANTIC SEARCH queries (e.g., "Find products similar to [category]", "What products are like [sku_id]"):
    - Use "Entity Information Search" as a fallback for similarity-based searches
 
-4. For DATA PARSING (after getting SKU data):
+5. For DATA PARSING (after getting SKU data):
    - Use "Entity Data Parser" to extract structured information from raw data
 
 TOOL USAGE GUIDELINES:
-- "Enhanced Database Query": PREFERRED for specific SKU queries and analytical questions
+- "Enhanced Database Query": PREFERRED for ALL queries about SKUs, including "all SKUs" questions
 - "Entity Information Search": Use only for semantic similarity searches
 - "Entity Data Parser": Use for extracting structured data from SKU plot text
 - "General Chat": Use for general FMCG supply chain questions
 
 SPECIFIC INSTRUCTIONS:
+- When the user asks about ALL SKUs (e.g., "What SKUs are in the Master Data?"), use "Enhanced Database Query" with a query that returns ALL SKUs
 - When the user asks about a specific SKU (e.g., "Tell me about [sku_id]"), use "Enhanced Database Query"
-- When the user asks about all SKUs, categories, or analytical questions, use "Enhanced Database Query"
-- When the user asks for similar products or semantic searches, use "Entity Information Search"
+- When the user asks about categories, countries, or analytical questions, use "Enhanced Database Query"
 - Always provide complete, detailed information in your Final Answer
 - Never say "I don't know" if you have data from the tools
+- NEVER hallucinate SKU IDs - only use the actual data from the database
 
 TOOLS:
 ------
@@ -153,6 +157,7 @@ def get_agent():
             print("🔍 DEBUG: Tools being passed to agent:")
             for i, tool in enumerate(tools):
                 print(f"  Tool {i+1}: {tool.name} - {tool.description[:100]}...")
+                print(f"    Full description: {tool.description}")
             
             # Debug: Show the actual prompt template
             print("🔍 DEBUG: Agent prompt template:")
