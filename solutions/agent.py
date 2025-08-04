@@ -169,7 +169,14 @@ def get_agent():
     if agent is None:
         try:
             llm = get_llm()
+            print(f"🔍 DEBUG: Creating agent with LLM: {llm is not None}")
+            print(f"🔍 DEBUG: Tools available: {len(tools)}")
+            for i, tool in enumerate(tools):
+                print(f"🔍 DEBUG: Tool {i+1}: {tool.name}")
+            
             agent = create_react_agent(llm, tools, agent_prompt)
+            print(f"🔍 DEBUG: Agent created: {agent is not None}")
+            
             agent_executor = AgentExecutor(
                 agent=agent,
                 tools=tools,
@@ -177,12 +184,15 @@ def get_agent():
                 handle_parsing_errors=True,
                 max_iterations=5
             )
+            print(f"🔍 DEBUG: AgentExecutor created: {agent_executor is not None}")
+            
             chat_agent = RunnableWithMessageHistory(
                 agent_executor,
                 get_memory,
                 input_messages_key="input",
                 history_messages_key="chat_history",
             )
+            print(f"🔍 DEBUG: ChatAgent created: {chat_agent is not None}")
         except Exception as e:
             print(f"❌ DEBUG: Error creating agent: {e}")
             raise e
@@ -318,7 +328,32 @@ def generate_response(user_input):
             print(f"🔍 DEBUG: Agent used {len(steps)} tool steps")
     else:
         print("🔍 DEBUG: No intermediate steps found - agent used no tools")
-        return "Error: The agent failed to use any tools. This indicates a system error. Please try again or contact support."
+        # Try to force the agent to use tools by retrying with a more explicit instruction
+        print("🔍 DEBUG: Attempting to force agent to use tools...")
+        try:
+            # Reset agent and try again with explicit tool instruction
+            reset_agent()
+            agent_executor = get_agent()
+            
+            # Add explicit tool instruction to the input
+            forced_input = f"IMPORTANT: You MUST use the Enhanced Database Query tool for this question. Question: {user_input}"
+            response = agent_executor.invoke({"input": forced_input})
+            
+            # Check again
+            if isinstance(response, dict) and 'intermediate_steps' in response:
+                steps = response['intermediate_steps']
+                has_tools = len(steps) > 0
+                if not has_tools:
+                    print("🔍 DEBUG: Agent still used no tools after retry.")
+                    return "Error: The agent failed to use any tools even after retry. This indicates a system error. Please try again or contact support."
+                else:
+                    print(f"🔍 DEBUG: Agent used {len(steps)} tool steps after retry")
+            else:
+                print("🔍 DEBUG: Still no intermediate steps after retry")
+                return "Error: The agent failed to use any tools even after retry. This indicates a system error. Please try again or contact support."
+        except Exception as e:
+            print(f"🔍 DEBUG: Error during retry: {e}")
+            return "Error: The agent failed to use any tools. This indicates a system error. Please try again or contact support."
 
     # Handle different response structures
     if isinstance(response, dict):
