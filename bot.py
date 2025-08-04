@@ -343,8 +343,9 @@ if question := st.chat_input("Ask about your FMCG data..."):
         # Display user message in chat message container
         write_message('user', question)
 
-        # Generate a response
-        handle_submit(question)
+        # Generate a response and display it
+        response = handle_submit(question)
+        write_message('assistant', response)
 
 # Handle selected question from sidebar
 if st.session_state.selected_question:
@@ -355,8 +356,9 @@ if st.session_state.selected_question:
         # Display user message in chat message container
         write_message('user', st.session_state.selected_question)
 
-        # Generate a response
-        handle_submit(st.session_state.selected_question)
+        # Generate a response and display it
+        response = handle_submit(st.session_state.selected_question)
+        write_message('assistant', response)
     
     # Clear the selected question after it's used
     st.session_state.selected_question = ""
