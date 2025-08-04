@@ -28,7 +28,9 @@ To extract data from the plot field, use Cypher string functions with proper syn
 - To get country: split(split(sku.plot, 'country: ')[1], ' | ')[0] as country
 
 Example queries:
-- Basic SKU list: MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 10
+- ALL SKUs: MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot LIMIT 10
+- Specific SKU: MATCH (sku:SKU {sku_id: 'SKU001'}) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category
+- SKU category: MATCH (sku:SKU {sku_id: 'SKU001'}) RETURN sku.sku_id, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category
 - Price analysis: MATCH (sku:SKU) WITH sku, split(split(sku.plot, 'unit_price: ')[1], ' | ')[0] as price RETURN sku.sku_id, sku.name, price WHERE price IS NOT NULL
 - Category count: MATCH (sku:SKU) RETURN split(split(sku.plot, 'category: ')[1], ' | ')[0] as category, count(*) as count
 
@@ -38,6 +40,12 @@ IMPORTANT RULES:
 - Handle cases where data might not exist in the plot
 - Generate ONLY the Cypher query, no explanations
 - Make queries specific to the user's question
+
+CRITICAL: When the user asks about a SPECIFIC SKU (e.g., "What is the category of SKU001?"), use:
+MATCH (sku:SKU {sku_id: 'SKU001'}) RETURN sku.sku_id, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category
+
+When the user asks about ALL SKUs (e.g., "What SKUs are in the Master Data?"), use:
+MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot LIMIT 10
 
 Generate the Cypher query:"""),
         ("human", "{question}")
