@@ -14,7 +14,7 @@ def generate_dynamic_cypher_query(question, available_data=None):
 
     # Check for analytical queries FIRST (before SKU detection)
     question_lower = question.lower()
-    analytical_indicators = ["what if", "if we", "impact", "analysis", "compare", "versus", "vs", "negative", "positive", "top", "bottom", "average", "sum", "count", "profit", "revenue", "cost"]
+    analytical_indicators = ["what if", "if we", "impact", "analysis", "compare", "versus", "vs", "negative", "positive", "top", "bottom", "average", "sum", "count", "profit", "revenue", "cost", "added", "increased", "decreased", "reduced", "more", "less"]
     
     has_analytical_indicator = any(indicator in question_lower for indicator in analytical_indicators)
     
