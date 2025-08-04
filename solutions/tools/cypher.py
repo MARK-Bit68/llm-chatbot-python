@@ -42,14 +42,16 @@ IMPORTANT RULES:
 - Generate ONLY the Cypher query, no explanations
 - Make queries specific to the user's question
 
-CRITICAL: When the user asks about a SPECIFIC SKU (e.g., "What is the category of SKU001?"), use:
-MATCH (sku:SKU {{sku_id: 'SKU001'}}) RETURN sku.sku_id, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category
+CRITICAL: When the user asks about a SPECIFIC SKU (e.g., "Tell me about SKU001", "What is the category of SKU001?"), use:
+MATCH (sku:SKU {{sku_id: 'SKU001'}}) RETURN sku.sku_id, sku.name, sku.plot
 
-When the user asks about ALL SKUs (e.g., "What SKUs are in the Master Data?"), use:
+When the user asks about ALL SKUs (e.g., "What SKUs are in the Master Data?", "Show me all SKUs"), use:
 MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot LIMIT 10
 
-When the user asks about countries, use:
+When the user asks about countries (e.g., "Which countries are our products from?"), use:
 MATCH (sku:SKU) RETURN DISTINCT split(split(sku.plot, 'country: ')[1], ' | ')[0] as country
+
+IMPORTANT: Look for specific SKU IDs in the question (like SKU001, SKU002, etc.) and use the specific SKU query pattern.
 
 Generate the Cypher query:"""),
         ("human", "{question}")
