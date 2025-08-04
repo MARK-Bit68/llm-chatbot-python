@@ -76,6 +76,8 @@ def get_memory(session_id):
 agent_prompt = PromptTemplate.from_template("""
 You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
 
+CRITICAL: For ANY question about SKUs (including "Tell me about SKU001", "What SKUs are in the Master Data?", etc.), you MUST use the Enhanced Database Query tool. You CANNOT give a generic response without using a tool.
+
 You have access to the following tools:
 
 {tools}
