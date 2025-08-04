@@ -98,44 +98,34 @@ You have access to the following tools:
 
 {tools}
 
-To use a tool, please use the following format:
-
-```
-Thought: Do I need to use a tool? Yes
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-```
-
-When you have a response to say to the Human, or if you do not need to use a tool, you MUST use the format:
-
-```
-Thought: Do I need to use a tool? No
-Final Answer: [your complete detailed response here]
-```
-
-Begin!
-
-New input: {input}
 {agent_scratchpad}
 """)
 
-agent = create_react_agent(get_llm(), tools, agent_prompt)
-agent_executor = AgentExecutor(
-    agent=agent,
-    tools=tools,
-    verbose=True,
-    handle_parsing_errors=True,
-    max_iterations=5,
-    early_stopping_method="generate"
-    )
+# Initialize agent as None - will be created when needed
+agent = None
+agent_executor = None
+chat_agent = None
 
-chat_agent = RunnableWithMessageHistory(
-    agent_executor,
-    get_memory,
-    input_messages_key="input",
-    history_messages_key="chat_history",
-)
+def get_agent():
+    """Get agent, creating it if needed"""
+    global agent, agent_executor, chat_agent
+    if agent is None:
+        agent = create_react_agent(get_llm(), tools, agent_prompt)
+        agent_executor = AgentExecutor(
+            agent=agent,
+            tools=tools,
+            verbose=True,
+            handle_parsing_errors=True,
+            max_iterations=5,
+            early_stopping_method="generate"
+        )
+        chat_agent = RunnableWithMessageHistory(
+            agent_executor,
+            get_memory,
+            input_messages_key="input",
+            history_messages_key="chat_history",
+        )
+    return agent_executor
 
 def format_response_with_llm(text):
     """
@@ -192,6 +182,7 @@ def generate_response(user_input):
 
     try:
         # Use the agent executor directly for more control
+        agent_executor = get_agent()
         response = agent_executor.invoke({"input": user_input})
     except Exception as e:
         # Handle parsing errors more gracefully
@@ -218,24 +209,10 @@ def generate_response(user_input):
     
     # Clean up the response - remove trailing backticks and extra whitespace
     output = output.strip()
-    if output.endswith('```'):
-        output = output[:-3].strip()
+    if output.startswith('```') and output.endswith('```'):
+        output = output[3:-3].strip()
     
-    # If the response contains "Final Answer:", extract everything after it
-    if "Final Answer:" in output:
-        # Find the last occurrence of "Final Answer:" and get everything after it
-        final_answer_index = output.rfind("Final Answer:")
-        if final_answer_index != -1:
-            output = output[final_answer_index + len("Final Answer:"):].strip()
-            # Remove any trailing backticks or extra formatting
-            output = output.replace('```', '').strip()
-    
-    # Use LLM to intelligently format the response
+    # Use LLM to format the response intelligently
     formatted_output = format_response_with_llm(output)
     
-    # Debug: Print the final output
-    print(f"DEBUG: Final response to display: '{formatted_output}'")
-    print(f"DEBUG: Response type: {type(formatted_output)}")
-    print(f"DEBUG: Response length: {len(formatted_output) if formatted_output else 0}")
-    
-    return formatted_output.strip()
+    return formatted_output
