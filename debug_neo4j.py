@@ -4,7 +4,7 @@ Debug Neo4j database and embeddings
 """
 import streamlit as st
 import os
-from graph import get_graph_instance
+from solutions.graph import get_graph
 from llm import get_embeddings
 
 print("🔍 DEBUG: Testing Neo4j connection and data...")
@@ -21,7 +21,7 @@ for var in required_vars:
 
 # Test basic connection
 try:
-    graph = get_graph_instance()
+    graph = get_graph()
     if graph is None:
         print("❌ ERROR: Graph instance is None - this means Neo4j connection failed")
         print("💡 This is expected if running locally without Neo4j environment variables")

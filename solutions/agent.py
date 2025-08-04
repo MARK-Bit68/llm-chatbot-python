@@ -1,6 +1,6 @@
 import streamlit as st
 from llm import get_llm
-from graph import get_graph_instance
+from solutions.graph import get_graph
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
@@ -71,7 +71,7 @@ print(f"🔍 DEBUG: {len(tools)} tools created")
 
 def get_memory(session_id):
     print(f"🔍 DEBUG: Creating memory for session {session_id}")
-    return Neo4jChatMessageHistory(session_id=session_id, graph=get_graph_instance())
+    return Neo4jChatMessageHistory(session_id=session_id, graph=get_graph())
 
 # 2. Add concrete prompt examples for both all SKUs and single SKU queries
 agent_prompt = PromptTemplate.from_template("""

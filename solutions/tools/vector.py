@@ -1,6 +1,6 @@
 import streamlit as st
 from llm import get_llm, get_embeddings
-from graph import get_graph_instance
+from solutions.graph import get_graph
 
 # tag::import_vector[]
 from langchain_neo4j import Neo4jVector
@@ -39,7 +39,7 @@ def get_neo4j_vector():
                 return None
                 
             print("🔍 DEBUG: Getting graph instance...")
-            graph_instance = get_graph_instance()
+            graph_instance = get_graph()
             print(f"🔍 DEBUG: Graph instance created: {graph_instance is not None}")
             
             print("🔍 DEBUG: Creating Neo4jVector...")

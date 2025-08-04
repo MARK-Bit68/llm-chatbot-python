@@ -7,7 +7,7 @@ print("🔍 DEBUG: bot.py starting...")
 
 from utils import write_message
 from solutions.agent import generate_response, reset_agent
-from solutions.graph import get_graph_instance
+from solutions.graph import get_graph
 import os
 
 print("🔍 DEBUG: All imports completed successfully")
@@ -53,7 +53,7 @@ with st.sidebar:
     # Check Neo4j availability
     print("🔍 DEBUG: Checking Neo4j availability...")
     try:
-        graph = get_graph_instance()
+        graph = get_graph()
         neo4j_available = graph is not None
         print(f"🔍 DEBUG: Neo4j available: {neo4j_available}")
         st.session_state.neo4j_available = neo4j_available
