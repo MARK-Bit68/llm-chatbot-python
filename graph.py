@@ -28,5 +28,16 @@ def get_graph():
         st.info("💡 Please install and start Neo4j to use the full RAG capabilities.")
         return None
 
-# Global graph instance
-graph = get_graph()
+# Initialize graph as None - will be created when needed
+_graph = None
+
+def get_graph_instance():
+    """Get graph instance, creating it if needed"""
+    global _graph
+    if _graph is None:
+        _graph = get_graph()
+    return _graph
+
+# For backward compatibility - but don't call it at import time
+def graph():
+    return get_graph_instance()

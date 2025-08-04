@@ -1,6 +1,6 @@
 import streamlit as st
 from llm import get_llm, get_embeddings
-from graph import graph
+from graph import get_graph_instance
 
 # tag::import_vector[]
 from langchain_neo4j import Neo4jVector
@@ -27,7 +27,7 @@ def get_neo4j_vector():
         # Try to get existing index
         neo4jvector = Neo4jVector.from_existing_index(
             embeddings_instance,                      # <1>
-            graph=graph,                             # <2>
+            graph=get_graph_instance(),                             # <2>
             index_name="skuPlots",                   # <3>
             node_label="SKU",                        # <4>
             text_node_property="plot",               # <5>

@@ -5,7 +5,7 @@ st.set_page_config("FMCG RAG Chatbot", page_icon=":chart_with_upwards_trend:")
 
 from utils import write_message
 from solutions.agent import generate_response
-from graph import graph
+from graph import get_graph_instance
 
 # Set up Session State
 if "messages" not in st.session_state:
@@ -72,7 +72,7 @@ default_questions = [
 ]
 
 # Check Neo4j status
-neo4j_available = graph is not None
+neo4j_available = get_graph_instance() is not None
 
 def check_data_available():
     """Check if there's data in the database to query"""
@@ -81,6 +81,9 @@ def check_data_available():
     
     try:
         # Check if there are any SKU nodes in the database
+        graph = get_graph_instance()
+        if graph is None:
+            return False
         result = graph.query("MATCH (sku:SKU) RETURN count(sku) as count")
         count = result[0]['count'] if result else 0
         return count > 0
@@ -100,7 +103,7 @@ with st.sidebar:
         st.subheader("📊 Data Status")
         if data_available:
             try:
-                result = graph.query("MATCH (sku:SKU) RETURN count(sku) as count")
+                result = get_graph_instance().query("MATCH (sku:SKU) RETURN count(sku) as count")
                 count = result[0]['count'] if result else 0
                 st.success(f"✅ Data available: {count} SKUs loaded")
             except Exception as e:
@@ -211,7 +214,7 @@ def vector_search(query, top_k=5):
         try:
             neo4jvector = Neo4jVector.from_existing_index(
                 embeddings,
-                graph=graph,
+                graph=get_graph_instance(),
                 index_name="skuPlots",
                 node_label="SKU",
                 text_node_property="plot",
@@ -287,7 +290,7 @@ def cypher_search(query):
         LIMIT 10
         """
         
-        results = graph.query(cypher_query, {'query': query})
+        results = get_graph_instance().query(cypher_query, {'query': query})
         return results
     except Exception as e:
         st.error(f"Cypher search error: {e}")

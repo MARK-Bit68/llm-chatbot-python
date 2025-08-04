@@ -1,6 +1,6 @@
 import streamlit as st
 from llm import get_llm
-from graph import graph
+from graph import get_graph_instance
 from langchain_core.prompts import ChatPromptTemplate
 
 def generate_dynamic_cypher_query(question, available_data=None):
@@ -90,7 +90,7 @@ def execute_dynamic_query(question, available_data=None):
         print(f"Generated Cypher query: {query}")
         
         # Execute the query
-        results = graph.query(query)
+        results = get_graph_instance().query(query)
         
         return {
             "query": query,
@@ -162,7 +162,7 @@ def enhanced_cypher_qa(question):
         LIMIT 1
         """
         
-        context_result = graph.query(context_query)
+        context_result = get_graph_instance().query(context_query)
         available_data = context_result[0] if context_result else {}
         
         # Execute dynamic query
@@ -189,7 +189,7 @@ def enhanced_cypher_qa(question):
 # Keep the original simple cypher_search for backward compatibility
 def cypher_search(query):
     """Simple keyword-based search (legacy function)"""
-    if not graph:
+    if not get_graph_instance():
         return []
     
     try:
@@ -202,7 +202,7 @@ def cypher_search(query):
         LIMIT 10
         """
         
-        results = graph.query(cypher_query, {'query': query})
+        results = get_graph_instance().query(cypher_query, {'query': query})
         return results
     except Exception as e:
         print(f"Cypher search error: {e}")

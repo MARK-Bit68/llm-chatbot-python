@@ -1,5 +1,5 @@
 from llm import get_llm
-from graph import graph
+from graph import get_graph_instance
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
@@ -58,7 +58,7 @@ tools = [
 ]
 
 def get_memory(session_id):
-    return Neo4jChatMessageHistory(session_id=session_id, graph=graph)
+    return Neo4jChatMessageHistory(session_id=session_id, graph=get_graph_instance())
 
 agent_prompt = PromptTemplate.from_template("""
 You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, inventory, demand, and financial data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
