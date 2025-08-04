@@ -98,9 +98,11 @@ TOOL USAGE GUIDELINES:
 - "General Chat": Use for general FMCG supply chain questions
 
 SPECIFIC INSTRUCTIONS:
-- When the user asks about ALL SKUs (e.g., "What SKUs are in the Master Data?"), use "Enhanced Database Query" with a query that returns ALL SKUs
-- When the user asks about a specific SKU (e.g., "Tell me about [sku_id]"), use "Enhanced Database Query"
-- When the user asks about categories, countries, or analytical questions, use "Enhanced Database Query"
+- When the user asks about ALL SKUs (e.g., "What SKUs are in the Master Data?"), use "Enhanced Database Query" and pass the user's question as Action Input
+- When the user asks about a specific SKU (e.g., "Tell me about SKU001"), use "Enhanced Database Query" and pass the user's question as Action Input
+- When the user asks about categories, countries, or analytical questions, use "Enhanced Database Query" and pass the user's question as Action Input
+- NEVER generate Cypher queries yourself - let the tool handle query generation
+- Always pass the user's original question to the tool
 - Always provide complete, detailed information in your Final Answer
 - Never say "I don't know" if you have data from the tools
 - NEVER hallucinate SKU IDs - only use the actual data from the database
