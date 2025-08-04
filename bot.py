@@ -1,16 +1,17 @@
 import streamlit as st
 
 # Page Config - MUST be called first
-st.set_page_config("FMCG RAG Chatbot", page_icon=":chart_with_upwards_trend:")
+st.set_page_config(
+    page_title="FMCG Supply Chain Assistant",
+    page_icon="📊",
+    layout="wide"
+)
 
-print("🔍 DEBUG: bot.py starting...")
-
-from utils import write_message
 from solutions.agent import generate_response, reset_agent
 from solutions.graph import get_graph
 import os
 
-print("🔍 DEBUG: All imports completed successfully")
+print("🔍 DEBUG: bot.py starting...")
 
 # Import all required modules
 try:
@@ -21,13 +22,6 @@ try:
 except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
-
-# Page configuration - MUST be called first
-st.set_page_config(
-    page_title="FMCG Supply Chain Assistant",
-    page_icon="📊",
-    layout="wide"
-)
 
 # Initialize session state
 if "messages" not in st.session_state:
