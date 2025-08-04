@@ -16,25 +16,47 @@ def setup_test_environment():
     """Setup the test environment similar to Streamlit"""
     print("🔧 Setting up test environment...")
     
-    # Mock Streamlit secrets (you'll need to set these)
-    import streamlit as st
+    # Try to read secrets from .streamlit/secrets.toml
+    import os
+    import toml
     
     # Check if secrets are available
-    try:
-        api_key = st.secrets["OPENAI_API_KEY"]
-        print("✅ OpenAI API key found in secrets")
-    except:
-        # Try environment variable as fallback
-        import os
-        api_key = os.getenv("OPENAI_API_KEY")
-        if api_key:
-            print("✅ OpenAI API key found in environment variables")
-        else:
-            print("❌ OpenAI API key not found in secrets or environment variables")
-            print("Please ensure you have:")
-            print("OPENAI_API_KEY = 'your-api-key-here'")
-            print("in your .streamlit/secrets.toml file or as environment variable")
-            return False
+    api_key = None
+    
+    # First try environment variable
+    api_key = os.getenv("OPENAI_API_KEY")
+    if api_key:
+        print("✅ OpenAI API key found in environment variables")
+    else:
+        # Try reading from secrets.toml
+        try:
+            secrets_path = os.path.join(".streamlit", "secrets.toml")
+            if os.path.exists(secrets_path):
+                with open(secrets_path, "r") as f:
+                    content = f.read()
+                    # Parse the key=value format manually
+                    for line in content.split('\n'):
+                        if line.strip() and '=' in line:
+                            key, value = line.split('=', 1)
+                            if key.strip() == "OPENAI_API_KEY":
+                                api_key = value.strip()
+                                print("✅ OpenAI API key found in secrets.toml")
+                                # Set as environment variable for the test
+                                os.environ["OPENAI_API_KEY"] = api_key
+                                break
+                    if not api_key:
+                        print("❌ OPENAI_API_KEY not found in secrets.toml")
+            else:
+                print("❌ secrets.toml file not found")
+        except Exception as e:
+            print(f"❌ Error reading secrets.toml: {e}")
+    
+    if not api_key:
+        print("❌ OpenAI API key not found in secrets or environment variables")
+        print("Please ensure you have:")
+        print("OPENAI_API_KEY = 'your-api-key-here'")
+        print("in your .streamlit/secrets.toml file or as environment variable")
+        return False
     
     return True
 
