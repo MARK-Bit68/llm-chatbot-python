@@ -6,11 +6,8 @@ def create_vector_index():
     """Create vector index for embeddings"""
     
     def get_neo4j_config(key, default=""):
-        """Get Neo4j config from secrets or environment variables"""
-        try:
-            return st.secrets[key]
-        except:
-            return os.getenv(key, default)
+        """Get Neo4j config from environment variables only"""
+        return os.getenv(key, default)
     
     # Connect to Neo4j
     graph = Neo4jGraph(

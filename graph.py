@@ -8,11 +8,8 @@ def get_graph():
         from langchain_neo4j import Neo4jGraph
         
         def get_neo4j_config(key, default=""):
-            """Get Neo4j config from secrets or environment variables"""
-            try:
-                return st.secrets[key]
-            except:
-                return os.getenv(key, default)
+            """Get Neo4j config from environment variables only"""
+            return os.getenv(key, default)
         
         graph = Neo4jGraph(
             url=get_neo4j_config("NEO4J_URI"),

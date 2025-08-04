@@ -3,27 +3,17 @@ import os
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 def get_openai_key():
-    """Get OpenAI API key from secrets or environment variables"""
-    try:
-        # Try to get from Streamlit secrets first
-        return st.secrets["OPENAI_API_KEY"]
-    except:
-        # Fall back to environment variable
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            print("❌ CRITICAL ERROR: OPENAI_API_KEY not found!")
-            print("   Please set OPENAI_API_KEY in Railway environment variables")
-            print("   This is required for the RAG system to work")
-        return api_key
+    """Get OpenAI API key from environment variables only"""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        print("❌ CRITICAL ERROR: OPENAI_API_KEY not found!")
+        print("   Please set OPENAI_API_KEY in Railway environment variables")
+        print("   This is required for the RAG system to work")
+    return api_key
 
 def get_openai_model():
-    """Get OpenAI model from secrets or environment variables"""
-    try:
-        # Try to get from Streamlit secrets first
-        return st.secrets["OPENAI_MODEL"]
-    except:
-        # Fall back to environment variable
-        return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    """Get OpenAI model from environment variables only"""
+    return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
 # Initialize LLM and embeddings as None - will be created when needed
 llm = None
