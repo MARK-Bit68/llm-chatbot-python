@@ -303,9 +303,14 @@ def generate_response(user_input):
     # Log tool selection if possible
     if isinstance(response, dict) and 'intermediate_steps' in response:
         steps = response['intermediate_steps']
+        print(f"🔍 DEBUG: Agent intermediate steps: {steps}")
         for step in steps:
             if isinstance(step, tuple) and len(step) == 2 and step[0] == 'Action':
                 print(f"🔍 DEBUG: Tool selected: {step[1]}")
+            elif isinstance(step, tuple) and len(step) == 2 and step[0] == 'Action Input':
+                print(f"🔍 DEBUG: Action input: {step[1]}")
+            elif isinstance(step, tuple) and len(step) == 2 and step[0] == 'Observation':
+                print(f"🔍 DEBUG: Observation preview: {str(step[1])[:200]}...")
 
     # Enforce verbatim Observation in Final Answer if present
     if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
