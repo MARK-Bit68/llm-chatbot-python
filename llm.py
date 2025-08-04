@@ -25,18 +25,32 @@ def get_openai_model():
         # Fall back to environment variable
         return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
-# Create the LLM
-try:
-    llm = ChatOpenAI(
-        openai_api_key=get_openai_key(),
-        model=get_openai_model(),
-        temperature=0.1  # Low temperature for factual, consistent responses
-    )
-except Exception as e:
-    print(f"Warning: Could not create LLM: {e}")
-    llm = None
+# Initialize LLM and embeddings as None - will be created when needed
+llm = None
+embeddings = None
 
-# Create the Embedding model lazily
+def get_llm():
+    """Get LLM, creating it if needed"""
+    global llm
+    if llm is None:
+        try:
+            api_key = get_openai_key()
+            model = get_openai_model()
+            if api_key and model:
+                llm = ChatOpenAI(
+                    openai_api_key=api_key,
+                    model=model,
+                    temperature=0.1  # Low temperature for factual, consistent responses
+                )
+                print("✅ LLM created successfully")
+            else:
+                print("⚠️ No OpenAI API key or model available for LLM")
+                llm = None
+        except Exception as e:
+            print(f"Warning: Could not create LLM: {e}")
+            llm = None
+    return llm
+
 def get_embeddings():
     """Get embeddings, creating them if needed"""
     global embeddings
@@ -56,6 +70,3 @@ def get_embeddings():
             print("   This will prevent the RAG system from working properly")
             embeddings = None
     return embeddings
-
-# Initialize embeddings as None - will be created when needed
-embeddings = None

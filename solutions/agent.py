@@ -1,4 +1,4 @@
-from llm import llm
+from llm import get_llm
 from graph import graph
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts import PromptTemplate
@@ -11,7 +11,7 @@ from langchain import hub
 from utils import get_session_id
 
 from solutions.tools.vector import get_sku_data
-from solutions.tools.cypher import cypher_qa, enhanced_cypher_qa
+from solutions.tools.cypher import enhanced_cypher_qa
 from solutions.tools.data_parser import parse_sku_data
 
 # Domain configuration - can be easily changed for different domains
@@ -120,7 +120,7 @@ New input: {input}
 {agent_scratchpad}
 """)
 
-agent = create_react_agent(llm, tools, agent_prompt)
+agent = create_react_agent(get_llm(), tools, agent_prompt)
 agent_executor = AgentExecutor(
     agent=agent,
     tools=tools,
@@ -177,7 +177,7 @@ Return the cleaned and formatted text:"""),
     ])
     
     try:
-        chain = formatting_prompt | llm
+        chain = formatting_prompt | get_llm()
         response = chain.invoke({"text": text})
         return response.content.strip()
     except Exception as e:

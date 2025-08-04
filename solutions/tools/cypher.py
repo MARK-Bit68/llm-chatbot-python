@@ -1,5 +1,5 @@
 import streamlit as st
-from llm import llm
+from llm import get_llm
 from graph import graph
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -45,7 +45,7 @@ Generate the Cypher query:"""),
     
     try:
         # Generate the query using the LLM
-        chain = cypher_generation_prompt | llm
+        chain = cypher_generation_prompt | get_llm()
         response = chain.invoke({
             "question": question,
             "available_data": available_data or "No specific context provided"
@@ -137,7 +137,7 @@ Format the response:"""),
         results_str = str(results[:20])  # Limit to first 20 results to avoid token limits
         
         # Generate the analysis using the LLM
-        chain = analysis_prompt | llm
+        chain = analysis_prompt | get_llm()
         response = chain.invoke({
             "question": question,
             "count": count,

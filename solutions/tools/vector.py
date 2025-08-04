@@ -1,5 +1,5 @@
 import streamlit as st
-from llm import llm, get_embeddings
+from llm import get_llm, get_embeddings
 from graph import graph
 
 # tag::import_vector[]
@@ -78,7 +78,7 @@ prompt = ChatPromptTemplate.from_messages(
 # end::prompt[]
 
 # tag::chain[]
-question_answer_chain = create_stuff_documents_chain(llm, prompt)
+question_answer_chain = create_stuff_documents_chain(get_llm(), prompt)
 plot_retriever = create_retrieval_chain(
     retriever, 
     question_answer_chain
