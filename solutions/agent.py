@@ -132,6 +132,14 @@ Final Answer: [your response here]
 
 IMPORTANT: When you get detailed data from tools, include the full detailed response in your Final Answer, not just a summary. Show tables, lists, and all relevant information to the user.
 
+CRITICAL: When a tool returns detailed data (like tables, lists, or structured information), you MUST include that exact data in your Final Answer. Do not summarize or condense the tool's response - show the user exactly what the tool returned.
+
+OBSERVATION HANDLING:
+- When you receive an Observation from a tool, that Observation contains the detailed response
+- You MUST include the entire Observation content in your Final Answer
+- Do not rewrite, summarize, or modify the Observation - use it exactly as provided
+- If the Observation contains tables, lists, or formatted data, include all of it
+
 Begin!
 
 {agent_scratchpad}
