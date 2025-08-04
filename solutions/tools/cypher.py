@@ -2,13 +2,34 @@ import streamlit as st
 from llm import get_llm
 from graph import get_graph_instance
 from langchain_core.prompts import ChatPromptTemplate
+import re
 
 def generate_dynamic_cypher_query(question, available_data=None):
     """
-    Generate a dynamic Cypher query based on the user's question and available data
+    Generate a dynamic Cypher query based on the user's question and available data.
+    If the question contains one or more valid SKU IDs (e.g., SKU001), override the query to filter for those SKUs.
+    Otherwise, use the LLM to generate the query as before.
     """
     print(f"🔍 DEBUG: generate_dynamic_cypher_query() called with question: '{question}'")
-    
+
+    # Detect all valid SKU IDs in the question (e.g., SKU001, SKU002, ...)
+    sku_pattern = r"SKU\d{3,}"  # Matches SKU followed by at least 3 digits
+    sku_ids = re.findall(sku_pattern, question.upper())
+    sku_ids = list(set(sku_ids))  # Remove duplicates
+    print(f"🔍 DEBUG: Detected SKU IDs: {sku_ids}")
+
+    if len(sku_ids) == 1:
+        # Single SKU query
+        cypher_query = f"MATCH (sku:SKU {{sku_id: '{sku_ids[0]}'}}) RETURN sku.sku_id, sku.name, sku.plot"
+        print(f"🔍 DEBUG: Overriding query for single SKU: {cypher_query}")
+        return cypher_query
+    elif len(sku_ids) > 1:
+        # Multi-SKU query
+        sku_list = ', '.join([f"'{sku}'" for sku in sku_ids])
+        cypher_query = f"MATCH (sku:SKU) WHERE sku.sku_id IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
+        print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
+        return cypher_query
+
     # Create a prompt for the LLM to generate Cypher queries
     cypher_generation_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a Cypher query expert for Neo4j. Your task is to generate precise Cypher queries based on user questions.
