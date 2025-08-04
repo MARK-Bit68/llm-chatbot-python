@@ -128,6 +128,8 @@ Thought: Do I need to use a tool? No
 Final Answer: [your response here]
 ```
 
+IMPORTANT: When you get detailed data from tools, include the full detailed response in your Final Answer, not just a summary. Show tables, lists, and all relevant information to the user.
+
 Begin!
 
 {agent_scratchpad}
@@ -194,6 +196,9 @@ def format_response_with_llm(text):
     """
     Use LLM to intelligently format and clean text response with robust concatenation fixing
     """
+    print(f"🔍 DEBUG: format_response_with_llm() called with text length: {len(text)}")
+    print(f"🔍 DEBUG: Text preview: {text[:200]}...")
+    
     # Single-stage intelligent formatting that handles both concatenation and general formatting
     formatting_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a text formatting expert. Your task is to clean and format text responses to make them more readable while preserving all important information.
@@ -232,7 +237,10 @@ Return the cleaned and formatted text:"""),
     try:
         chain = formatting_prompt | get_llm()
         response = chain.invoke({"text": text})
-        return response.content.strip()
+        formatted_text = response.content.strip()
+        print(f"🔍 DEBUG: Formatted text length: {len(formatted_text)}")
+        print(f"🔍 DEBUG: Formatted text preview: {formatted_text[:200]}...")
+        return formatted_text
     except Exception as e:
         print(f"Error formatting text: {e}")
         return text
