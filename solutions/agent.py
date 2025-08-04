@@ -152,6 +152,14 @@ agent = None
 agent_executor = None
 chat_agent = None
 
+def reset_agent():
+    """Reset the agent to force recreation"""
+    global agent, agent_executor, chat_agent
+    print("🔍 DEBUG: Resetting agent...")
+    agent = None
+    agent_executor = None
+    chat_agent = None
+
 def get_agent():
     """Get agent, creating it if needed"""
     global agent, agent_executor, chat_agent
@@ -279,6 +287,20 @@ def generate_response(user_input):
         # Handle parsing errors more gracefully
         error_msg = str(e)
         print(f"❌ DEBUG: Error in generate_response: {error_msg}")
+        
+        # Reset agent if there's an error
+        if "Agent stopped due to iteration limit" in error_msg or "Invalid Format" in error_msg:
+            print("🔍 DEBUG: Resetting agent due to error...")
+            reset_agent()
+            # Try again with fresh agent
+            try:
+                agent_executor = get_agent()
+                response = agent_executor.invoke({"input": user_input})
+                print("🔍 DEBUG: Agent retry successful")
+            except Exception as e2:
+                print(f"❌ DEBUG: Agent retry failed: {e2}")
+                return "I encountered an error while processing your request. Please try rephrasing your question."
+        
         if "OUTPUT_PARSING_FAILURE" in error_msg or "Parsing LLM output" in error_msg:
             return "I encountered an error while processing your request. Please try rephrasing your question or ask for specific information about a SKU."
         return f"Error: {error_msg}"
