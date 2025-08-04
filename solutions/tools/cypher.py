@@ -55,8 +55,7 @@ Generate the Cypher query:"""),
         # Generate the query using the LLM
         chain = cypher_generation_prompt | get_llm()
         response = chain.invoke({
-            "question": question,
-            "available_data": available_data or "No specific context provided"
+            "question": question
         })
         
         # Extract the query from the response
