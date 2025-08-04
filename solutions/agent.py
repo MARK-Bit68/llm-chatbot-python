@@ -79,6 +79,8 @@ You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You 
 
 CRITICAL: For ANY question about SKUs (including "Tell me about SKU001", "What SKUs are in the Master Data?", etc.), you MUST use the Enhanced Database Query tool. You CANNOT give a generic response without using a tool.
 
+MANDATORY: You MUST use a tool for EVERY question. You are NOT allowed to give generic responses or greetings. You MUST follow the ReAct format exactly.
+
 You have access to the following tools:
 
 {tools}
@@ -304,6 +306,19 @@ def generate_response(user_input):
         if not has_observation and any(generic in output for generic in generic_responses):
             print("🔍 DEBUG: No Observation and generic output detected. Returning error.")
             return "Error: The agent did not use the required tool or provide detailed data. Please rephrase your question or contact support."
+    
+    # NEW: Check if agent used any tools at all
+    if isinstance(response, dict) and 'intermediate_steps' in response:
+        steps = response['intermediate_steps']
+        has_tools = len(steps) > 0
+        if not has_tools:
+            print("🔍 DEBUG: Agent used no tools at all. This is a critical error.")
+            return "Error: The agent failed to use any tools. This indicates a system error. Please try again or contact support."
+        else:
+            print(f"🔍 DEBUG: Agent used {len(steps)} tool steps")
+    else:
+        print("🔍 DEBUG: No intermediate steps found - agent used no tools")
+        return "Error: The agent failed to use any tools. This indicates a system error. Please try again or contact support."
 
     # Handle different response structures
     if isinstance(response, dict):
