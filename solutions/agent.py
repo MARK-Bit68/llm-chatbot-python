@@ -1,3 +1,4 @@
+import streamlit as st
 from llm import get_llm
 from graph import get_graph_instance
 from langchain_core.prompts import ChatPromptTemplate
@@ -14,6 +15,8 @@ from solutions.tools.vector import get_sku_data
 from solutions.tools.cypher import enhanced_cypher_qa
 from solutions.tools.data_parser import parse_sku_data
 
+print("🔍 DEBUG: solutions/agent.py imported successfully")
+
 # Domain configuration - can be easily changed for different domains
 DOMAIN_CONFIG = {
     "domain_name": "FMCG (Fast Moving Consumer Goods) supply chain",
@@ -25,6 +28,8 @@ DOMAIN_CONFIG = {
     "entity_singular": "SKU"
 }
 
+print("🔍 DEBUG: DOMAIN_CONFIG created")
+
 chat_prompt = ChatPromptTemplate.from_messages(
     [
         ("system", "You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data."),
@@ -32,6 +37,8 @@ chat_prompt = ChatPromptTemplate.from_messages(
         ("assistant", "{agent_scratchpad}")
     ]
 )
+
+print("🔍 DEBUG: chat_prompt created")
 
 # Define tools
 tools = [
@@ -57,7 +64,10 @@ tools = [
     )
 ]
 
+print(f"🔍 DEBUG: {len(tools)} tools created")
+
 def get_memory(session_id):
+    print(f"🔍 DEBUG: Creating memory for session {session_id}")
     return Neo4jChatMessageHistory(session_id=session_id, graph=get_graph_instance())
 
 agent_prompt = PromptTemplate.from_template("""
@@ -101,6 +111,8 @@ You have access to the following tools:
 {agent_scratchpad}
 """)
 
+print("🔍 DEBUG: agent_prompt created with {tools} variable")
+
 # Initialize agent as None - will be created when needed
 agent = None
 agent_executor = None
@@ -109,22 +121,42 @@ chat_agent = None
 def get_agent():
     """Get agent, creating it if needed"""
     global agent, agent_executor, chat_agent
+    print("🔍 DEBUG: get_agent() called")
+    
     if agent is None:
-        agent = create_react_agent(get_llm(), tools, agent_prompt)
-        agent_executor = AgentExecutor(
-            agent=agent,
-            tools=tools,
-            verbose=True,
-            handle_parsing_errors=True,
-            max_iterations=5,
-            early_stopping_method="generate"
-        )
-        chat_agent = RunnableWithMessageHistory(
-            agent_executor,
-            get_memory,
-            input_messages_key="input",
-            history_messages_key="chat_history",
-        )
+        print("🔍 DEBUG: Creating new agent...")
+        try:
+            llm = get_llm()
+            print(f"🔍 DEBUG: LLM created: {llm is not None}")
+            print(f"🔍 DEBUG: Tools count: {len(tools)}")
+            print(f"🔍 DEBUG: Agent prompt variables: {agent_prompt.input_variables}")
+            
+            agent = create_react_agent(llm, tools, agent_prompt)
+            print("🔍 DEBUG: Agent created successfully")
+            
+            agent_executor = AgentExecutor(
+                agent=agent,
+                tools=tools,
+                verbose=True,
+                handle_parsing_errors=True,
+                max_iterations=5,
+                early_stopping_method="generate"
+            )
+            print("🔍 DEBUG: AgentExecutor created successfully")
+            
+            chat_agent = RunnableWithMessageHistory(
+                agent_executor,
+                get_memory,
+                input_messages_key="input",
+                history_messages_key="chat_history",
+            )
+            print("🔍 DEBUG: ChatAgent created successfully")
+        except Exception as e:
+            print(f"❌ DEBUG: Error creating agent: {e}")
+            raise e
+    else:
+        print("🔍 DEBUG: Using existing agent")
+    
     return agent_executor
 
 def format_response_with_llm(text):
@@ -179,40 +211,55 @@ def generate_response(user_input):
     Create a handler that calls the Conversational agent
     and returns a response to be rendered in the UI
     """
+    print(f"🔍 DEBUG: generate_response() called with input: {user_input[:50]}...")
 
     try:
         # Use the agent executor directly for more control
+        print("🔍 DEBUG: Getting agent...")
         agent_executor = get_agent()
+        print("🔍 DEBUG: Agent obtained successfully")
+        
+        print("🔍 DEBUG: Invoking agent...")
         response = agent_executor.invoke({"input": user_input})
+        print("🔍 DEBUG: Agent invoked successfully")
     except Exception as e:
         # Handle parsing errors more gracefully
         error_msg = str(e)
+        print(f"❌ DEBUG: Error in generate_response: {error_msg}")
         if "OUTPUT_PARSING_FAILURE" in error_msg or "Parsing LLM output" in error_msg:
             return "I encountered an error while processing your request. Please try rephrasing your question or ask for specific information about a SKU."
         return f"Error: {error_msg}"
 
     # Debug: Print the response structure
-    print(f"DEBUG: Response type: {type(response)}")
-    print(f"DEBUG: Response content: {response}")
+    print(f"🔍 DEBUG: Response type: {type(response)}")
+    print(f"🔍 DEBUG: Response content: {response}")
 
     # Handle different response structures
     if isinstance(response, dict):
         if 'output' in response:
             output = response['output']
+            print("🔍 DEBUG: Using 'output' from response")
         elif 'result' in response:
             output = response['result']
+            print("🔍 DEBUG: Using 'result' from response")
         else:
             # Return the entire response as a string for debugging
             output = str(response)
+            print("🔍 DEBUG: Using entire response as string")
     else:
         output = str(response)
+        print("🔍 DEBUG: Using response as string")
     
     # Clean up the response - remove trailing backticks and extra whitespace
     output = output.strip()
     if output.startswith('```') and output.endswith('```'):
         output = output[3:-3].strip()
     
+    print(f"🔍 DEBUG: Cleaned output: {output[:100]}...")
+    
     # Use LLM to format the response intelligently
+    print("🔍 DEBUG: Formatting response with LLM...")
     formatted_output = format_response_with_llm(output)
+    print(f"🔍 DEBUG: Formatted output: {formatted_output[:100]}...")
     
     return formatted_output

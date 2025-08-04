@@ -14,6 +14,8 @@ from langchain.chains import create_retrieval_chain
 from langchain_core.prompts import ChatPromptTemplate
 # end::import_chat_prompt[]
 
+print("🔍 DEBUG: solutions/tools/vector.py imported successfully")
+
 # Initialize as None - will be created when needed
 neo4jvector = None
 retriever = None
@@ -23,18 +25,28 @@ plot_retriever = None
 def get_neo4j_vector():
     """Get Neo4j vector index, creating it if it doesn't exist"""
     global neo4jvector, retriever, plot_retriever
+    print("🔍 DEBUG: get_neo4j_vector() called")
     
     if neo4jvector is None:
-        embeddings_instance = get_embeddings()
-        if not embeddings_instance:
-            print("Warning: Embeddings not available")
-            return None
-            
+        print("🔍 DEBUG: Creating new vector index...")
         try:
+            print("🔍 DEBUG: Getting embeddings...")
+            embeddings_instance = get_embeddings()
+            print(f"🔍 DEBUG: Embeddings created: {embeddings_instance is not None}")
+            
+            if not embeddings_instance:
+                print("⚠️ DEBUG: Embeddings not available")
+                return None
+                
+            print("🔍 DEBUG: Getting graph instance...")
+            graph_instance = get_graph_instance()
+            print(f"🔍 DEBUG: Graph instance created: {graph_instance is not None}")
+            
+            print("🔍 DEBUG: Creating Neo4jVector...")
             # Try to get existing index
             neo4jvector = Neo4jVector.from_existing_index(
                 embeddings_instance,                      # <1>
-                graph=get_graph_instance(),                             # <2>
+                graph=graph_instance,                             # <2>
                 index_name="skuPlots",                   # <3>
                 node_label="SKU",                        # <4>
                 text_node_property="plot",               # <5>
@@ -51,11 +63,15 @@ RETURN
     } AS metadata
 """
             )
+            print("🔍 DEBUG: Neo4jVector created successfully")
             
             # Create retriever and chain
+            print("🔍 DEBUG: Creating retriever...")
             retriever = neo4jvector.as_retriever() if neo4jvector else None
+            print(f"🔍 DEBUG: Retriever created: {retriever is not None}")
             
             # tag::prompt[]
+            print("🔍 DEBUG: Creating prompt...")
             instructions = (
                 "You are a helpful FMCG supply chain assistant. Use the given context to answer questions about FMCG supply chain data. "
                 "Always provide detailed information from the context when available. "
@@ -70,36 +86,59 @@ RETURN
                     ("human", "{input}"),
                 ]
             )
+            print("🔍 DEBUG: Prompt created successfully")
             # end::prompt[]
 
             # tag::chain[]
+            print("🔍 DEBUG: Creating question_answer_chain...")
             question_answer_chain = create_stuff_documents_chain(get_llm(), prompt)
+            print("🔍 DEBUG: question_answer_chain created successfully")
+            
+            print("🔍 DEBUG: Creating plot_retriever...")
             plot_retriever = create_retrieval_chain(
                 retriever, 
                 question_answer_chain
             ) if retriever else None
+            print(f"🔍 DEBUG: plot_retriever created: {plot_retriever is not None}")
             # end::chain[]
             
         except ValueError as e:
             if "does not exist" in str(e):
-                # Index doesn't exist, return None
+                print("⚠️ DEBUG: Vector index does not exist")
                 return None
             else:
-                # Other error, re-raise
+                print(f"❌ DEBUG: ValueError in vector creation: {e}")
                 raise e
+        except Exception as e:
+            print(f"❌ DEBUG: Error creating vector index: {e}")
+            raise e
+    else:
+        print("🔍 DEBUG: Using existing vector index")
     
     return neo4jvector
 
 # tag::get_sku_data[]
 def get_sku_data(input):
+    print(f"🔍 DEBUG: get_sku_data() called with input: {input[:50]}...")
+    
     # Ensure vector index is created
+    print("🔍 DEBUG: Ensuring vector index is created...")
     get_neo4j_vector()
     
+    print(f"🔍 DEBUG: neo4jvector: {neo4jvector is not None}")
+    print(f"🔍 DEBUG: retriever: {retriever is not None}")
+    print(f"🔍 DEBUG: plot_retriever: {plot_retriever is not None}")
+    
     if not neo4jvector or not retriever or not plot_retriever:
+        print("⚠️ DEBUG: Vector index not available")
         return "Vector index not available. Please load data and create the vector index first."
     
     try:
-        return plot_retriever.invoke({"input": input})
+        print("🔍 DEBUG: Invoking plot_retriever...")
+        result = plot_retriever.invoke({"input": input})
+        print("🔍 DEBUG: plot_retriever invoked successfully")
+        return result
     except Exception as e:
+        print(f"❌ DEBUG: Error accessing vector index: {e}")
         return f"Error accessing vector index: {str(e)}"
 # end::get_sku_data[]

@@ -3,9 +3,13 @@ import streamlit as st
 # Page Config - MUST be called first
 st.set_page_config("FMCG RAG Chatbot", page_icon=":chart_with_upwards_trend:")
 
+print("🔍 DEBUG: bot.py starting...")
+
 from utils import write_message
 from solutions.agent import generate_response
 from graph import get_graph_instance
+
+print("🔍 DEBUG: All imports completed successfully")
 
 # Set up Session State
 if "messages" not in st.session_state:
@@ -20,6 +24,8 @@ if "sample_questions" not in st.session_state:
 # Initialize selected question in session state
 if "selected_question" not in st.session_state:
     st.session_state.selected_question = ""
+
+print("🔍 DEBUG: Session state initialized")
 
 # Default sample questions for new users
 default_questions = [
@@ -72,27 +78,35 @@ default_questions = [
 ]
 
 # Check Neo4j status
+print("🔍 DEBUG: Checking Neo4j availability...")
 neo4j_available = get_graph_instance() is not None
+print(f"🔍 DEBUG: Neo4j available: {neo4j_available}")
 
 def check_data_available():
     """Check if there's data in the database to query"""
+    print("🔍 DEBUG: check_data_available() called")
     if not neo4j_available:
+        print("⚠️ DEBUG: Neo4j not available")
         return False
     
     try:
         # Check if there are any SKU nodes in the database
         graph = get_graph_instance()
         if graph is None:
+            print("⚠️ DEBUG: Graph instance is None")
             return False
         result = graph.query("MATCH (sku:SKU) RETURN count(sku) as count")
         count = result[0]['count'] if result else 0
+        print(f"🔍 DEBUG: Found {count} SKU nodes in database")
         return count > 0
     except Exception as e:
-        print(f"Error checking data availability: {e}")
+        print(f"❌ DEBUG: Error checking data availability: {e}")
         return False
 
 # Check if data is available
+print("🔍 DEBUG: Checking data availability...")
 data_available = check_data_available()
+print(f"🔍 DEBUG: Data available: {data_available}")
 
 # Sidebar for data upload
 with st.sidebar:
@@ -300,31 +314,18 @@ def cypher_search(query):
 
 def handle_submit(message):
     """
-    Submit handler with RAG implementation
+    Handle user message submission
     """
-    with st.spinner('Analyzing your data...'):
-        if neo4j_available:
-            # Perform vector search
-            vector_results = vector_search(message, top_k=5)
-            
-            # Perform Cypher search
-            cypher_results = cypher_search(message)
-            
-            # Combine results (prioritize vector results)
-            all_results = vector_results + cypher_results
-        else:
-            all_results = []
-        
-        # Generate response
+    print(f"🔍 DEBUG: handle_submit() called with message: {message[:50]}...")
+    
+    try:
+        print("🔍 DEBUG: Calling generate_response...")
         response = generate_response(message)
-        
-        # Debug: Print the response before displaying
-        print(f"DEBUG: Final response to display: '{response}'")
-        print(f"DEBUG: Response type: {type(response)}")
-        print(f"DEBUG: Response length: {len(response) if response else 0}")
-        
-        # Display response
-        write_message('assistant', response)
+        print(f"🔍 DEBUG: generate_response returned: {response[:100]}...")
+        return response
+    except Exception as e:
+        print(f"❌ DEBUG: Error in handle_submit: {e}")
+        return f"Error: {str(e)}"
 
 # Display messages in Session State
 for message in st.session_state.messages:
