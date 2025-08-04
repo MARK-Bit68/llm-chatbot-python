@@ -407,4 +407,10 @@ The project represents a significant advancement in the application of AI to sup
 
 ---
 
-*"The best systems are those that make complex problems simple to understand and solve."* - Kosar Jaff 
+*"The best systems are those that make complex problems simple to understand and solve."* - Kosar Jaff
+
+---
+
+## ⚠️ Disclaimer
+
+*The press release above is written in jest and is purely fictional. While the technical achievements and system capabilities described are real, the quotes attributed to "Kosar Jaff" and the narrative about a retired chemist from Erbil are entirely fictional and meant for entertainment purposes only. The actual development of this system was done by the real project contributors.* 
