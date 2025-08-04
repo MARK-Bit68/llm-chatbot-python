@@ -152,39 +152,36 @@ Format the response:"""),
 
 def enhanced_cypher_qa(question):
     """
-    Enhanced Cypher QA with dynamic query generation and intelligent response formatting
+    Enhanced Cypher Q&A with dynamic query generation and intelligent response formatting
     """
+    print(f"🔍 DEBUG: enhanced_cypher_qa() called with question: '{question}'")
+    
     try:
-        # First, try to get some context about available data
-        context_query = """
-        MATCH (sku:SKU) 
-        RETURN count(sku) as total_skus
-        LIMIT 1
-        """
+        # Generate dynamic Cypher query
+        print("🔍 DEBUG: Generating dynamic Cypher query...")
+        cypher_query = generate_dynamic_cypher_query(question)
+        print(f"🔍 DEBUG: Generated query: {cypher_query}")
         
-        context_result = get_graph_instance().query(context_query)
-        available_data = context_result[0] if context_result else {}
+        # Execute the query
+        print("🔍 DEBUG: Executing query...")
+        graph = get_graph_instance()
+        if graph is None:
+            print("❌ DEBUG: Graph instance is None")
+            return "Database connection not available."
         
-        # Execute dynamic query
-        query_result = execute_dynamic_query(question, available_data)
+        result = graph.query(cypher_query)
+        print(f"🔍 DEBUG: Query returned {len(result)} results")
         
-        if "error" in query_result:
-            return f"Error: {query_result['error']}"
-        
-        # Format the results using intelligent analysis
-        results = query_result["results"]
-        count = query_result["count"]
-        
-        if count == 0:
-            return "No data found matching your query."
-        
-        # Use LLM to analyze and format the results
-        formatted_response = analyze_and_format_results(question, results, count)
+        # Format the results intelligently
+        print("🔍 DEBUG: Formatting results...")
+        formatted_response = analyze_and_format_results(question, result)
+        print(f"🔍 DEBUG: Formatted response: {formatted_response[:100]}...")
         
         return formatted_response
         
     except Exception as e:
-        return f"Error processing query: {str(e)}"
+        print(f"❌ DEBUG: Error in enhanced_cypher_qa: {e}")
+        return f"Error processing your request: {str(e)}"
 
 # Keep the original simple cypher_search for backward compatibility
 def cypher_search(query):
