@@ -353,7 +353,11 @@ def quick_ingestion_2_skus(excel_file_path, max_skus=10):
             text_for_embedding = f"FMCG Product {sku_id} {plot}"
             
             start_time = time.time()
-            embedding = embeddings.embed_query(text_for_embedding)
+            embeddings_instance = get_embeddings()
+        if not embeddings_instance:
+            print("❌ CRITICAL ERROR: OpenAI API key not found. Cannot create embeddings.")
+            return
+        embedding = embeddings_instance.embed_query(text_for_embedding)
             embedding_time = time.time() - start_time
             print(f"✅ Embedding generated for {sku_id} in {embedding_time:.2f}s")
             
