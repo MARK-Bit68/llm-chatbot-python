@@ -137,6 +137,7 @@ def get_agent():
             for i, tool in enumerate(tools):
                 print(f"🔍 DEBUG: Tool {i+1}: {tool.name}")
             
+            # Try using the standard ReAct agent creation without custom prompt
             agent = create_react_agent(llm, tools, agent_prompt)
             print(f"🔍 DEBUG: Agent created: {agent is not None}")
             
@@ -159,7 +160,32 @@ def get_agent():
             print(f"🔍 DEBUG: ChatAgent created: {chat_agent is not None}")
         except Exception as e:
             print(f"❌ DEBUG: Error creating agent: {e}")
-            raise e
+            # Try alternative approach - use default prompt
+            try:
+                print("🔍 DEBUG: Trying alternative approach with default prompt...")
+                agent = create_react_agent(llm, tools)
+                print(f"🔍 DEBUG: Agent created with default prompt: {agent is not None}")
+                
+                agent_executor = AgentExecutor(
+                    agent=agent,
+                    tools=tools,
+                    verbose=True,
+                    handle_parsing_errors=True,
+                    max_iterations=5,
+                    return_intermediate_steps=True
+                )
+                print(f"🔍 DEBUG: AgentExecutor created with default prompt: {agent_executor is not None}")
+                
+                chat_agent = RunnableWithMessageHistory(
+                    agent_executor,
+                    get_memory,
+                    input_messages_key="input",
+                    history_messages_key="chat_history",
+                )
+                print(f"🔍 DEBUG: ChatAgent created with default prompt: {chat_agent is not None}")
+            except Exception as e2:
+                print(f"❌ DEBUG: Error with default prompt too: {e2}")
+                raise e
     
     return agent_executor
 
