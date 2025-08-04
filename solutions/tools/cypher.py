@@ -56,6 +56,18 @@ Example queries:
 - Price analysis: MATCH (sku:SKU) WITH sku, split(split(sku.plot, 'unit_price: ')[1], ' | ')[0] as price RETURN sku.sku_id, sku.name, price WHERE price IS NOT NULL
 - Category count: MATCH (sku:SKU) RETURN split(split(sku.plot, 'category: ')[1], ' | ')[0] as category, count(*) as count
 
+Analytical Query Examples:
+- Top selling product:
+  MATCH (sku:SKU) WITH sku, toFloat(split(split(sku.plot, 'revenue: ')[1], ' | ')[0]) AS revenue RETURN sku.sku_id, sku.name, revenue ORDER BY revenue DESC LIMIT 1
+- SKUs with negative gross profit:
+  MATCH (sku:SKU) WITH sku, toFloat(split(split(sku.plot, 'gross_profit: ')[1], ' | ')[0]) AS gp WHERE gp < 0 RETURN sku.sku_id, sku.name, gp
+- Average lead time by category:
+  MATCH (sku:SKU) WITH split(split(sku.plot, 'category: ')[1], ' | ')[0] AS category, toFloat(split(split(sku.plot, 'lead_time_days: ')[1], ' | ')[0]) AS lead_time RETURN category, avg(lead_time) AS avg_lead_time
+- Warehouse with highest inventory value:
+  MATCH (sku:SKU) WITH split(split(sku.plot, 'warehouse: ')[1], ' | ')[0] AS warehouse, toFloat(split(split(sku.plot, 'unit_price: ')[1], ' | ')[0]) AS price, toFloat(split(split(sku.plot, 'initial_inventory: ')[1], ' | ')[0]) AS inv RETURN warehouse, sum(price * inv) AS inventory_value ORDER BY inventory_value DESC LIMIT 1
+- SKUs with forecasted volume above 10,000:
+  MATCH (sku:SKU) WITH sku, toFloat(split(split(sku.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv WHERE fv > 10000 RETURN sku.sku_id, sku.name, fv
+
 IMPORTANT RULES:
 - DO NOT return plotEmbedding as it contains large data
 - Use proper nested split syntax: split(split(sku.plot, 'field: ')[1], ' | ')[0]
