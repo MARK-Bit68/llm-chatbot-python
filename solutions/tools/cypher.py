@@ -174,7 +174,7 @@ def enhanced_cypher_qa(question):
         
         # Format the results intelligently
         print("🔍 DEBUG: Formatting results...")
-        formatted_response = analyze_and_format_results(question, result)
+        formatted_response = analyze_and_format_results(question, result, len(result))
         print(f"🔍 DEBUG: Formatted response: {formatted_response[:100]}...")
         
         return formatted_response

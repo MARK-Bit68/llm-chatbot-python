@@ -171,8 +171,7 @@ def get_agent():
                 tools=tools,
                 verbose=True,
                 handle_parsing_errors=True,
-                max_iterations=5,
-                early_stopping_method="generate"
+                max_iterations=5
             )
             print("🔍 DEBUG: AgentExecutor created successfully")
             
