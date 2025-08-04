@@ -149,6 +149,15 @@ def get_agent():
             print(f"🔍 DEBUG: Tools count: {len(tools)}")
             print(f"🔍 DEBUG: Agent prompt variables: {agent_prompt.input_variables}")
             
+            # Debug: Show what tools are being passed
+            print("🔍 DEBUG: Tools being passed to agent:")
+            for i, tool in enumerate(tools):
+                print(f"  Tool {i+1}: {tool.name} - {tool.description[:100]}...")
+            
+            # Debug: Show the actual prompt template
+            print("🔍 DEBUG: Agent prompt template:")
+            print(agent_prompt.template)
+            
             agent = create_react_agent(llm, tools, agent_prompt)
             print("🔍 DEBUG: Agent created successfully")
             
@@ -236,6 +245,10 @@ def generate_response(user_input):
         print("🔍 DEBUG: Getting agent...")
         agent_executor = get_agent()
         print("🔍 DEBUG: Agent obtained successfully")
+        
+        # Debug: Show what the agent will receive
+        print(f"🔍 DEBUG: Agent will receive input: '{user_input}'")
+        print(f"🔍 DEBUG: Agent has {len(agent_executor.tools)} tools available")
         
         print("🔍 DEBUG: Invoking agent...")
         response = agent_executor.invoke({"input": user_input})
