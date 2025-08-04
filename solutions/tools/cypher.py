@@ -120,53 +120,46 @@ def execute_dynamic_query(question, available_data=None):
 
 def analyze_and_format_results(question, results, count):
     """
-    Use LLM to intelligently analyze and format query results
+    Format query results as a markdown table (with all columns) for both all-SKU and single-SKU queries.
+    Optionally, add a summary/insights section after the table, but never instead of the table.
     """
-    
-    # Create a prompt for the LLM to analyze and format results
-    analysis_prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are a data analyst expert. Your task is to analyze database query results and format them into a clear, informative response.
+    if not results or count == 0:
+        return "No results found."
 
-Given a user question and the query results, create a well-structured response that:
-1. Answers the user's question directly
-2. Formats the data in a readable way
-3. Provides insights when possible
-4. Uses markdown formatting for better presentation
+    # Extract all unique keys from the results
+    all_keys = set()
+    for row in results:
+        if isinstance(row, dict):
+            all_keys.update(row.keys())
+        elif hasattr(row, '_fields'):
+            all_keys.update(row._fields)
+    all_keys = list(all_keys)
 
-Guidelines:
-- Use bullet points for lists
-- Use bold formatting for key information
-- Group related information together
-- Provide context and insights when relevant
-- Keep responses concise but informative
-- Format numbers appropriately (currency, percentages, etc.)
-- Handle empty or null values gracefully
+    # Build the markdown table header
+    header = "| " + " | ".join(all_keys) + " |"
+    separator = "|" + "---|" * len(all_keys)
 
-User Question: {question}
-Number of Results: {count}
-Query Results: {results}
+    # Build the table rows
+    rows = []
+    for row in results:
+        if isinstance(row, dict):
+            values = [str(row.get(k, "")) for k in all_keys]
+        elif hasattr(row, '_fields'):
+            values = [str(getattr(row, k, "")) for k in all_keys]
+        else:
+            values = [str(row)]
+        rows.append("| " + " | ".join(values) + " |")
 
-Format the response:"""),
-        ("human", "{question}")
-    ])
-    
-    try:
-        # Convert results to a readable format
-        results_str = str(results[:20])  # Limit to first 20 results to avoid token limits
-        
-        # Generate the analysis using the LLM
-        chain = analysis_prompt | get_llm()
-        response = chain.invoke({
-            "question": question,
-            "count": count,
-            "results": results_str
-        })
-        
-        return response.content.strip()
-    except Exception as e:
-        print(f"Error analyzing results: {e}")
-        # Fallback to simple formatting
-        return f"Found {count} result(s):\n" + "\n".join([f"- {result}" for result in results[:10]])
+    table = "\n".join([header, separator] + rows)
+
+    # Optionally, add a summary/insights section
+    summary = f"\n\n**Total Results:** {count}"
+    if count == 1:
+        summary += "\n\n**Details for the requested SKU are shown above.**"
+    elif count > 1:
+        summary += "\n\n**Details for all matching SKUs are shown above.**"
+
+    return f"{table}{summary}"
 
 def enhanced_cypher_qa(question):
     """
