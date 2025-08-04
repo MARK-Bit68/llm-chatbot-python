@@ -96,7 +96,7 @@ TOOLS:
 
 You have access to the following tools:
 
-{tools}
+{tool_names}
 
 {agent_scratchpad}
 """)
