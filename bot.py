@@ -22,7 +22,7 @@ except ImportError as e:
     st.error(f"Import error: {e}")
     st.stop()
 
-# Page configuration
+# Page configuration - MUST be called first
 st.set_page_config(
     page_title="FMCG Supply Chain Assistant",
     page_icon="📊",
