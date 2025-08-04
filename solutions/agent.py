@@ -137,8 +137,49 @@ def get_agent():
             for i, tool in enumerate(tools):
                 print(f"🔍 DEBUG: Tool {i+1}: {tool.name}")
             
-            # Try using the standard ReAct agent creation without custom prompt
-            agent = create_react_agent(llm, tools, agent_prompt)
+            # Create tool names string for the prompt
+            tool_names = ", ".join([tool.name for tool in tools])
+            print(f"🔍 DEBUG: Tool names: {tool_names}")
+            
+            # Create the prompt with the required variables
+            prompt = PromptTemplate.from_template("""
+You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
+
+CRITICAL: For ANY question about SKUs (including "Tell me about SKU001", "What SKUs are in the Master Data?", etc.), you MUST use the Enhanced Database Query tool. You CANNOT give a generic response without using a tool.
+
+MANDATORY: You MUST use a tool for EVERY question. You are NOT allowed to give generic responses or greetings. You MUST follow the ReAct format exactly.
+
+You have access to the following tools:
+
+{tools}
+
+IMPORTANT: You MUST use the ReAct format for EVERY response. This means:
+
+1. ALWAYS start with "Thought: Do I need to use a tool? Yes"
+2. ALWAYS specify "Action: [tool name]"
+3. ALWAYS specify "Action Input: [your input]"
+4. ALWAYS wait for "Observation: [tool result]"
+5. THEN provide "Final Answer: [your response]"
+
+Example format:
+```
+Thought: Do I need to use a tool? Yes
+Action: Enhanced Database Query
+Action Input: Tell me about SKU001
+Observation: [tool result here]
+Thought: Do I need to use a tool? No
+Final Answer: [your response here]
+```
+
+You CANNOT skip any of these steps. You MUST use tools for every question.
+
+Begin!
+
+{agent_scratchpad}
+""")
+            
+            # Try using the standard ReAct agent creation with proper prompt
+            agent = create_react_agent(llm, tools, prompt)
             print(f"🔍 DEBUG: Agent created: {agent is not None}")
             
             agent_executor = AgentExecutor(
@@ -160,11 +201,13 @@ def get_agent():
             print(f"🔍 DEBUG: ChatAgent created: {chat_agent is not None}")
         except Exception as e:
             print(f"❌ DEBUG: Error creating agent: {e}")
-            # Try alternative approach - use default prompt
+            # Try alternative approach - use hub prompt
             try:
-                print("🔍 DEBUG: Trying alternative approach with default prompt...")
-                agent = create_react_agent(llm, tools)
-                print(f"🔍 DEBUG: Agent created with default prompt: {agent is not None}")
+                print("🔍 DEBUG: Trying alternative approach with hub prompt...")
+                from langchain import hub
+                prompt = hub.pull("hwchase17/react")
+                agent = create_react_agent(llm, tools, prompt)
+                print(f"🔍 DEBUG: Agent created with hub prompt: {agent is not None}")
                 
                 agent_executor = AgentExecutor(
                     agent=agent,
@@ -174,7 +217,7 @@ def get_agent():
                     max_iterations=5,
                     return_intermediate_steps=True
                 )
-                print(f"🔍 DEBUG: AgentExecutor created with default prompt: {agent_executor is not None}")
+                print(f"🔍 DEBUG: AgentExecutor created with hub prompt: {agent_executor is not None}")
                 
                 chat_agent = RunnableWithMessageHistory(
                     agent_executor,
@@ -182,9 +225,9 @@ def get_agent():
                     input_messages_key="input",
                     history_messages_key="chat_history",
                 )
-                print(f"🔍 DEBUG: ChatAgent created with default prompt: {chat_agent is not None}")
+                print(f"🔍 DEBUG: ChatAgent created with hub prompt: {chat_agent is not None}")
             except Exception as e2:
-                print(f"❌ DEBUG: Error with default prompt too: {e2}")
+                print(f"❌ DEBUG: Error with hub prompt too: {e2}")
                 raise e
     
     return agent_executor
