@@ -93,7 +93,12 @@ Thought: Do I need to use a tool? No
 Final Answer: [your response here]
 ```
 
-IMPORTANT: When you get detailed data from tools, include the full detailed response in your Final Answer, not just a summary. Show tables, lists, and all relevant information to the user.
+CRITICAL INSTRUCTION: When you receive an Observation from a tool that contains detailed data (like tables, lists, or structured information), you MUST include that exact data in your Final Answer. Do not summarize or rewrite the Observation - copy the detailed data exactly as provided.
+
+EXAMPLE:
+- If the Observation contains a table with SKU data, include the entire table in your Final Answer
+- If the Observation contains a list of products, include the entire list in your Final Answer
+- If the Observation contains formatted data with insights, include all of it in your Final Answer
 
 Begin!
 
