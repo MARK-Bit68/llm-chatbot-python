@@ -31,8 +31,22 @@ def generate_dynamic_cypher_query(question, available_data=None):
         cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
         print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
         return cypher_query
-    else:
-        print(f"🔍 DEBUG: No SKU IDs detected, falling back to LLM query generation")
+    
+    # Check for "all SKUs" type queries using intelligent detection
+    question_lower = question.lower()
+    all_indicators = ["all", "every", "each", "list", "show me", "what", "which", "display"]
+    sku_indicators = ["sku", "product", "item", "master data"]
+    
+    has_all_indicator = any(indicator in question_lower for indicator in all_indicators)
+    has_sku_indicator = any(indicator in question_lower for indicator in sku_indicators)
+    
+    if has_all_indicator and has_sku_indicator:
+        # "All SKUs" query detected
+        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
+        print(f"🔍 DEBUG: Detected 'all SKUs' query, using simple query: {cypher_query}")
+        return cypher_query
+    
+    print(f"🔍 DEBUG: No specific patterns detected, falling back to LLM query generation")
 
     # Otherwise, use the LLM to generate the query as before
     # Create a prompt for the LLM to generate Cypher queries

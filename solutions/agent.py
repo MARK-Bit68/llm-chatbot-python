@@ -196,7 +196,7 @@ Begin!
 
 {agent_scratchpad}
 """)
-            
+
             # Try using the standard ReAct agent creation with proper prompt
             agent = create_react_agent(llm, tools, prompt)
             print(f"🔍 DEBUG: Agent created: {agent is not None}")
@@ -228,22 +228,22 @@ Begin!
                 agent = create_react_agent(llm, tools, prompt)
                 print(f"🔍 DEBUG: Agent created with hub prompt: {agent is not None}")
                 
-                agent_executor = AgentExecutor(
-                    agent=agent,
-                    tools=tools,
-                    verbose=True,
-                    handle_parsing_errors=True,
-                    max_iterations=5,
+agent_executor = AgentExecutor(
+    agent=agent,
+    tools=tools,
+    verbose=True,
+    handle_parsing_errors=True,
+    max_iterations=5,
                     return_intermediate_steps=True
-                )
+    )
                 print(f"🔍 DEBUG: AgentExecutor created with hub prompt: {agent_executor is not None}")
-                
-                chat_agent = RunnableWithMessageHistory(
-                    agent_executor,
-                    get_memory,
-                    input_messages_key="input",
-                    history_messages_key="chat_history",
-                )
+
+chat_agent = RunnableWithMessageHistory(
+    agent_executor,
+    get_memory,
+    input_messages_key="input",
+    history_messages_key="chat_history",
+)
                 print(f"🔍 DEBUG: ChatAgent created with hub prompt: {chat_agent is not None}")
             except Exception as e2:
                 print(f"❌ DEBUG: Error with hub prompt too: {e2}")
