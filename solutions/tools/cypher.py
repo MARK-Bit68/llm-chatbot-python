@@ -19,14 +19,14 @@ def generate_dynamic_cypher_query(question, available_data=None):
     print(f"🔍 DEBUG: Detected SKU IDs: {sku_ids}")
 
     if len(sku_ids) == 1:
-        # Single SKU query
-        cypher_query = f"MATCH (sku:SKU {{sku_id: '{sku_ids[0]}'}}) RETURN sku.sku_id, sku.name, sku.plot"
+        # Single SKU query (case-insensitive)
+        cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) = '{sku_ids[0].upper()}' RETURN sku.sku_id, sku.name, sku.plot"
         print(f"🔍 DEBUG: Overriding query for single SKU: {cypher_query}")
         return cypher_query
     elif len(sku_ids) > 1:
-        # Multi-SKU query
-        sku_list = ', '.join([f"'{sku}'" for sku in sku_ids])
-        cypher_query = f"MATCH (sku:SKU) WHERE sku.sku_id IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
+        # Multi-SKU query (case-insensitive)
+        sku_list = ', '.join([f"'{sku.upper()}'" for sku in sku_ids])
+        cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
         print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
         return cypher_query
 
@@ -195,34 +195,23 @@ def analyze_and_format_results(question, results, count):
     return f"{table}{summary}"
 
 def enhanced_cypher_qa(question):
-    """
-    Enhanced Cypher Q&A with dynamic query generation and intelligent response formatting
-    """
     print(f"🔍 DEBUG: enhanced_cypher_qa() called with question: '{question}'")
-    
     try:
-        # Generate dynamic Cypher query
         print("🔍 DEBUG: Generating dynamic Cypher query...")
         cypher_query = generate_dynamic_cypher_query(question)
-        print(f"🔍 DEBUG: Generated query: {cypher_query}")
-        
-        # Execute the query
+        print(f"🔍 DEBUG: Final Cypher query to execute: {cypher_query}")
         print("🔍 DEBUG: Executing query...")
         graph = get_graph_instance()
         if graph is None:
             print("❌ DEBUG: Graph instance is None")
             return "Database connection not available."
-        
         result = graph.query(cypher_query)
+        print(f"🔍 DEBUG: Raw query results (first 3 records): {result[:3]}")
         print(f"🔍 DEBUG: Query returned {len(result)} results")
-        
-        # Format the results intelligently
         print("🔍 DEBUG: Formatting results...")
         formatted_response = analyze_and_format_results(question, result, len(result))
         print(f"🔍 DEBUG: Formatted response: {formatted_response[:100]}...")
-        
         return formatted_response
-        
     except Exception as e:
         print(f"❌ DEBUG: Error in enhanced_cypher_qa: {e}")
         return f"Error processing your request: {str(e)}"

@@ -69,4 +69,48 @@ except Exception as e:
     print(f"❌ ERROR: Failed to query SKU data with plot: {e}")
     exit(1)
 
+# --- SKU ID Uniqueness and Index/Constraint Check ---
+from neo4j import GraphDatabase
+
+def check_sku_id_uniqueness_and_index():
+    print("\n🔍 DEBUG: Checking SKU ID uniqueness and index/constraint...")
+    uri = os.getenv("NEO4J_URI")
+    user = os.getenv("NEO4J_USERNAME", "neo4j")
+    pwd = os.getenv("NEO4J_PASSWORD")
+    database = os.getenv("NEO4J_DATABASE", "neo4j")
+    driver = GraphDatabase.driver(uri, auth=(user, pwd))
+    with driver.session(database=database) as session:
+        # Create uniqueness constraint if not exists
+        print("🔍 DEBUG: Ensuring uniqueness constraint on :SKU(sku_id)...")
+        try:
+            session.run("CREATE CONSTRAINT sku_id_unique IF NOT EXISTS FOR (sku:SKU) REQUIRE sku.sku_id IS UNIQUE")
+            print("✅ Uniqueness constraint created or already exists.")
+        except Exception as e:
+            print(f"❌ Error creating uniqueness constraint: {e}")
+        # Get all SKU IDs
+        result = session.run("MATCH (sku:SKU) RETURN sku.sku_id AS sku_id")
+        sku_ids = [record["sku_id"] for record in result]
+        print(f"Found {len(sku_ids)} SKU IDs.")
+        # Check for duplicates
+        duplicates = set([x for x in sku_ids if sku_ids.count(x) > 1])
+        if duplicates:
+            print(f"❌ Duplicate SKU IDs found: {duplicates}")
+        else:
+            print("✅ All SKU IDs are unique.")
+        # Check for index/constraint (use SHOW INDEXES for Aura/modern Neo4j)
+        idx_result = session.run("SHOW INDEXES YIELD name, entityType, labelsOrTypes, properties, type RETURN name, entityType, labelsOrTypes, properties, type")
+        found_index = False
+        for record in idx_result:
+            labels = record.get("labelsOrTypes")
+            props = record.get("properties")
+            if labels and props and "SKU" in labels and "sku_id" in props:
+                print(f"✅ Index/constraint found: {record}")
+                found_index = True
+        if not found_index:
+            print("❌ No index/constraint found on :SKU(sku_id)")
+    driver.close()
+
+if __name__ == "__main__":
+    check_sku_id_uniqueness_and_index()
+
 print("✅ All database tests passed!") 
