@@ -206,7 +206,7 @@ Begin!
                 tools=tools,
                 verbose=True,
                 handle_parsing_errors=True,
-                max_iterations=5,
+                max_iterations=10,  # Increased from 5 to 10 for complex queries
                 return_intermediate_steps=True
             )
             print(f"🔍 DEBUG: AgentExecutor created: {agent_executor is not None}")
@@ -220,7 +220,7 @@ Begin!
             print(f"🔍 DEBUG: ChatAgent created: {chat_agent is not None}")
         except Exception as e:
             print(f"❌ DEBUG: Error creating agent: {e}")
-            # Try alternative approach - use hub prompt
+            # Try alternative approach - use hub prompt with better error handling
             try:
                 print("🔍 DEBUG: Trying alternative approach with hub prompt...")
                 from langchain import hub
@@ -233,7 +233,7 @@ Begin!
                     tools=tools,
                     verbose=True,
                     handle_parsing_errors=True,
-                    max_iterations=5,
+                    max_iterations=10,  # Increased from 5 to 10 for complex queries
                     return_intermediate_steps=True
                 )
                 print(f"🔍 DEBUG: AgentExecutor created with hub prompt: {agent_executor is not None}")

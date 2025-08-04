@@ -14,41 +14,6 @@ def generate_dynamic_cypher_query(question, available_data=None):
 
     # Check for analytical queries FIRST (before SKU detection)
     question_lower = question.lower()
-    analytical_indicators = [
-        # Basic analytical terms
-        "what if", "if we", "impact", "analysis", "compare", "versus", "vs", "negative", "positive", 
-        "top", "bottom", "average", "sum", "count", "profit", "revenue", "cost", "added", "increased", 
-        "decreased", "reduced", "more", "less",
-        
-        # Supply chain and inventory planning terms
-        "demand", "supply", "inventory", "stock", "forecast", "planning", "capacity", "throughput",
-        "lead time", "leadtime", "safety stock", "reorder point", "economic order quantity", "eoq",
-        "carrying cost", "holding cost", "stockout", "backorder", "fill rate", "service level",
-        "cycle time", "turnover", "obsolescence", "shrinkage", "damage", "expiry", "shelf life",
-        "warehouse", "distribution", "logistics", "transportation", "shipping", "delivery",
-        "procurement", "sourcing", "vendor", "supplier", "purchase order", "po",
-        "production", "manufacturing", "assembly", "quality", "defect", "scrap",
-        "capacity planning", "resource planning", "mrp", "erp", "s&op", "sales and operations planning",
-        "demand planning", "supply planning", "inventory planning", "financial planning",
-        "budget", "forecast accuracy", "bias", "seasonality", "trend", "volatility",
-        "optimization", "efficiency", "productivity", "utilization", "bottleneck", "constraint",
-        "scenario", "simulation", "what-if", "sensitivity", "risk", "mitigation", "contingency",
-        "escalation", "escalate", "alert", "threshold", "kpi", "metric", "performance",
-        "baseline", "target", "goal", "objective", "strategy", "tactical", "operational",
-        "strategic", "tactical", "operational", "daily", "weekly", "monthly", "quarterly", "annual",
-        "yearly", "period", "cycle", "season", "peak", "off-peak", "holiday", "promotion",
-        "campaign", "marketing", "advertising", "discount", "pricing", "margin", "markup",
-        "cost structure", "fixed cost", "variable cost", "direct cost", "indirect cost",
-        "overhead", "allocation", "absorption", "standard cost", "actual cost", "variance",
-        "efficiency variance", "price variance", "usage variance", "volume variance",
-        "absorption variance", "capacity variance", "mix variance", "yield variance"
-    ]
-    
-    has_analytical_indicator = any(indicator in question_lower for indicator in analytical_indicators)
-    if has_analytical_indicator:
-        print(f"🔍 DEBUG: Detected analytical query, falling back to LLM")
-        # Let LLM handle analytical queries - return None to fall back to LLM generation
-        return None
     
     # Detect all valid SKU IDs in the question (e.g., SKU001, SKU002, ...)
     sku_pattern = r"SKU\d{3,}"  # Matches SKU followed by at least 3 digits
@@ -58,22 +23,21 @@ def generate_dynamic_cypher_query(question, available_data=None):
     print(f"🔍 DEBUG: Question in uppercase: '{question.upper()}'")
     print(f"🔍 DEBUG: Regex pattern: {sku_pattern}")
 
-    if len(sku_ids) == 1:
-        # Single SKU query (case-insensitive)
-        cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) = '{sku_ids[0].upper()}' RETURN sku.sku_id, sku.name, sku.plot"
-        print(f"🔍 DEBUG: Overriding query for single SKU: {cypher_query}")
-        return cypher_query
-    elif len(sku_ids) > 1:
-        # Multi-SKU query (case-insensitive)
-        sku_list = ', '.join([f"'{sku.upper()}'" for sku in sku_ids])
-        cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
-        print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
-        return cypher_query
+    # PRIORITY 1: If SKU is detected, handle it as a SKU query (not analytical)
+    if len(sku_ids) >= 1:
+        if len(sku_ids) == 1:
+            # Single SKU query (case-insensitive)
+            cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) = '{sku_ids[0].upper()}' RETURN sku.sku_id, sku.name, sku.plot"
+            print(f"🔍 DEBUG: Overriding query for single SKU: {cypher_query}")
+            return cypher_query
+        elif len(sku_ids) > 1:
+            # Multi-SKU query (case-insensitive)
+            sku_list = ', '.join([f"'{sku.upper()}'" for sku in sku_ids])
+            cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
+            print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
+            return cypher_query
     
-    # Check for "all SKUs" type queries using intelligent detection
-    question_lower = question.lower()
-    
-    # More specific "all SKUs" patterns to avoid catching analytical queries
+    # PRIORITY 2: Check for "all SKUs" type queries
     simple_all_patterns = [
         "what skus are in the master data",
         "show me all skus",
@@ -94,6 +58,36 @@ def generate_dynamic_cypher_query(question, available_data=None):
         cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
         print(f"🔍 DEBUG: Detected 'all SKUs' query, using simple query: {cypher_query}")
         return cypher_query
+    
+    # PRIORITY 3: Only then check for analytical queries (more specific patterns)
+    analytical_indicators = [
+        # True analytical/calculation terms
+        "what if", "if we", "impact", "analysis", "compare", "versus", "vs", "negative", "positive", 
+        "top", "bottom", "average", "sum", "count", "profit", "revenue", "cost", "added", "increased", 
+        "decreased", "reduced", "more", "less",
+        
+        # Complex analytical scenarios
+        "capacity planning", "resource planning", "mrp", "erp", "s&op", "sales and operations planning",
+        "demand planning", "supply planning", "financial planning",
+        "budget", "forecast accuracy", "bias", "seasonality", "trend", "volatility",
+        "optimization", "efficiency", "productivity", "utilization", "bottleneck", "constraint",
+        "scenario", "simulation", "what-if", "sensitivity", "risk", "mitigation", "contingency",
+        "escalation", "escalate", "alert", "threshold", "kpi", "metric", "performance",
+        "baseline", "target", "goal", "objective", "strategy", "tactical", "operational",
+        "strategic", "tactical", "operational", "daily", "weekly", "monthly", "quarterly", "annual",
+        "yearly", "period", "cycle", "season", "peak", "off-peak", "holiday", "promotion",
+        "campaign", "marketing", "advertising", "discount", "pricing", "margin", "markup",
+        "cost structure", "fixed cost", "variable cost", "direct cost", "indirect cost",
+        "overhead", "allocation", "absorption", "standard cost", "actual cost", "variance",
+        "efficiency variance", "price variance", "usage variance", "volume variance",
+        "absorption variance", "capacity variance", "mix variance", "yield variance"
+    ]
+    
+    has_analytical_indicator = any(indicator in question_lower for indicator in analytical_indicators)
+    if has_analytical_indicator:
+        print(f"🔍 DEBUG: Detected analytical query, falling back to LLM")
+        # Let LLM handle analytical queries - return None to fall back to LLM generation
+        return None
     
     print(f"🔍 DEBUG: No specific patterns detected, falling back to LLM query generation")
 

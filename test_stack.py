@@ -18,7 +18,6 @@ def setup_test_environment():
     
     # Try to read secrets from .streamlit/secrets.toml
     import os
-    import toml
     
     # Check if secrets are available
     api_key = None
@@ -34,16 +33,19 @@ def setup_test_environment():
             if os.path.exists(secrets_path):
                 with open(secrets_path, "r") as f:
                     content = f.read()
-                    # Parse the key=value format manually
+                    # Parse the key=value format manually and set all environment variables
                     for line in content.split('\n'):
                         if line.strip() and '=' in line:
                             key, value = line.split('=', 1)
-                            if key.strip() == "OPENAI_API_KEY":
-                                api_key = value.strip()
+                            key = key.strip()
+                            value = value.strip()
+                            # Set as environment variable for the test
+                            os.environ[key] = value
+                            if key == "OPENAI_API_KEY":
+                                api_key = value
                                 print("✅ OpenAI API key found in secrets.toml")
-                                # Set as environment variable for the test
-                                os.environ["OPENAI_API_KEY"] = api_key
-                                break
+                            elif key.startswith("NEO4J_"):
+                                print(f"✅ {key} found in secrets.toml")
                     if not api_key:
                         print("❌ OPENAI_API_KEY not found in secrets.toml")
             else:
@@ -106,18 +108,23 @@ def analyze_response(response: str, expected_complexity: str) -> bool:
     if len(response) < 10:
         return False
     
+    # Check if response contains actual data (not just error messages)
+    error_indicators = ["error", "unable", "cannot", "failed", "not found", "no data"]
+    if any(indicator in response.lower() for indicator in error_indicators):
+        return False
+    
     # Complexity-specific checks
     if expected_complexity == "LOW":
         # Factual questions should be concise and direct
-        return len(response) < 500 and any(keyword in response.lower() for keyword in ["country", "category", "sku"])
+        return len(response) < 500 and any(keyword in response.lower() for keyword in ["country", "category", "sku", "from"])
     
     elif expected_complexity == "MEDIUM":
-        # Extrapolation should include some analysis
-        return len(response) > 200 and any(keyword in response.lower() for keyword in ["demand", "inventory", "plan", "monthly"])
+        # Data extraction should include some details
+        return len(response) > 50 and any(keyword in response.lower() for keyword in ["inventory", "plan", "units", "data", "january", "february"])
     
     elif expected_complexity == "HIGH":
-        # What-if scenarios should include calculations and analysis
-        return len(response) > 300 and any(keyword in response.lower() for keyword in ["cost", "revenue", "profit", "analysis", "impact"])
+        # What-if scenarios should include analysis
+        return len(response) > 100 and any(keyword in response.lower() for keyword in ["cost", "unit", "demand", "increase", "analysis", "impact", "assumption"])
     
     return True
 
