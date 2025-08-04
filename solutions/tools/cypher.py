@@ -17,6 +17,8 @@ def generate_dynamic_cypher_query(question, available_data=None):
     sku_ids = re.findall(sku_pattern, question.upper())
     sku_ids = list(set(sku_ids))  # Remove duplicates
     print(f"🔍 DEBUG: Detected SKU IDs: {sku_ids}")
+    print(f"🔍 DEBUG: Question in uppercase: '{question.upper()}'")
+    print(f"🔍 DEBUG: Regex pattern: {sku_pattern}")
 
     if len(sku_ids) == 1:
         # Single SKU query (case-insensitive)
@@ -29,6 +31,8 @@ def generate_dynamic_cypher_query(question, available_data=None):
         cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
         print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
         return cypher_query
+    else:
+        print(f"🔍 DEBUG: No SKU IDs detected, falling back to LLM query generation")
 
     # Otherwise, use the LLM to generate the query as before
     # Create a prompt for the LLM to generate Cypher queries
@@ -65,7 +69,7 @@ Analytical Query Examples:
 - Average lead time by category:
   MATCH (sku:SKU) WITH split(split(sku.plot, 'category: ')[1], ' | ')[0] AS category, toFloat(split(split(sku.plot, 'lead_time_days: ')[1], ' | ')[0]) AS lead_time RETURN category, avg(lead_time) AS avg_lead_time
 - Warehouse with highest inventory value:
-  MATCH (sku:SKU) WITH split(split(sku.plot, 'warehouse: ')[1], ' | ')[0] AS warehouse, toFloat(split(split(sku.plot, 'unit_price: ')[1], ' | ')[0]) AS price, toFloat(split(split(sku.plot, 'initial_inventory: ')[1], ' | ')[0]) AS inv RETURN warehouse, sum(price * inv) AS inventory_value ORDER BY inventory_value DESC LIMIT 1
+  MATCH (sku:SKU) WITH split(split(sku.plot, 'warehouse: ')[1], ' | ')[0] AS warehouse, toFloat(split(sku.plot, 'unit_price: ')[1], ' | ')[0]) AS price, toFloat(split(split(sku.plot, 'initial_inventory: ')[1], ' | ')[0]) AS inv RETURN warehouse, sum(price * inv) AS inventory_value ORDER BY inventory_value DESC LIMIT 1
 - SKUs with forecasted volume above 10,000:
   MATCH (sku:SKU) WITH sku, toFloat(split(split(sku.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv WHERE fv > 10000 RETURN sku.sku_id, sku.name, fv
 
