@@ -198,6 +198,7 @@ def analyze_and_format_results(question, results, count):
     return f"{table}{summary}"
 
 def enhanced_cypher_qa(question):
+    print(f"🔍 DEBUG: ===== ENHANCED_CYPHER_QA CALLED =====")
     print(f"🔍 DEBUG: enhanced_cypher_qa() called with question: '{question}'")
     try:
         cypher_query = generate_dynamic_cypher_query(question)

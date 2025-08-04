@@ -272,6 +272,9 @@ def generate_response(user_input):
                 print(f"🔍 DEBUG: Action input: {step[1]}")
             elif isinstance(step, tuple) and len(step) == 2 and step[0] == 'Observation':
                 print(f"🔍 DEBUG: Observation preview: {str(step[1])[:200]}...")
+    else:
+        print(f"🔍 DEBUG: No intermediate steps found in response")
+        print(f"🔍 DEBUG: Response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
 
     # Enforce verbatim Observation in Final Answer if present
     if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
