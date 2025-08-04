@@ -7,6 +7,7 @@ def generate_dynamic_cypher_query(question, available_data=None):
     """
     Generate a dynamic Cypher query based on the user's question and available data
     """
+    print(f"🔍 DEBUG: generate_dynamic_cypher_query() called with question: '{question}'")
     
     # Create a prompt for the LLM to generate Cypher queries
     cypher_generation_prompt = ChatPromptTemplate.from_messages([
@@ -47,6 +48,9 @@ MATCH (sku:SKU {{sku_id: 'SKU001'}}) RETURN sku.sku_id, split(split(sku.plot, 'c
 When the user asks about ALL SKUs (e.g., "What SKUs are in the Master Data?"), use:
 MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot LIMIT 10
 
+When the user asks about countries, use:
+MATCH (sku:SKU) RETURN DISTINCT split(split(sku.plot, 'country: ')[1], ' | ')[0] as country
+
 Generate the Cypher query:"""),
         ("human", "{question}")
     ])
@@ -60,6 +64,7 @@ Generate the Cypher query:"""),
         
         # Extract the query from the response
         query = response.content.strip()
+        print(f"🔍 DEBUG: LLM generated query: {query}")
         
         # Clean up the query (remove markdown formatting if present)
         if query.startswith("```cypher"):
@@ -71,17 +76,21 @@ Generate the Cypher query:"""),
         if not query.upper().startswith("MATCH"):
             # Generate a safe fallback query
             query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 10"
+            print(f"🔍 DEBUG: Using fallback query: {query}")
         
         # Ensure we don't return large fields
         if "plotEmbedding" in query:
             # Remove plotEmbedding from the query
             query = query.replace("plotEmbedding", "").replace("sku.plotEmbedding", "")
         
+        print(f"🔍 DEBUG: Final query: {query}")
         return query
     except Exception as e:
-        print(f"Error generating Cypher query: {e}")
+        print(f"❌ DEBUG: Error generating Cypher query: {e}")
         # Return a safe fallback query
-        return "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 5"
+        fallback_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 5"
+        print(f"🔍 DEBUG: Using error fallback query: {fallback_query}")
+        return fallback_query
 
 def execute_dynamic_query(question, available_data=None):
     """
