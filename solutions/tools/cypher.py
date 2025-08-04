@@ -30,6 +30,7 @@ def generate_dynamic_cypher_query(question, available_data=None):
         print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
         return cypher_query
 
+    # Otherwise, use the LLM to generate the query as before
     # Create a prompt for the LLM to generate Cypher queries
     cypher_generation_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a Cypher query expert for Neo4j. Your task is to generate precise Cypher queries based on user questions.
@@ -99,7 +100,6 @@ Generate the Cypher query:"""),
         
         # Extract the query from the response
         query = response.content.strip()
-        print(f"🔍 DEBUG: LLM generated query: {query}")
         
         # Clean up the query (remove markdown formatting if present)
         if query.startswith("```cypher"):
@@ -111,7 +111,6 @@ Generate the Cypher query:"""),
         if not query.upper().startswith("MATCH"):
             # Generate a safe fallback query
             query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 10"
-            print(f"🔍 DEBUG: Using fallback query: {query}")
         
         # Ensure we don't return large fields
         if "plotEmbedding" in query:
@@ -197,21 +196,20 @@ def analyze_and_format_results(question, results, count):
 def enhanced_cypher_qa(question):
     print(f"🔍 DEBUG: enhanced_cypher_qa() called with question: '{question}'")
     try:
-        print("🔍 DEBUG: Generating dynamic Cypher query...")
         cypher_query = generate_dynamic_cypher_query(question)
         print(f"🔍 DEBUG: Final Cypher query to execute: {cypher_query}")
-        print("🔍 DEBUG: Executing query...")
+        
         graph = get_graph_instance()
         if graph is None:
             print("❌ DEBUG: Graph instance is None")
             return "Database connection not available."
+        
         result = graph.query(cypher_query)
-        print(f"🔍 DEBUG: Raw query results (first 3 records): {result[:3]}")
         print(f"🔍 DEBUG: Query returned {len(result)} results")
-        print("🔍 DEBUG: Formatting results...")
+        
         formatted_response = analyze_and_format_results(question, result, len(result))
-        print(f"🔍 DEBUG: Formatted response: {formatted_response[:100]}...")
         return formatted_response
+        
     except Exception as e:
         print(f"❌ DEBUG: Error in enhanced_cypher_qa: {e}")
         return f"Error processing your request: {str(e)}"

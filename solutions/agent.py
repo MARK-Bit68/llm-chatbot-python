@@ -15,6 +15,7 @@ from solutions.tools.vector import get_sku_data
 from solutions.tools.cypher import enhanced_cypher_qa
 from solutions.tools.data_parser import parse_sku_data
 
+# Remove extraneous debug statements, keep only essential ones for logic flow debugging
 print("🔍 DEBUG: solutions/agent.py imported successfully")
 
 # Domain configuration - can be easily changed for different domains
@@ -162,29 +163,11 @@ def reset_agent():
 def get_agent():
     """Get agent, creating it if needed"""
     global agent, agent_executor, chat_agent
-    print("🔍 DEBUG: get_agent() called")
     
     if agent is None:
-        print("🔍 DEBUG: Creating new agent...")
         try:
             llm = get_llm()
-            print(f"🔍 DEBUG: LLM created: {llm is not None}")
-            print(f"🔍 DEBUG: Tools count: {len(tools)}")
-            print(f"🔍 DEBUG: Agent prompt variables: {agent_prompt.input_variables}")
-            
-            # Debug: Show what tools are being passed
-            print("🔍 DEBUG: Tools being passed to agent:")
-            for i, tool in enumerate(tools):
-                print(f"  Tool {i+1}: {tool.name} - {tool.description[:100]}...")
-                print(f"    Full description: {tool.description}")
-            
-            # Debug: Show the actual prompt template
-            print("🔍 DEBUG: Agent prompt template:")
-            print(agent_prompt.template)
-            
             agent = create_react_agent(llm, tools, agent_prompt)
-            print("🔍 DEBUG: Agent created successfully")
-            
             agent_executor = AgentExecutor(
                 agent=agent,
                 tools=tools,
@@ -192,20 +175,15 @@ def get_agent():
                 handle_parsing_errors=True,
                 max_iterations=5
             )
-            print("🔍 DEBUG: AgentExecutor created successfully")
-            
             chat_agent = RunnableWithMessageHistory(
                 agent_executor,
                 get_memory,
                 input_messages_key="input",
                 history_messages_key="chat_history",
             )
-            print("🔍 DEBUG: ChatAgent created successfully")
         except Exception as e:
             print(f"❌ DEBUG: Error creating agent: {e}")
             raise e
-    else:
-        print("🔍 DEBUG: Using existing agent")
     
     return agent_executor
 
@@ -213,9 +191,6 @@ def format_response_with_llm(text):
     """
     Use LLM to intelligently format and clean text response with robust concatenation fixing
     """
-    print(f"🔍 DEBUG: format_response_with_llm() called with text length: {len(text)}")
-    print(f"🔍 DEBUG: Text preview: {text[:200]}...")
-    
     # Single-stage intelligent formatting that handles both concatenation and general formatting
     formatting_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a text formatting expert. Your task is to clean and format text responses to make them more readable while preserving all important information.
@@ -255,8 +230,6 @@ Return the cleaned and formatted text:"""),
         chain = formatting_prompt | get_llm()
         response = chain.invoke({"text": text})
         formatted_text = response.content.strip()
-        print(f"🔍 DEBUG: Formatted text length: {len(formatted_text)}")
-        print(f"🔍 DEBUG: Formatted text preview: {formatted_text[:200]}...")
         return formatted_text
     except Exception as e:
         print(f"Error formatting text: {e}")
@@ -269,28 +242,17 @@ def generate_response(user_input):
     print(f"🔍 DEBUG: generate_response() called with input: {user_input[:50]}...")
 
     try:
-        print("🔍 DEBUG: Getting agent...")
         agent_executor = get_agent()
-        print("🔍 DEBUG: Agent obtained successfully")
-        print(f"🔍 DEBUG: Agent will receive input: '{user_input}'")
-        print(f"🔍 DEBUG: Agent has {len(agent_executor.tools)} tools available")
-        print("🔍 DEBUG: Invoking agent...")
         response = agent_executor.invoke({"input": user_input})
-        print("🔍 DEBUG: Agent invoked successfully")
     except Exception as e:
-        # Handle parsing errors more gracefully
         error_msg = str(e)
         print(f"❌ DEBUG: Error in generate_response: {error_msg}")
         
-        # Reset agent if there's an error
         if "Agent stopped due to iteration limit" in error_msg or "Invalid Format" in error_msg:
-            print("🔍 DEBUG: Resetting agent due to error...")
             reset_agent()
-            # Try again with fresh agent
             try:
                 agent_executor = get_agent()
                 response = agent_executor.invoke({"input": user_input})
-                print("🔍 DEBUG: Agent retry successful")
             except Exception as e2:
                 print(f"❌ DEBUG: Agent retry failed: {e2}")
                 return "I encountered an error while processing your request. Please try rephrasing your question."
@@ -299,10 +261,7 @@ def generate_response(user_input):
             return "I encountered an error while processing your request. Please try rephrasing your question or ask for specific information about a SKU."
         return f"Error: {error_msg}"
 
-    print(f"🔍 DEBUG: Response type: {type(response)}")
-    print(f"🔍 DEBUG: Response content: {response}")
-
-    # Log tool selection if possible
+    # Log tool selection and agent behavior
     if isinstance(response, dict) and 'intermediate_steps' in response:
         steps = response['intermediate_steps']
         print(f"🔍 DEBUG: Agent intermediate steps: {steps}")
@@ -343,50 +302,23 @@ def generate_response(user_input):
             print("🔍 DEBUG: No Observation and generic output detected. Returning error.")
             return "Error: The agent did not use the required tool or provide detailed data. Please rephrase your question or contact support."
 
-    # Debug: Print the response structure
-    print(f"🔍 DEBUG: Response type: {type(response)}")
-    print(f"🔍 DEBUG: Response content: {response}")
-
-    # Enforce verbatim Observation in Final Answer if present
-    if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
-        steps = response['intermediate_steps']
-        if steps and isinstance(steps, list):
-            # Find the last Observation
-            for step in reversed(steps):
-                if isinstance(step, tuple) and len(step) == 2 and step[0] == 'Observation':
-                    last_observation = step[1]
-                    output = response['output']
-                    if last_observation and last_observation.strip() not in output:
-                        print("🔍 DEBUG: Overriding output with last Observation (enforced)")
-                        response['output'] = last_observation.strip()
-                    break
-
     # Handle different response structures
     if isinstance(response, dict):
         if 'output' in response:
             output = response['output']
-            print("🔍 DEBUG: Using 'output' from response")
         elif 'result' in response:
             output = response['result']
-            print("🔍 DEBUG: Using 'result' from response")
         else:
-            # Return the entire response as a string for debugging
             output = str(response)
-            print("🔍 DEBUG: Using entire response as string")
     else:
         output = str(response)
-        print("🔍 DEBUG: Using response as string")
     
-    # Clean up the response - remove trailing backticks and extra whitespace
+    # Clean up the response
     output = output.strip()
     if output.startswith('```') and output.endswith('```'):
         output = output[3:-3].strip()
     
-    print(f"🔍 DEBUG: Cleaned output: {output[:100]}...")
-    
-    # Use LLM to format the response intelligently
-    print("🔍 DEBUG: Formatting response with LLM...")
+    # Format the response
     formatted_output = format_response_with_llm(output)
-    print(f"🔍 DEBUG: Formatted output: {formatted_output[:100]}...")
     
     return formatted_output
