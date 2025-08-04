@@ -93,7 +93,30 @@ Thought: Do I need to use a tool? No
 Final Answer: [your response here]
 ```
 
-IMPORTANT: When you receive an Observation from a tool that contains detailed data (like tables, lists, or structured information), you MUST copy the entire content of the last Observation verbatim into your Final Answer. Do not summarize, rewrite, or omit any part of it. If the Observation contains tables, lists, or formatted data, include all of it exactly as provided.
+IMPORTANT: When you receive an Observation from a tool that contains detailed data (like tables, lists, or structured information), you MUST copy the entire content of the last Observation exactly, with no changes, into your Final Answer. Do not summarize, rewrite, or omit any part of it. If the Observation contains tables, lists, or formatted data, include all of it exactly as provided.
+
+EXAMPLE:
+User: What SKUs are in the Master Data?
+
+```
+Thought: Do I need to use a tool? Yes
+Action: Enhanced Database Query
+Action Input: What SKUs are in the Master Data?
+Observation: | SKU ID | Name | Category |
+|--------|------|----------|
+| SKU001 | ...  | Legumes  |
+| SKU002 | ...  | Nuts     |
+... (table continues) ...
+
+Thought: Do I need to use a tool? No
+Final Answer: | SKU ID | Name | Category |
+|--------|------|----------|
+| SKU001 | ...  | Legumes  |
+| SKU002 | ...  | Nuts     |
+... (table continues) ...
+```
+
+If you do not follow this exactly, your answer will be rejected.
 
 Begin!
 
@@ -263,6 +286,20 @@ def generate_response(user_input):
     # Debug: Print the response structure
     print(f"🔍 DEBUG: Response type: {type(response)}")
     print(f"🔍 DEBUG: Response content: {response}")
+
+    # Enforce verbatim Observation in Final Answer if present
+    if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
+        steps = response['intermediate_steps']
+        if steps and isinstance(steps, list):
+            # Find the last Observation
+            for step in reversed(steps):
+                if isinstance(step, tuple) and len(step) == 2 and step[0] == 'Observation':
+                    last_observation = step[1]
+                    output = response['output']
+                    if last_observation and last_observation.strip() not in output:
+                        print("🔍 DEBUG: Overriding output with last Observation (enforced)")
+                        response['output'] = last_observation.strip()
+                    break
 
     # Handle different response structures
     if isinstance(response, dict):
