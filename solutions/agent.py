@@ -85,62 +85,25 @@ You have access to the following tools:
 
 {tools}
 
-To use a tool, please use the following format:
+IMPORTANT: You MUST use the ReAct format for EVERY response. This means:
 
-```
-Thought: Do I need to use a tool? Yes
-Action: the action to take, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-```
+1. ALWAYS start with "Thought: Do I need to use a tool? Yes"
+2. ALWAYS specify "Action: [tool name]"
+3. ALWAYS specify "Action Input: [your input]"
+4. ALWAYS wait for "Observation: [tool result]"
+5. THEN provide "Final Answer: [your response]"
 
-When you have a response to say to the Human, or if you do not need to use a tool, you MUST use the format:
-
-```
-Thought: Do I need to use a tool? No
-Final Answer: [your response here]
-```
-
-IMPORTANT: When you receive an Observation from a tool that contains detailed data (like tables, lists, or structured information), you MUST copy the entire content of the last Observation exactly, with no changes, into your Final Answer. Do not summarize, rewrite, or omit any part of it. If the Observation contains tables, lists, or formatted data, include all of it exactly as provided.
-
-EXAMPLES:
-User: What SKUs are in the Master Data?
-
-```
-Thought: Do I need to use a tool? Yes
-Action: Enhanced Database Query
-Action Input: What SKUs are in the Master Data?
-Observation: | SKU ID | Name | Category |
-|--------|------|----------|
-| SKU001 | ...  | Legumes  |
-| SKU002 | ...  | Nuts     |
-... (table continues) ...
-
-Thought: Do I need to use a tool? No
-Final Answer: | SKU ID | Name | Category |
-|--------|------|----------|
-| SKU001 | ...  | Legumes  |
-| SKU002 | ...  | Nuts     |
-... (table continues) ...
-```
-
-User: Tell me about SKU001
-
+Example format:
 ```
 Thought: Do I need to use a tool? Yes
 Action: Enhanced Database Query
 Action Input: Tell me about SKU001
-Observation: | SKU ID | Name | Category | ... (all details) ... |
-|--------|------|----------| ... |
-| SKU001 | ...  | Legumes  | ... |
-
+Observation: [tool result here]
 Thought: Do I need to use a tool? No
-Final Answer: | SKU ID | Name | Category | ... (all details) ... |
-|--------|------|----------| ... |
-| SKU001 | ...  | Legumes  | ... |
+Final Answer: [your response here]
 ```
 
-If you do not follow this exactly, your answer will be rejected.
+You CANNOT skip any of these steps. You MUST use tools for every question.
 
 Begin!
 
@@ -182,7 +145,8 @@ def get_agent():
                 tools=tools,
                 verbose=True,
                 handle_parsing_errors=True,
-                max_iterations=5
+                max_iterations=5,
+                return_intermediate_steps=True
             )
             print(f"🔍 DEBUG: AgentExecutor created: {agent_executor is not None}")
             
@@ -287,6 +251,12 @@ def generate_response(user_input):
     else:
         print(f"🔍 DEBUG: No intermediate steps found in response")
         print(f"🔍 DEBUG: Response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
+        print(f"🔍 DEBUG: Full response structure: {response}")
+        
+        # Check if response is a string instead of dict
+        if isinstance(response, str):
+            print(f"🔍 DEBUG: Response is a string, not a dict. Length: {len(response)}")
+            print(f"🔍 DEBUG: Response preview: {response[:500]}...")
 
     # Enforce verbatim Observation in Final Answer if present
     if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
