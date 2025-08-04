@@ -41,26 +41,28 @@ chat_prompt = ChatPromptTemplate.from_messages(
 print("🔍 DEBUG: chat_prompt created")
 
 # Define tools
+# 1. Update tool descriptions
+# Enhanced Database Query: For ANY question about a specific SKU (e.g., 'Tell me about SKU001'), you MUST use this tool. For ALL SKUs, you MUST use this tool. For categories, analytics, etc., use this tool.
 tools = [
     Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description=f"Execute dynamic database queries to get precise information. Use this for questions about: ALL {DOMAIN_CONFIG['entity_plural']} (e.g., 'What {DOMAIN_CONFIG['entity_plural']} are in the Master Data?', 'Show me all {DOMAIN_CONFIG['entity_plural']}'), specific {DOMAIN_CONFIG['entity_plural']} (e.g., 'Tell me about [{DOMAIN_CONFIG['entity_id_field']}]'), categories, countries, price ranges, or any structured data queries. This tool can generate custom Cypher queries based on the question and is PREFERRED for queries about multiple {DOMAIN_CONFIG['entity_plural']} or general data exploration."
+        description="For ANY question about a specific SKU (e.g., 'Tell me about SKU001'), you MUST use this tool. For ALL SKUs (e.g., 'What SKUs are in the Master Data?'), you MUST use this tool. For questions about categories, analytics, or general data, use this tool. This tool generates Cypher queries and returns detailed data. DO NOT use any other tool for specific SKU or all SKU queries."
     ),
     Tool(
         name="Entity Information Search",
         func=get_sku_data,
-        description=f"Search for {DOMAIN_CONFIG['entity_singular']} information using vector similarity. Use this for questions about general product information, categories, or when you need semantic similarity search. Use this as a FALLBACK when the Enhanced Database Query doesn't provide sufficient information."
+        description="Use ONLY for semantic similarity or fuzzy search when the Enhanced Database Query does not provide sufficient information. NEVER use for specific SKU or all SKU queries."
     ),
     Tool(
         name="Entity Data Parser",
         func=parse_sku_data,
-        description=f"Parse and structure {DOMAIN_CONFIG['entity_singular']} data for detailed analysis. Use this when you need to extract specific financial, demand, or inventory data from {DOMAIN_CONFIG['entity_singular']} information."
+        description="Use ONLY to extract structured data from raw SKU data after using Enhanced Database Query."
     ),
     Tool(
         name="General Chat",
         func=lambda x: f"I can help you with {DOMAIN_CONFIG['domain_name']} questions. Please ask about specific {DOMAIN_CONFIG['entity_plural']}, categories, pricing, inventory, or supply chain operations.",
-        description=f"General conversation and guidance about {DOMAIN_CONFIG['domain_name']} topics."
+        description=f"General conversation and guidance about {DOMAIN_CONFIG['domain_name']} topics. NEVER use for SKU queries."
     )
 ]
 
@@ -70,6 +72,7 @@ def get_memory(session_id):
     print(f"🔍 DEBUG: Creating memory for session {session_id}")
     return Neo4jChatMessageHistory(session_id=session_id, graph=get_graph_instance())
 
+# 2. Add concrete prompt examples for both all SKUs and single SKU queries
 agent_prompt = PromptTemplate.from_template("""
 You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
 
@@ -95,7 +98,7 @@ Final Answer: [your response here]
 
 IMPORTANT: When you receive an Observation from a tool that contains detailed data (like tables, lists, or structured information), you MUST copy the entire content of the last Observation exactly, with no changes, into your Final Answer. Do not summarize, rewrite, or omit any part of it. If the Observation contains tables, lists, or formatted data, include all of it exactly as provided.
 
-EXAMPLE:
+EXAMPLES:
 User: What SKUs are in the Master Data?
 
 ```
@@ -114,6 +117,22 @@ Final Answer: | SKU ID | Name | Category |
 | SKU001 | ...  | Legumes  |
 | SKU002 | ...  | Nuts     |
 ... (table continues) ...
+```
+
+User: Tell me about SKU001
+
+```
+Thought: Do I need to use a tool? Yes
+Action: Enhanced Database Query
+Action Input: Tell me about SKU001
+Observation: | SKU ID | Name | Category | ... (all details) ... |
+|--------|------|----------| ... |
+| SKU001 | ...  | Legumes  | ... |
+
+Thought: Do I need to use a tool? No
+Final Answer: | SKU ID | Name | Category | ... (all details) ... |
+|--------|------|----------| ... |
+| SKU001 | ...  | Legumes  | ... |
 ```
 
 If you do not follow this exactly, your answer will be rejected.
@@ -241,23 +260,18 @@ Return the cleaned and formatted text:"""),
         print(f"Error formatting text: {e}")
         return text
 
+# 3. Add a fallback in code: if no Observation and output is a generic greeting or summary, return a clear error message
+# 4. Log tool selection if possible
+
 def generate_response(user_input):
-    """
-    Create a handler that calls the Conversational agent
-    and returns a response to be rendered in the UI
-    """
     print(f"🔍 DEBUG: generate_response() called with input: {user_input[:50]}...")
 
     try:
-        # Use the agent executor directly for more control
         print("🔍 DEBUG: Getting agent...")
         agent_executor = get_agent()
         print("🔍 DEBUG: Agent obtained successfully")
-        
-        # Debug: Show what the agent will receive
         print(f"🔍 DEBUG: Agent will receive input: '{user_input}'")
         print(f"🔍 DEBUG: Agent has {len(agent_executor.tools)} tools available")
-        
         print("🔍 DEBUG: Invoking agent...")
         response = agent_executor.invoke({"input": user_input})
         print("🔍 DEBUG: Agent invoked successfully")
@@ -282,6 +296,45 @@ def generate_response(user_input):
         if "OUTPUT_PARSING_FAILURE" in error_msg or "Parsing LLM output" in error_msg:
             return "I encountered an error while processing your request. Please try rephrasing your question or ask for specific information about a SKU."
         return f"Error: {error_msg}"
+
+    print(f"🔍 DEBUG: Response type: {type(response)}")
+    print(f"🔍 DEBUG: Response content: {response}")
+
+    # Log tool selection if possible
+    if isinstance(response, dict) and 'intermediate_steps' in response:
+        steps = response['intermediate_steps']
+        for step in steps:
+            if isinstance(step, tuple) and len(step) == 2 and step[0] == 'Action':
+                print(f"🔍 DEBUG: Tool selected: {step[1]}")
+
+    # Enforce verbatim Observation in Final Answer if present
+    if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
+        steps = response['intermediate_steps']
+        if steps and isinstance(steps, list):
+            for step in reversed(steps):
+                if isinstance(step, tuple) and len(step) == 2 and step[0] == 'Observation':
+                    last_observation = step[1]
+                    output = response['output']
+                    if last_observation and last_observation.strip() not in output:
+                        print("🔍 DEBUG: Overriding output with last Observation (enforced)")
+                        response['output'] = last_observation.strip()
+                    break
+
+    # Fallback: If no Observation and output is a generic greeting or summary, return a clear error
+    generic_responses = [
+        "Hello! How can I assist you with your FMCG supply chain data today?",
+        "How can I assist you?",
+        "How can I help you?",
+        "Let me know if you have any questions.",
+        "If you have any specific questions or need further analysis, please let me know!"
+    ]
+    if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
+        steps = response['intermediate_steps']
+        has_observation = any(isinstance(step, tuple) and step[0] == 'Observation' for step in steps)
+        output = response['output'].strip()
+        if not has_observation and any(generic in output for generic in generic_responses):
+            print("🔍 DEBUG: No Observation and generic output detected. Returning error.")
+            return "Error: The agent did not use the required tool or provide detailed data. Please rephrase your question or contact support."
 
     # Debug: Print the response structure
     print(f"🔍 DEBUG: Response type: {type(response)}")
