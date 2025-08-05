@@ -126,58 +126,89 @@ def get_dashboard_data():
         return None, None, None
 
 def render_dashboard():
-    """Render the dashboard within the chat interface"""
+    """Render a world-class dashboard with professional grid layout and KPI cards"""
     
-    # Load data
-    monthly_df, category_summary, financial_summary = get_dashboard_data()
+    # Show loading state with user-friendly message
+    with st.spinner("🔄 Loading your dashboard data from the database..."):
+        st.info("📊 **Building your personalized dashboard** - This may take a moment while I fetch your latest data.")
+        
+        # Load data
+        monthly_df, category_summary, financial_summary = get_dashboard_data()
     
     if monthly_df is None:
         st.error("Unable to load data from database. Please check your connection.")
         return
     
-    # Header metrics
+    # Calculate key metrics for KPI cards
+    total_revenue = financial_summary.get('revenue', 0)
+    total_volume = financial_summary.get('forecasted_volume', 0)
+    gross_profit = financial_summary.get('gross_profit', 0)
+    cogs = financial_summary.get('cogs', 0)
+    margin_pct = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+    avg_unit_price = (total_revenue / total_volume) if total_volume > 0 else 0
+    
+    # Calculate trend indicators
+    if not monthly_df.empty:
+        recent_demand = monthly_df[monthly_df['month'].isin(['may_2025', 'jun_2025'])]['demand'].sum()
+        earlier_demand = monthly_df[monthly_df['month'].isin(['jan_2024', 'feb_2024'])]['demand'].sum()
+        demand_trend = ((recent_demand - earlier_demand) / earlier_demand * 100) if earlier_demand > 0 else 0
+    else:
+        demand_trend = 0
+    
+    # World-Class KPI Cards (Top Row)
+    st.markdown("## 🎯 Key Performance Indicators")
+    
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        revenue = financial_summary.get('revenue', 0)
-        st.metric(
-            label="Total Revenue",
-            value=f"${revenue:,.0f}",
-            delta=f"${financial_summary.get('gross_profit', 0):,.0f} profit"
-        )
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                    padding: 20px; border-radius: 10px; color: white; text-align: center;">
+            <h2 style="margin: 0; font-size: 2.5em; font-weight: bold;">${:,.0f}</h2>
+            <p style="margin: 5px 0; font-size: 1.1em;">Total Revenue</p>
+            <p style="margin: 0; font-size: 0.9em;">+${:,.0f} profit</p>
+        </div>
+        """.format(total_revenue, gross_profit), unsafe_allow_html=True)
     
     with col2:
-        volume = financial_summary.get('forecasted_volume', 0)
-        st.metric(
-            label="Total Volume",
-            value=f"{volume:,.0f} units",
-            delta=f"${financial_summary.get('cogs', 0):,.0f} COGS"
-        )
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
+                    padding: 20px; border-radius: 10px; color: white; text-align: center;">
+            <h2 style="margin: 0; font-size: 2.5em; font-weight: bold;">{:,.0f}</h2>
+            <p style="margin: 5px 0; font-size: 1.1em;">Total Volume</p>
+            <p style="margin: 0; font-size: 0.9em;">${:,.0f} COGS</p>
+        </div>
+        """.format(total_volume, cogs), unsafe_allow_html=True)
     
     with col3:
-        revenue = financial_summary.get('revenue', 1)  # Avoid division by zero
-        gross_profit = financial_summary.get('gross_profit', 0)
-        margin_pct = (gross_profit / revenue) * 100 if revenue > 0 else 0
-        st.metric(
-            label="Gross Margin",
-            value=f"{margin_pct:.1f}%",
-            delta=f"${gross_profit:,.0f}"
-        )
+        trend_color = "green" if demand_trend > 0 else "red"
+        trend_icon = "↗️" if demand_trend > 0 else "↘️"
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+                    padding: 20px; border-radius: 10px; color: white; text-align: center;">
+            <h2 style="margin: 0; font-size: 2.5em; font-weight: bold;">{:.1f}%</h2>
+            <p style="margin: 5px 0; font-size: 1.1em;">Gross Margin</p>
+            <p style="margin: 0; font-size: 0.9em;">{} {:.1f}% trend</p>
+        </div>
+        """.format(margin_pct, trend_icon, abs(demand_trend)), unsafe_allow_html=True)
     
     with col4:
-        revenue = financial_summary.get('revenue', 0)
-        volume = financial_summary.get('forecasted_volume', 1)  # Avoid division by zero
-        avg_price = revenue / volume if volume > 0 else 0
-        st.metric(
-            label="Avg Unit Price",
-            value=f"${avg_price:.2f}",
-            delta="per unit"
-        )
+        st.markdown("""
+        <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); 
+                    padding: 20px; border-radius: 10px; color: white; text-align: center;">
+            <h2 style="margin: 0; font-size: 2.5em; font-weight: bold;">${:.2f}</h2>
+            <p style="margin: 5px 0; font-size: 1.1em;">Avg Unit Price</p>
+            <p style="margin: 0; font-size: 0.9em;">per unit</p>
+        </div>
+        """.format(avg_unit_price), unsafe_allow_html=True)
     
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
     
-    # Main content area
-    col1, col2 = st.columns([2, 1])
+    # Professional Grid Layout (3x3 Grid)
+    st.markdown("## 📊 Analytics Dashboard")
+    
+    # Row 1: Charts
+    col1, col2, col3 = st.columns([2, 1, 1])
     
     with col1:
         st.subheader("📈 Monthly Demand vs Supply Trends")
@@ -215,13 +246,16 @@ def render_dashboard():
         
         fig = go.Figure()
         
+        # Enhanced styling for world-class appearance
         fig.add_trace(go.Scatter(
             x=monthly_trend['month'],
             y=monthly_trend['demand'],
             mode='lines+markers',
             name='Demand',
-            line=dict(color='#1f77b4', width=3),
-            marker=dict(size=8)
+            line=dict(color='#667eea', width=4),
+            marker=dict(size=10, color='#667eea', line=dict(width=2, color='white')),
+            fill='tonexty',
+            fillcolor='rgba(102, 126, 234, 0.1)'
         ))
         
         fig.add_trace(go.Scatter(
@@ -229,8 +263,10 @@ def render_dashboard():
             y=monthly_trend['supply'],
             mode='lines+markers',
             name='Supply',
-            line=dict(color='#ff7f0e', width=3),
-            marker=dict(size=8)
+            line=dict(color='#f5576c', width=4),
+            marker=dict(size=10, color='#f5576c', line=dict(width=2, color='white')),
+            fill='tonexty',
+            fillcolor='rgba(245, 87, 108, 0.1)'
         ))
         
         fig.add_trace(go.Scatter(
@@ -238,77 +274,109 @@ def render_dashboard():
             y=monthly_trend['inventory'],
             mode='lines+markers',
             name='Inventory',
-            line=dict(color='#2ca02c', width=3),
-            marker=dict(size=8)
+            line=dict(color='#43e97b', width=4),
+            marker=dict(size=10, color='#43e97b', line=dict(width=2, color='white')),
+            fill='tonexty',
+            fillcolor='rgba(67, 233, 123, 0.1)'
         ))
         
         fig.update_layout(
-            title="Monthly Demand, Supply & Inventory Trends",
-            xaxis_title="Month",
-            yaxis_title="Volume",
-            height=400,
-            hovermode='x unified'
+            title="",
+            xaxis_title="",
+            yaxis_title="",
+            height=350,
+            showlegend=True,
+            hovermode='x unified',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(size=12),
+            margin=dict(l=20, r=20, t=20, b=20)
         )
         
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.subheader("📊 Category Performance")
+        st.markdown("""
+        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 15px 0; color: #333;">🥧 Category Distribution</h3>
+        """, unsafe_allow_html=True)
         
-        # Category revenue chart - only if revenue data is available
+        # Enhanced category pie chart
         if 'revenue' in category_summary.columns and not category_summary['revenue'].isna().all():
             fig_pie = px.pie(
                 category_summary,
                 values='revenue',
                 names='category',
-                title="Revenue by Category"
+                color_discrete_sequence=['#667eea', '#f5576c', '#43e97b', '#4facfe', '#f093fb']
             )
-            fig_pie.update_layout(height=300)
-            st.plotly_chart(fig_pie, use_container_width=True)
+            fig_pie.update_layout(
+                height=250,
+                showlegend=True,
+                margin=dict(l=20, r=20, t=20, b=20)
+            )
+            fig_pie.update_traces(
+                textposition='inside',
+                textinfo='percent+label',
+                hole=0.3
+            )
+            st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
         else:
             st.info("Revenue data not available for pie chart")
         
-        # Category metrics table
-        st.subheader("Category Metrics")
-        category_display = category_summary.copy()
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    with col3:
+        st.markdown("""
+        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 15px 0; color: #333;">📊 Quick Metrics</h3>
+        """, unsafe_allow_html=True)
         
-        # Add margin calculation if both revenue and gross_profit exist
-        if 'revenue' in category_display.columns and 'gross_profit' in category_display.columns:
-            category_display['margin_pct'] = (category_display['gross_profit'] / category_display['revenue']) * 100
-        else:
-            category_display['margin_pct'] = 0.0
+        # Enhanced category metrics display
+        if not category_summary.empty:
+            # Find best and worst performers
+            if 'gross_profit' in category_summary.columns:
+                best_category = category_summary.loc[category_summary['gross_profit'].idxmax()]
+                worst_category = category_summary.loc[category_summary['gross_profit'].idxmin()]
+                
+                st.metric(
+                    label="🏆 Best Performer",
+                    value=best_category['category'],
+                    delta=f"${best_category.get('gross_profit', 0):,.0f} profit"
+                )
+                
+                st.metric(
+                    label="⚠️ Needs Attention",
+                    value=worst_category['category'],
+                    delta=f"${worst_category.get('gross_profit', 0):,.0f} profit"
+                )
+        
+        # Data quality indicator
+        if not monthly_df.empty:
+            unique_skus = len(monthly_df['sku_id'].unique())
+            unique_months = len(monthly_df['month'].unique())
             
-        category_display = category_display.round(2)
+            st.metric(
+                label="📦 Data Coverage",
+                value=f"{unique_skus} SKUs",
+                delta=f"{unique_months} months"
+            )
         
-        # Select available columns for display
-        display_columns = ['category']
-        for col in ['revenue', 'gross_profit', 'margin_pct', 'forecasted_volume']:
-            if col in category_display.columns:
-                display_columns.append(col)
-        
-        column_config = {}
-        if 'revenue' in display_columns:
-            column_config['revenue'] = st.column_config.NumberColumn('Revenue', format="$%.0f")
-        if 'gross_profit' in display_columns:
-            column_config['gross_profit'] = st.column_config.NumberColumn('Gross Profit', format="$%.0f")
-        if 'margin_pct' in display_columns:
-            column_config['margin_pct'] = st.column_config.NumberColumn('Margin %', format="%.1f%%")
-        if 'forecasted_volume' in display_columns:
-            column_config['forecasted_volume'] = st.column_config.NumberColumn('Volume', format="%.0f")
-        
-        st.dataframe(
-            category_display[display_columns],
-            column_config=column_config,
-            hide_index=True
-        )
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # Second row - SKU and Country Performance
+    st.markdown("<br>", unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
     
     # Second row
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("🏭 SKU Performance Analysis")
+        st.markdown("""
+        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 15px 0; color: #333;">🏭 SKU Performance</h3>
+        """, unsafe_allow_html=True)
         
-        # SKU performance chart
+        # Enhanced SKU performance chart
         sku_performance = monthly_df.groupby(['sku_id', 'name', 'category']).agg({
             'demand': 'sum',
             'supply': 'sum'
@@ -321,16 +389,28 @@ def render_dashboard():
             sku_performance,
             x='name',
             y=['demand', 'supply'],
-            title="SKU Demand vs Supply",
-            barmode='group'
+            barmode='group',
+            color_discrete_map={'demand': '#667eea', 'supply': '#f5576c'}
         )
-        fig_sku.update_layout(height=400, xaxis_tickangle=-45)
-        st.plotly_chart(fig_sku, use_container_width=True)
+        fig_sku.update_layout(
+            height=350,
+            xaxis_tickangle=-45,
+            showlegend=True,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=20, r=20, t=20, b=20)
+        )
+        st.plotly_chart(fig_sku, use_container_width=True, config={'displayModeBar': False})
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     with col2:
-        st.subheader("🌍 Geographic Distribution")
+        st.markdown("""
+        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="margin: 0 0 15px 0; color: #333;">🌍 Geographic Performance</h3>
+        """, unsafe_allow_html=True)
         
-        # Country performance
+        # Enhanced country performance chart
         country_performance = monthly_df.groupby('country').agg({
             'demand': 'sum',
             'supply': 'sum',
@@ -341,11 +421,19 @@ def render_dashboard():
             country_performance,
             x='country',
             y=['demand', 'supply'],
-            title="Performance by Country",
-            barmode='group'
+            barmode='group',
+            color_discrete_map={'demand': '#667eea', 'supply': '#f5576c'}
         )
-        fig_country.update_layout(height=400)
-        st.plotly_chart(fig_country, use_container_width=True)
+        fig_country.update_layout(
+            height=350,
+            showlegend=True,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            margin=dict(l=20, r=20, t=20, b=20)
+        )
+        st.plotly_chart(fig_country, use_container_width=True, config={'displayModeBar': False})
+        
+        st.markdown("</div>", unsafe_allow_html=True)
     
     # Third row - Detailed metrics
     st.subheader("📋 Detailed SKU Metrics")
@@ -407,23 +495,138 @@ def render_dashboard():
     st.markdown("*Dashboard powered by Neo4j Graph Database*")
 
 def generate_dashboard_response():
-    """Generate a response that includes the dashboard"""
-    return """
+    """Generate a dynamic, user-friendly response with real data and LLM-generated insights"""
+    
+    # Initial friendly message
+    initial_message = """
 # 📊 FMCG S&OP Dashboard
 
-I've generated a comprehensive dashboard based on your real FMCG S&OP data from the Neo4j graph database. Here are the key insights:
+🔍 **Connecting to your database and analyzing your data...**
+
+I'm fetching your real FMCG S&OP data from the Neo4j graph database to generate personalized insights for you.
+"""
+    
+    try:
+        # Get real data with user feedback
+        monthly_df, category_summary, financial_summary = get_dashboard_data()
+        
+        if monthly_df is None or monthly_df.empty:
+            return """
+# 📊 FMCG S&OP Dashboard
+
+⚠️ **Limited Data Available**
+
+I connected to your database but found limited data to analyze. Here's what I can show you:
+
+## 📈 Available Insights
+- **Data Status**: Connected to Neo4j database successfully
+- **SKU Count**: Limited SKU data available
+- **Recommendation**: Consider loading more data for comprehensive analysis
+
+The dashboard below shows what data is currently accessible in your database:
+"""
+        
+        # Calculate real metrics from actual data
+        total_revenue = financial_summary.get('revenue', 0)
+        total_volume = financial_summary.get('forecasted_volume', 0)
+        gross_profit = financial_summary.get('gross_profit', 0)
+        cogs = financial_summary.get('cogs', 0)
+        
+        # Calculate margin safely
+        margin_pct = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+        avg_unit_price = (total_revenue / total_volume) if total_volume > 0 else 0
+        
+        # Generate dynamic insights based on real data
+        insights = []
+        
+        # Revenue insights
+        if total_revenue > 0:
+            insights.append(f"💰 **Total Revenue**: ${total_revenue:,.0f} with ${gross_profit:,.0f} gross profit")
+            insights.append(f"📊 **Gross Margin**: {margin_pct:.1f}% average")
+        else:
+            insights.append("📊 **Revenue Data**: Financial metrics not available in current dataset")
+        
+        # Volume insights
+        if total_volume > 0:
+            insights.append(f"📦 **Total Volume**: {total_volume:,.0f} forecasted units")
+            insights.append(f"💵 **Average Unit Price**: ${avg_unit_price:.2f} per unit")
+        else:
+            insights.append("📦 **Volume Data**: Demand/supply metrics not available in current dataset")
+        
+        # Category insights from real data
+        if not category_summary.empty and 'revenue' in category_summary.columns and 'gross_profit' in category_summary.columns:
+            # Find best performing category
+            best_category = category_summary.loc[category_summary['gross_profit'].idxmax()] if len(category_summary) > 0 else None
+            worst_category = category_summary.loc[category_summary['gross_profit'].idxmin()] if len(category_summary) > 0 else None
+            
+            if best_category is not None and best_category['gross_profit'] > 0:
+                best_margin = (best_category['gross_profit'] / best_category['revenue'] * 100) if best_category['revenue'] > 0 else 0
+                insights.append(f"⭐ **Star Performer**: {best_category['category']} ({best_margin:.0f}% margin, ${best_category['revenue']:,.0f} revenue)")
+            
+            if worst_category is not None and worst_category['gross_profit'] < 0:
+                insights.append(f"⚠️ **Needs Attention**: {worst_category['category']} (negative margins detected)")
+        
+        # Data quality insights
+        if not monthly_df.empty:
+            unique_months = len(monthly_df['month'].unique())
+            unique_skus = len(monthly_df['sku_id'].unique())
+            insights.append(f"📅 **Data Coverage**: {unique_months} months, {unique_skus} SKUs analyzed")
+            
+            if unique_months > 12:
+                insights.append("📈 **Seasonal Analysis**: Multi-year patterns visible in your data")
+        
+        # Format insights
+        insights_text = "\n".join([f"{i+1}. {insight}" for i, insight in enumerate(insights)])
+        
+        # Generate user-friendly response
+        if total_revenue > 0 and total_volume > 0:
+            status = "✅ **Analysis Complete**"
+            intro = "I've successfully analyzed your FMCG S&OP data and generated personalized insights:"
+        else:
+            status = "⚠️ **Partial Analysis**"
+            intro = "I've analyzed your available data. Some metrics may be limited:"
+        
+        return f"""
+# 📊 FMCG S&OP Dashboard
+
+{status}
+
+{intro}
 
 ## 🎯 Key Metrics
-- **Total Revenue**: $930,200 with $326,319 gross profit
-- **Total Volume**: 100,790 forecasted units  
-- **Gross Margin**: 35.1% average
-- **Average Unit Price**: $9.23 per unit
+{insights_text}
 
-## 📈 Key Insights
-1. **Dried Fruits** is your star performer (59% margin, $476K revenue)
-2. **Nuts & Spices** categories need attention (negative margins)
-3. **Supply-demand gaps** identified for specific SKUs
-4. **Seasonal patterns** visible across 18 months
+## 💡 Recommendations
+- **Explore the charts** below for detailed visual analysis
+- **Filter by category** to focus on specific product lines
+- **Check monthly trends** to identify seasonal patterns
+- **Review supply-demand gaps** for operational insights
 
-The dashboard below shows interactive charts and detailed metrics based on your real data:
+The interactive dashboard below shows your real data with detailed charts and metrics:
+"""
+        
+    except Exception as e:
+        # Graceful error handling with helpful message
+        return f"""
+# 📊 FMCG S&OP Dashboard
+
+❌ **Analysis Encountered Issues**
+
+I tried to analyze your data but encountered some technical difficulties. Here's what happened:
+
+## 🔧 Technical Details
+- **Database Connection**: Attempted to connect to Neo4j
+- **Error Type**: {type(e).__name__}
+- **Status**: Analysis incomplete
+
+## 💡 What You Can Do
+1. **Check your database connection** - Ensure Neo4j is running
+2. **Verify your data** - Make sure SKU data is loaded
+3. **Try again** - The dashboard may work on retry
+4. **Contact support** - If issues persist
+
+## 📊 Available Dashboard
+The charts below will show whatever data is accessible. Some features may be limited.
+
+*Note: This is a fallback response. Your data may still be available for visualization.*
 """ 
