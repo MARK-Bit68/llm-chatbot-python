@@ -117,6 +117,12 @@ with st.sidebar:
     **Inventory:**
     - "What is the inventory level for SKU001?"
     - "Which SKUs have negative gross profit?"
+    
+    **Enhanced Data (100 SKUs):**
+    - "Show me supply chain gaps"
+    - "Which SKUs have supply issues?"
+    - "Display inventory trends"
+    - "Analyze seasonal patterns"
     """)
 
 # Main chat interface

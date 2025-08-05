@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import numpy as np
 from langchain_neo4j import Neo4jGraph
 import os
+import json
 
 def get_neo4j_config(key, default=""):
     """Get Neo4j config from environment variables only"""
@@ -19,25 +20,34 @@ def get_dashboard_data():
             password=get_neo4j_config("NEO4J_PASSWORD"),
         )
         
-        # Get all SKUs with their data
+        # Get all SKUs with their data including supply and inventory
         result = graph.query("""
             MATCH (sku:SKU)
+            OPTIONAL MATCH (sku)-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
+            OPTIONAL MATCH (sku)-[:HAS_SUPPLY_PLAN]->(sp:SupplyPlan)
+            OPTIONAL MATCH (sku)-[:HAS_INVENTORY]->(inv:Inventory)
+            OPTIONAL MATCH (sku)-[:BELONGS_TO_CATEGORY]->(cat:Category)
             RETURN sku.sku_id as sku_id, 
                    sku.name as name,
                    sku.plot as plot_data,
-                   sku.plotEmbedding as embedding
+                   sku.plotEmbedding as embedding,
+                   dp.monthly_data as demand_data,
+                   sp.monthly_data as supply_data,
+                   inv.monthly_data as inventory_data,
+                   cat.name as category
             ORDER BY sku.sku_id
         """)
         
         if not result:
             return None, None, None
         
-        # Parse the plot data for each SKU
+        # Parse the enhanced data for each SKU
         sku_data = []
         for row in result:
             sku_id = row['sku_id']
             name = row['name']
             plot_data = row['plot_data']
+            category = row['category'] or 'Unknown'
             
             # Parse the plot data string
             data_dict = {}
@@ -59,31 +69,67 @@ def get_dashboard_data():
                         except:
                             data_dict[key] = value
             
+            # Parse monthly data from JSON
+            demand_data = {}
+            supply_data = {}
+            inventory_data = {}
+            
+            try:
+                if row['demand_data'] and row['demand_data'] != 'Unknown':
+                    demand_data = json.loads(row['demand_data'])
+                if row['supply_data'] and row['supply_data'] != 'Unknown':
+                    supply_data = json.loads(row['supply_data'])
+                if row['inventory_data'] and row['inventory_data'] != 'Unknown':
+                    inventory_data = json.loads(row['inventory_data'])
+            except:
+                pass
+            
             sku_data.append({
                 'sku_id': sku_id,
                 'name': name,
+                'category': category,
+                'demand_data': demand_data,
+                'supply_data': supply_data,
+                'inventory_data': inventory_data,
                 **data_dict
             })
         
         df = pd.DataFrame(sku_data)
         
-        # Create monthly data for charts
+        # Create monthly data for charts using enhanced structure
         monthly_data = []
+        months = ['jan-2024', 'feb-2024', 'mar-2024', 'apr-2024', 'may-2024', 'jun-2024',
+                 'jul-2024', 'aug-2024', 'sep-2024', 'oct-2024', 'nov-2024', 'dec-2024',
+                 'jan-2025', 'feb-2025', 'mar-2025', 'apr-2025', 'may-2025', 'jun-2025']
+        
         for _, row in df.iterrows():
-            for month in ['jan_2024', 'feb_2024', 'mar_2024', 'apr_2024', 'may_2024', 'jun_2024',
-                         'jul_2024', 'aug_2024', 'sep_2024', 'oct_2024', 'nov_2024', 'dec_2024',
-                         'jan_2025', 'feb_2025', 'mar_2025', 'apr_2025', 'may_2025', 'jun_2025']:
-                if month in row and pd.notna(row[month]):
-                    monthly_data.append({
-                        'sku_id': row['sku_id'],
-                        'name': row['name'],
-                        'category': row.get('category', 'Unknown'),
-                        'country': row.get('country', 'Unknown'),
-                        'month': month,
-                        'demand': row[month],
-                        'supply': row.get(f'Supply Plan: {month.split("_")[0].title()}', 0),
-                        'inventory': row.get(f'Inventory Plan: {month.split("_")[0].title()}', 0)
-                    })
+            demand_data = row.get('demand_data', {})
+            supply_data = row.get('supply_data', {})
+            inventory_data = row.get('inventory_data', {})
+            
+            for month in months:
+                demand = demand_data.get(month, 0)
+                supply = supply_data.get(month, 0)
+                inventory = inventory_data.get(month, 0)
+                
+                # Convert to numeric values
+                try:
+                    demand = float(demand) if demand else 0
+                    supply = float(supply) if supply else 0
+                    inventory = float(inventory) if inventory else 0
+                except:
+                    demand = supply = inventory = 0
+                
+                monthly_data.append({
+                    'sku_id': row['sku_id'],
+                    'name': row['name'],
+                    'category': row.get('category', 'Unknown'),
+                    'country': row.get('country', 'Unknown'),
+                    'month': month,
+                    'demand': demand,
+                    'supply': supply,
+                    'inventory': inventory
+                })
         
         monthly_df = pd.DataFrame(monthly_data)
         

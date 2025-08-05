@@ -134,9 +134,9 @@ def generate_sample_questions(sku_data):
     questions.extend(general_questions)
     return questions
 
-def quick_ingestion_2_skus(excel_file_path, max_skus=10):
+def quick_ingestion_2_skus(excel_file_path, max_skus=100):
     """
-    Quick ingestion of first 2 SKUs for testing
+    Quick ingestion of first 100 SKUs for enhanced testing
     """
     print(f"🚀 Quick ingestion of first {max_skus} SKUs from {excel_file_path}")
     
@@ -396,8 +396,8 @@ def quick_ingestion_2_skus(excel_file_path, max_skus=10):
     }
 
 if __name__ == "__main__":
-    # Test with just 2 SKUs
-    results = quick_ingestion_2_skus("FMCG S&OP Working Excel.xlsx", max_skus=2)
+    # Test with 100 SKUs
+    results = quick_ingestion_2_skus("Enhanced_FMCG_SOP_Dataset.xlsx", max_skus=100)
     print(f"\nQuick ingestion results: {results}")
     
     if 'sample_questions' in results:
