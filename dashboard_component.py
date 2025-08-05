@@ -360,22 +360,45 @@ def render_dashboard():
     # Add financial metrics from original data
     monthly_df_temp, _, _ = get_dashboard_data()
     if monthly_df_temp is not None:
-        sku_financial = monthly_df_temp.groupby('sku_id').first()[['revenue', 'cogs', 'gross_profit', 'unit_price', 'unit_cost']].reset_index()
-        detailed_sku_data = detailed_sku_data.merge(sku_financial, on='sku_id', how='left')
+        # Get available financial columns
+        available_financial_cols = []
+        for col in ['revenue', 'cogs', 'gross_profit', 'unit_price', 'unit_cost']:
+            if col in monthly_df_temp.columns:
+                available_financial_cols.append(col)
         
-        detailed_sku_data['margin_pct'] = (detailed_sku_data['gross_profit'] / detailed_sku_data['revenue']) * 100
+        if available_financial_cols:
+            sku_financial = monthly_df_temp.groupby('sku_id').first()[available_financial_cols].reset_index()
+            detailed_sku_data = detailed_sku_data.merge(sku_financial, on='sku_id', how='left')
+            
+            # Calculate margin if both revenue and gross_profit exist
+            if 'revenue' in detailed_sku_data.columns and 'gross_profit' in detailed_sku_data.columns:
+                detailed_sku_data['margin_pct'] = (detailed_sku_data['gross_profit'] / detailed_sku_data['revenue']) * 100
+            else:
+                detailed_sku_data['margin_pct'] = 0.0
+        else:
+            # Add empty financial columns if none available
+            for col in ['revenue', 'gross_profit', 'margin_pct', 'unit_price', 'unit_cost']:
+                detailed_sku_data[col] = 0.0
+        
         detailed_sku_data['gap'] = detailed_sku_data['supply'] - detailed_sku_data['demand']
+        
+        # Build column config dynamically
+        column_config = {}
+        if 'revenue' in detailed_sku_data.columns:
+            column_config['revenue'] = st.column_config.NumberColumn('Revenue', format="$%.0f")
+        if 'gross_profit' in detailed_sku_data.columns:
+            column_config['gross_profit'] = st.column_config.NumberColumn('Gross Profit', format="$%.0f")
+        if 'margin_pct' in detailed_sku_data.columns:
+            column_config['margin_pct'] = st.column_config.NumberColumn('Margin %', format="%.1f%%")
+        if 'unit_price' in detailed_sku_data.columns:
+            column_config['unit_price'] = st.column_config.NumberColumn('Unit Price', format="$%.2f")
+        if 'unit_cost' in detailed_sku_data.columns:
+            column_config['unit_cost'] = st.column_config.NumberColumn('Unit Cost', format="$%.2f")
+        column_config['gap'] = st.column_config.NumberColumn('Supply Gap', format="%.0f")
         
         st.dataframe(
             detailed_sku_data.round(2),
-            column_config={
-                'revenue': st.column_config.NumberColumn('Revenue', format="$%.0f"),
-                'gross_profit': st.column_config.NumberColumn('Gross Profit', format="$%.0f"),
-                'margin_pct': st.column_config.NumberColumn('Margin %', format="%.1f%%"),
-                'unit_price': st.column_config.NumberColumn('Unit Price', format="$%.2f"),
-                'unit_cost': st.column_config.NumberColumn('Unit Cost', format="$%.2f"),
-                'gap': st.column_config.NumberColumn('Supply Gap', format="%.0f")
-            },
+            column_config=column_config,
             hide_index=True
         )
     
