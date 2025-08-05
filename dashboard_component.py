@@ -147,60 +147,66 @@ def render_dashboard():
     margin_pct = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
     avg_unit_price = (total_revenue / total_volume) if total_volume > 0 else 0
     
-    # Calculate trend indicators
-    if not monthly_df.empty:
-        recent_demand = monthly_df[monthly_df['month'].isin(['may_2025', 'jun_2025'])]['demand'].sum()
-        earlier_demand = monthly_df[monthly_df['month'].isin(['jan_2024', 'feb_2024'])]['demand'].sum()
-        demand_trend = ((recent_demand - earlier_demand) / earlier_demand * 100) if earlier_demand > 0 else 0
-    else:
+    # Calculate trend indicators with robust error handling
+    demand_trend = 0
+    try:
+        if not monthly_df.empty and 'month' in monthly_df.columns and 'demand' in monthly_df.columns:
+            # Get available months safely
+            available_months = monthly_df['month'].unique()
+            
+            # Find recent and earlier months that exist in data
+            recent_months = [m for m in ['may_2025', 'jun_2025'] if m in available_months]
+            earlier_months = [m for m in ['jan_2024', 'feb_2024'] if m in available_months]
+            
+            if recent_months and earlier_months:
+                recent_demand = monthly_df[monthly_df['month'].isin(recent_months)]['demand'].sum()
+                earlier_demand = monthly_df[monthly_df['month'].isin(earlier_months)]['demand'].sum()
+                
+                if earlier_demand > 0:
+                    demand_trend = ((recent_demand - earlier_demand) / earlier_demand * 100)
+                else:
+                    demand_trend = 0
+    except Exception as e:
+        print(f"Warning: Could not calculate demand trend: {e}")
         demand_trend = 0
     
-    # World-Class KPI Cards (Top Row)
+    # Robust KPI Cards using native Streamlit components
     st.markdown("## 🎯 Key Performance Indicators")
     
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                    padding: 20px; border-radius: 10px; color: white; text-align: center;">
-            <h2 style="margin: 0; font-size: 2.5em; font-weight: bold;">${:,.0f}</h2>
-            <p style="margin: 5px 0; font-size: 1.1em;">Total Revenue</p>
-            <p style="margin: 0; font-size: 0.9em;">+${:,.0f} profit</p>
-        </div>
-        """.format(total_revenue, gross_profit), unsafe_allow_html=True)
+        st.metric(
+            label="💰 Total Revenue",
+            value=f"${total_revenue:,.0f}",
+            delta=f"${gross_profit:,.0f} profit",
+            delta_color="normal"
+        )
     
     with col2:
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); 
-                    padding: 20px; border-radius: 10px; color: white; text-align: center;">
-            <h2 style="margin: 0; font-size: 2.5em; font-weight: bold;">{:,.0f}</h2>
-            <p style="margin: 5px 0; font-size: 1.1em;">Total Volume</p>
-            <p style="margin: 0; font-size: 0.9em;">${:,.0f} COGS</p>
-        </div>
-        """.format(total_volume, cogs), unsafe_allow_html=True)
+        st.metric(
+            label="📦 Total Volume",
+            value=f"{total_volume:,.0f}",
+            delta=f"${cogs:,.0f} COGS",
+            delta_color="normal"
+        )
     
     with col3:
-        trend_color = "green" if demand_trend > 0 else "red"
-        trend_icon = "↗️" if demand_trend > 0 else "↘️"
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
-                    padding: 20px; border-radius: 10px; color: white; text-align: center;">
-            <h2 style="margin: 0; font-size: 2.5em; font-weight: bold;">{:.1f}%</h2>
-            <p style="margin: 5px 0; font-size: 1.1em;">Gross Margin</p>
-            <p style="margin: 0; font-size: 0.9em;">{} {:.1f}% trend</p>
-        </div>
-        """.format(margin_pct, trend_icon, abs(demand_trend)), unsafe_allow_html=True)
+        trend_delta = f"{demand_trend:+.1f}%" if demand_trend != 0 else "0.0%"
+        st.metric(
+            label="📊 Gross Margin",
+            value=f"{margin_pct:.1f}%",
+            delta=trend_delta,
+            delta_color="normal" if demand_trend >= 0 else "inverse"
+        )
     
     with col4:
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); 
-                    padding: 20px; border-radius: 10px; color: white; text-align: center;">
-            <h2 style="margin: 0; font-size: 2.5em; font-weight: bold;">${:.2f}</h2>
-            <p style="margin: 5px 0; font-size: 1.1em;">Avg Unit Price</p>
-            <p style="margin: 0; font-size: 0.9em;">per unit</p>
-        </div>
-        """.format(avg_unit_price), unsafe_allow_html=True)
+        st.metric(
+            label="💵 Avg Unit Price",
+            value=f"${avg_unit_price:.2f}",
+            delta="per unit",
+            delta_color="normal"
+        )
     
     st.markdown("<br>", unsafe_allow_html=True)
     
@@ -246,16 +252,14 @@ def render_dashboard():
         
         fig = go.Figure()
         
-        # Enhanced styling for world-class appearance
+        # Robust chart styling that works reliably
         fig.add_trace(go.Scatter(
             x=monthly_trend['month'],
             y=monthly_trend['demand'],
             mode='lines+markers',
             name='Demand',
-            line=dict(color='#667eea', width=4),
-            marker=dict(size=10, color='#667eea', line=dict(width=2, color='white')),
-            fill='tonexty',
-            fillcolor='rgba(102, 126, 234, 0.1)'
+            line=dict(color='#1f77b4', width=3),
+            marker=dict(size=8)
         ))
         
         fig.add_trace(go.Scatter(
@@ -263,10 +267,8 @@ def render_dashboard():
             y=monthly_trend['supply'],
             mode='lines+markers',
             name='Supply',
-            line=dict(color='#f5576c', width=4),
-            marker=dict(size=10, color='#f5576c', line=dict(width=2, color='white')),
-            fill='tonexty',
-            fillcolor='rgba(245, 87, 108, 0.1)'
+            line=dict(color='#ff7f0e', width=3),
+            marker=dict(size=8)
         ))
         
         fig.add_trace(go.Scatter(
@@ -274,94 +276,75 @@ def render_dashboard():
             y=monthly_trend['inventory'],
             mode='lines+markers',
             name='Inventory',
-            line=dict(color='#43e97b', width=4),
-            marker=dict(size=10, color='#43e97b', line=dict(width=2, color='white')),
-            fill='tonexty',
-            fillcolor='rgba(67, 233, 123, 0.1)'
+            line=dict(color='#2ca02c', width=3),
+            marker=dict(size=8)
         ))
         
         fig.update_layout(
-            title="",
-            xaxis_title="",
-            yaxis_title="",
-            height=350,
+            title="Monthly Demand, Supply & Inventory Trends",
+            xaxis_title="Month",
+            yaxis_title="Volume",
+            height=400,
             showlegend=True,
-            hovermode='x unified',
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(size=12),
-            margin=dict(l=20, r=20, t=20, b=20)
+            hovermode='x unified'
         )
         
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.markdown("""
-        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3 style="margin: 0 0 15px 0; color: #333;">🥧 Category Distribution</h3>
-        """, unsafe_allow_html=True)
+        st.subheader("🥧 Category Distribution")
         
-        # Enhanced category pie chart
+        # Robust category pie chart
         if 'revenue' in category_summary.columns and not category_summary['revenue'].isna().all():
             fig_pie = px.pie(
                 category_summary,
                 values='revenue',
                 names='category',
-                color_discrete_sequence=['#667eea', '#f5576c', '#43e97b', '#4facfe', '#f093fb']
+                title="Revenue by Category"
             )
-            fig_pie.update_layout(
-                height=250,
-                showlegend=True,
-                margin=dict(l=20, r=20, t=20, b=20)
-            )
-            fig_pie.update_traces(
-                textposition='inside',
-                textinfo='percent+label',
-                hole=0.3
-            )
-            st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
+            fig_pie.update_layout(height=300)
+            st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info("Revenue data not available for pie chart")
-        
-        st.markdown("</div>", unsafe_allow_html=True)
     
     with col3:
-        st.markdown("""
-        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3 style="margin: 0 0 15px 0; color: #333;">📊 Quick Metrics</h3>
-        """, unsafe_allow_html=True)
+        st.subheader("📊 Quick Metrics")
         
-        # Enhanced category metrics display
+        # Robust category metrics display
         if not category_summary.empty:
-            # Find best and worst performers
-            if 'gross_profit' in category_summary.columns:
-                best_category = category_summary.loc[category_summary['gross_profit'].idxmax()]
-                worst_category = category_summary.loc[category_summary['gross_profit'].idxmin()]
-                
-                st.metric(
-                    label="🏆 Best Performer",
-                    value=best_category['category'],
-                    delta=f"${best_category.get('gross_profit', 0):,.0f} profit"
-                )
-                
-                st.metric(
-                    label="⚠️ Needs Attention",
-                    value=worst_category['category'],
-                    delta=f"${worst_category.get('gross_profit', 0):,.0f} profit"
-                )
+            # Find best and worst performers safely
+            try:
+                if 'gross_profit' in category_summary.columns:
+                    best_category = category_summary.loc[category_summary['gross_profit'].idxmax()]
+                    worst_category = category_summary.loc[category_summary['gross_profit'].idxmin()]
+                    
+                    st.metric(
+                        label="🏆 Best Performer",
+                        value=best_category['category'],
+                        delta=f"${best_category.get('gross_profit', 0):,.0f} profit"
+                    )
+                    
+                    st.metric(
+                        label="⚠️ Needs Attention",
+                        value=worst_category['category'],
+                        delta=f"${worst_category.get('gross_profit', 0):,.0f} profit"
+                    )
+            except Exception as e:
+                st.info("Category analysis not available")
         
         # Data quality indicator
         if not monthly_df.empty:
-            unique_skus = len(monthly_df['sku_id'].unique())
-            unique_months = len(monthly_df['month'].unique())
-            
-            st.metric(
-                label="📦 Data Coverage",
-                value=f"{unique_skus} SKUs",
-                delta=f"{unique_months} months"
-            )
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+            try:
+                unique_skus = len(monthly_df['sku_id'].unique())
+                unique_months = len(monthly_df['month'].unique())
+                
+                st.metric(
+                    label="📦 Data Coverage",
+                    value=f"{unique_skus} SKUs",
+                    delta=f"{unique_months} months"
+                )
+            except Exception as e:
+                st.info("Data coverage not available")
     
     # Second row - SKU and Country Performance
     st.markdown("<br>", unsafe_allow_html=True)
@@ -371,69 +354,51 @@ def render_dashboard():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("""
-        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3 style="margin: 0 0 15px 0; color: #333;">🏭 SKU Performance</h3>
-        """, unsafe_allow_html=True)
+        st.subheader("🏭 SKU Performance")
         
-        # Enhanced SKU performance chart
-        sku_performance = monthly_df.groupby(['sku_id', 'name', 'category']).agg({
-            'demand': 'sum',
-            'supply': 'sum'
-        }).reset_index()
-        
-        sku_performance['gap'] = sku_performance['supply'] - sku_performance['demand']
-        sku_performance['gap_pct'] = (sku_performance['gap'] / sku_performance['demand']) * 100
-        
-        fig_sku = px.bar(
-            sku_performance,
-            x='name',
-            y=['demand', 'supply'],
-            barmode='group',
-            color_discrete_map={'demand': '#667eea', 'supply': '#f5576c'}
-        )
-        fig_sku.update_layout(
-            height=350,
-            xaxis_tickangle=-45,
-            showlegend=True,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=20, r=20, t=20, b=20)
-        )
-        st.plotly_chart(fig_sku, use_container_width=True, config={'displayModeBar': False})
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Robust SKU performance chart
+        try:
+            sku_performance = monthly_df.groupby(['sku_id', 'name', 'category']).agg({
+                'demand': 'sum',
+                'supply': 'sum'
+            }).reset_index()
+            
+            sku_performance['gap'] = sku_performance['supply'] - sku_performance['demand']
+            
+            fig_sku = px.bar(
+                sku_performance,
+                x='name',
+                y=['demand', 'supply'],
+                title="SKU Demand vs Supply",
+                barmode='group'
+            )
+            fig_sku.update_layout(height=400, xaxis_tickangle=-45)
+            st.plotly_chart(fig_sku, use_container_width=True)
+        except Exception as e:
+            st.error(f"Could not generate SKU chart: {e}")
     
     with col2:
-        st.markdown("""
-        <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-            <h3 style="margin: 0 0 15px 0; color: #333;">🌍 Geographic Performance</h3>
-        """, unsafe_allow_html=True)
+        st.subheader("🌍 Geographic Performance")
         
-        # Enhanced country performance chart
-        country_performance = monthly_df.groupby('country').agg({
-            'demand': 'sum',
-            'supply': 'sum',
-            'inventory': 'mean'
-        }).reset_index()
-        
-        fig_country = px.bar(
-            country_performance,
-            x='country',
-            y=['demand', 'supply'],
-            barmode='group',
-            color_discrete_map={'demand': '#667eea', 'supply': '#f5576c'}
-        )
-        fig_country.update_layout(
-            height=350,
-            showlegend=True,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            margin=dict(l=20, r=20, t=20, b=20)
-        )
-        st.plotly_chart(fig_country, use_container_width=True, config={'displayModeBar': False})
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+        # Robust country performance chart
+        try:
+            country_performance = monthly_df.groupby('country').agg({
+                'demand': 'sum',
+                'supply': 'sum',
+                'inventory': 'mean'
+            }).reset_index()
+            
+            fig_country = px.bar(
+                country_performance,
+                x='country',
+                y=['demand', 'supply'],
+                title="Performance by Country",
+                barmode='group'
+            )
+            fig_country.update_layout(height=400)
+            st.plotly_chart(fig_country, use_container_width=True)
+        except Exception as e:
+            st.error(f"Could not generate country chart: {e}")
     
     # Third row - Detailed metrics
     st.subheader("📋 Detailed SKU Metrics")
