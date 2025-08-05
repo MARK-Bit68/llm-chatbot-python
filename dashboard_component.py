@@ -139,6 +139,15 @@ def render_dashboard():
         st.error("Unable to load data from database. Please check your connection.")
         return
     
+    # Data quality warnings
+    if not monthly_df.empty:
+        if monthly_df['supply'].sum() == 0:
+            st.warning("⚠️ **Data Alert**: No supply data available. All supply values are zero.")
+        if monthly_df['inventory'].sum() == 0:
+            st.info("📦 **Note**: No inventory data available in current dataset.")
+        if total_revenue == 0:
+            st.info("💰 **Note**: Financial metrics not available in current dataset.")
+    
     # Calculate key metrics for KPI cards
     total_revenue = financial_summary.get('revenue', 0)
     total_volume = financial_summary.get('forecasted_volume', 0)
@@ -356,7 +365,7 @@ def render_dashboard():
     with col1:
         st.subheader("🏭 SKU Performance")
         
-        # Robust SKU performance chart
+        # Robust SKU performance chart with improved grouping
         try:
             sku_performance = monthly_df.groupby(['sku_id', 'name', 'category']).agg({
                 'demand': 'sum',
@@ -365,22 +374,31 @@ def render_dashboard():
             
             sku_performance['gap'] = sku_performance['supply'] - sku_performance['demand']
             
+            # Ensure both demand and supply are shown in chart
             fig_sku = px.bar(
                 sku_performance,
                 x='name',
                 y=['demand', 'supply'],
                 title="SKU Demand vs Supply",
-                barmode='group'
+                barmode='group',
+                color_discrete_map={'demand': '#1f77b4', 'supply': '#ff7f0e'}
             )
             fig_sku.update_layout(height=400, xaxis_tickangle=-45)
             st.plotly_chart(fig_sku, use_container_width=True)
+            
+            # Add insights about supply gaps
+            if sku_performance['supply'].sum() == 0:
+                st.info("💡 **Insight**: All SKUs show demand but no supply. Consider loading supply data.")
+            elif sku_performance['gap'].min() < 0:
+                st.info("💡 **Insight**: Some SKUs have supply gaps (demand > supply).")
+                
         except Exception as e:
             st.error(f"Could not generate SKU chart: {e}")
     
     with col2:
         st.subheader("🌍 Geographic Performance")
         
-        # Robust country performance chart
+        # Robust country performance chart with improved grouping
         try:
             country_performance = monthly_df.groupby('country').agg({
                 'demand': 'sum',
@@ -393,10 +411,19 @@ def render_dashboard():
                 x='country',
                 y=['demand', 'supply'],
                 title="Performance by Country",
-                barmode='group'
+                barmode='group',
+                color_discrete_map={'demand': '#1f77b4', 'supply': '#ff7f0e'}
             )
             fig_country.update_layout(height=400)
             st.plotly_chart(fig_country, use_container_width=True)
+            
+            # Add geographic insights
+            if country_performance['supply'].sum() == 0:
+                st.info("🌍 **Geographic Insight**: No supply data available by country.")
+            else:
+                best_country = country_performance.loc[country_performance['demand'].idxmax()]
+                st.info(f"🌍 **Geographic Insight**: {best_country['country']} has highest demand.")
+                
         except Exception as e:
             st.error(f"Could not generate country chart: {e}")
     
