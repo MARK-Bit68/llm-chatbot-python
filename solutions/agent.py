@@ -46,7 +46,7 @@ tools = [
     Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description="Use this tool for ANY question about SKUs. Input: the question about the SKU (e.g., 'Tell me about SKU001', 'What country is SKU001 from?', 'What is the inventory plan for SKU001?'). This tool queries the database and returns comprehensive executive-level SKU information with detailed analysis."
+        description="Use this tool for ANY question about SKUs. Input: the question about the SKU (e.g., 'Tell me about SKU001', 'What country is SKU001 from?', 'What is the inventory plan for SKU001?'). This tool queries the database and returns comprehensive executive-level SKU information with detailed analysis. CRITICAL: When you receive this data, you MUST present the ENTIRE executive dashboard EXACTLY as provided, including ALL sections: Product Overview, Financial Performance, Inventory Management, Monthly Analysis, Strategic Insights, and Executive Recommendations. NEVER summarize, condense, or rephrase this data - present the COMPLETE dashboard with all tables, metrics, and insights exactly as received."
     ),
     Tool(
         name="Entity Information Search",
@@ -151,6 +151,34 @@ def get_agent():
             
             # Create agent with the standard hub prompt
             agent = create_react_agent(llm, tools, prompt)
+            
+            # Add comprehensive response instruction to the prompt
+            def enhance_prompt_with_executive_instructions(prompt):
+                """Enhance the prompt to encourage comprehensive executive responses"""
+                if hasattr(prompt, 'messages') and prompt.messages:
+                    # Find the system message and enhance it
+                    for message in prompt.messages:
+                        if message.type == "system":
+                            message.content += """
+
+CRITICAL EXECUTIVE RESPONSE REQUIREMENTS:
+1. When you receive comprehensive SKU data with executive dashboard format, PRESENT THE ENTIRE DASHBOARD AS-IS
+2. NEVER summarize, condense, or rephrase the executive dashboard data
+3. If the data includes sections like "📊 Executive Summary", "💰 Financial Performance", "📦 Inventory Management", "📈 Monthly Demand Analysis", "🎯 Strategic Insights", and "💡 Executive Recommendations" - PRESENT ALL OF THEM
+4. Include ALL tables, metrics, and detailed analysis exactly as provided
+5. For inventory questions, show the complete monthly demand analysis table with all 18 months
+6. For financial questions, include all revenue, cost, margin, and profitability calculations
+7. Present the data in the exact same professional format with all markdown formatting
+8. If charts or visualizations are included, present them as well
+9. The goal is to provide COMPLETE executive-level business intelligence, not summaries
+10. Only add brief contextual analysis if the question specifically asks for interpretation
+11. IMPORTANT: If you receive a comprehensive executive dashboard response from a tool, RETURN THAT EXACT RESPONSE without any modification or summary
+
+Remember: You are delivering executive dashboard reports, not answering simple questions. When you receive rich data, present it exactly as received."""
+                return prompt
+            
+            # Apply the enhanced prompt
+            agent = create_react_agent(llm, tools, enhance_prompt_with_executive_instructions(prompt))
             print(f"🔍 DEBUG: Agent created: {agent is not None}")
             
             agent_executor = AgentExecutor(

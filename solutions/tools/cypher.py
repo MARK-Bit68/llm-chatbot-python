@@ -281,8 +281,16 @@ def parse_sku_plot_data(plot_string):
 
 def generate_executive_single_sku_response(question, sku_data):
     """
-    Generate executive-level response for single SKU queries
+    Generate executive-level response for single SKU queries with rich visualizations
     """
+    # Import chart generation
+    try:
+        from solutions.tools.charts import generate_executive_charts, embed_charts_in_response
+        charts = generate_executive_charts(sku_data)
+    except Exception as e:
+        print(f"❌ DEBUG: Chart generation failed: {e}")
+        charts = {}
+    
     response = f"# 📊 Executive Summary: {sku_data.get('sku_id', 'SKU')}\n\n"
     
     # Basic Information
@@ -377,6 +385,10 @@ def generate_executive_single_sku_response(question, sku_data):
         response += f"- ❌ **Loss-Making Product:** Negative gross profit margin\n"
     
     response += f"- 📊 **Market Position:** {sku_data.get('category', 'N/A')} category with {sku_data.get('country', 'N/A')} sourcing\n"
+    
+    # Embed charts if available
+    if charts:
+        response = embed_charts_in_response(response, charts)
     
     return response
 
