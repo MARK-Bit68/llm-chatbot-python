@@ -9,6 +9,7 @@ st.set_page_config(
 
 from solutions.agent import generate_response, reset_agent
 from solutions.graph import get_graph
+from dashboard_component import render_dashboard, generate_dashboard_response
 import os
 
 print("🔍 DEBUG: bot.py starting...")
@@ -94,6 +95,13 @@ with st.sidebar:
     st.markdown("""
     Try these example queries:
     
+    **Dashboard & Analytics:**
+    - "Show me a dashboard"
+    - "Generate a report"
+    - "Create charts and graphs"
+    - "Display analytics"
+    - "Show me KPIs"
+    
     **SKU Information:**
     - "Tell me about SKU001"
     - "What SKUs are in the Master Data?"
@@ -144,15 +152,34 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
         else:
             try:
                 print(f"🔍 DEBUG: handle_submit() called with message: {prompt[:50]}...")
-                print("🔍 DEBUG: Calling generate_response...")
-                response = generate_response(prompt)
-                print(f"🔍 DEBUG: generate_response returned: {response[:100]}...")
                 
-                # Display the response
-                message_placeholder.markdown(response)
+                # Check if user is requesting a dashboard
+                dashboard_keywords = ['dashboard', 'chart', 'graph', 'visualization', 'report', 'analytics', 'metrics', 'kpi']
+                is_dashboard_request = any(keyword in prompt.lower() for keyword in dashboard_keywords)
                 
-                # Add assistant response to chat history
-                st.session_state.messages.append({"role": "assistant", "content": response})
+                if is_dashboard_request:
+                    print("🔍 DEBUG: Dashboard request detected")
+                    
+                    # Generate dashboard response text
+                    dashboard_text = generate_dashboard_response()
+                    message_placeholder.markdown(dashboard_text)
+                    
+                    # Render the interactive dashboard
+                    render_dashboard()
+                    
+                    # Add assistant response to chat history
+                    st.session_state.messages.append({"role": "assistant", "content": dashboard_text})
+                    
+                else:
+                    print("🔍 DEBUG: Calling generate_response...")
+                    response = generate_response(prompt)
+                    print(f"🔍 DEBUG: generate_response returned: {response[:100]}...")
+                    
+                    # Display the response
+                    message_placeholder.markdown(response)
+                    
+                    # Add assistant response to chat history
+                    st.session_state.messages.append({"role": "assistant", "content": response})
                 
             except Exception as e:
                 error_msg = f"❌ Error processing your request: {str(e)}"

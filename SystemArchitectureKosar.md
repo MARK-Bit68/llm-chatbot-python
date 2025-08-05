@@ -64,3 +64,96 @@ Consider the query: **"What is the total revenue for products in the 'Legumes' c
 
 A pure vector search system would be incapable of executing this request. It might find SKUs related to "Legumes" and "Country B," but it could not perform the `sum()` aggregation or enforce the `AND` condition with certainty.
 
+---
+
+## 5. Interactive Dashboard Integration
+
+The system includes a **dynamic dashboard component** that integrates seamlessly within the chat interface, providing visual analytics and real-time insights.
+
+### 5.1. Dashboard Architecture
+
+The dashboard is implemented as a **component-based system** that renders within the existing Streamlit chat interface:
+
+- **`dashboard_component.py`**: Core dashboard functionality with data extraction and visualization
+- **Modified `bot.py`**: Enhanced with keyword detection for dashboard requests
+- **Real-time Integration**: Charts render directly within chat messages
+
+### 5.2. Dashboard Capabilities
+
+#### **Data Integration**
+- **Live Neo4j Connection**: Real-time data extraction from production database
+- **Rich Data Processing**: 10 SKUs, 5 categories, 2 countries, 18 months of data
+- **Financial Analytics**: $930K revenue, $326K profit, 35.1% margin calculations
+
+#### **Interactive Visualizations**
+1. **Key Metrics Cards**: Revenue, volume, margin, unit price at a glance
+2. **Monthly Trends Chart**: Demand vs Supply vs Inventory with category/country filters
+3. **Category Performance**: Pie charts and detailed metrics tables
+4. **SKU Performance**: Bar charts comparing demand vs supply across all products
+5. **Geographic Distribution**: Country-specific performance analysis
+6. **Detailed Metrics Table**: Complete SKU-level financial data with formatting
+
+### 5.3. User Experience
+
+#### **Natural Integration**
+- **Keyword Detection**: Automatically triggers on dashboard-related queries
+- **Seamless Rendering**: Charts appear within chat conversation flow
+- **Interactive Filters**: Category and country selection within dashboard
+- **Professional Visualizations**: Plotly charts with responsive design
+
+#### **Trigger Keywords**
+The dashboard activates when users type:
+- "Show me a dashboard"
+- "Generate a report"
+- "Create charts and graphs"
+- "Display analytics"
+- "Show me KPIs"
+
+### 5.4. Technical Implementation
+
+#### **Data Processing Pipeline**
+```python
+# Real-time data extraction from Neo4j
+result = graph.query("MATCH (sku:SKU) RETURN sku.plot as plot_data")
+
+# Complex string parsing for rich data structure
+pairs = plot_data.split(' | ')
+for pair in pairs:
+    key, value = pair.split(':', 1)
+    data_dict[key.strip()] = value.strip()
+
+# Monthly data aggregation (18 months × 10 SKUs)
+monthly_data = []
+for month in ['jan_2024', ..., 'jun_2025']:
+    monthly_data.append({
+        'demand': row[month],
+        'supply': row.get(f'Supply Plan: {month.split("_")[0].title()}', 0),
+        'inventory': row.get(f'Inventory Plan: {month.split("_")[0].title()}', 0)
+    })
+```
+
+#### **Visualization Engine**
+- **Plotly Integration**: Interactive charts with hover effects and zoom
+- **Streamlit Components**: Native integration with chat interface
+- **Responsive Design**: Works on desktop and mobile devices
+- **State Management**: Filter persistence across interactions
+
+### 5.5. Business Insights
+
+The dashboard reveals critical supply chain insights:
+
+#### **Category Performance**
+1. **Dried Fruits**: $476K revenue, 59% margin (Star performer)
+2. **Legumes**: $180K revenue, 54% margin (Strong performer)
+3. **Grains**: $75K revenue, 15% margin (Needs optimization)
+4. **Nuts**: $138K revenue, -20% margin (Critical attention needed)
+5. **Spices**: $60K revenue, -33% margin (Immediate intervention required)
+
+#### **Supply Chain Gaps**
+- **Demand-Supply Mismatches**: Identified specific SKUs with supply gaps
+- **Seasonal Patterns**: 18-month trends visible across all categories
+- **Geographic Variations**: Clear differences between Country A and B performance
+- **Financial Optimization**: Revenue and margin analysis by category
+
+This dashboard integration demonstrates how the system combines **analytical precision** (graph queries) with **visual insights** (interactive charts) to provide comprehensive supply chain intelligence within a natural chat interface.
+

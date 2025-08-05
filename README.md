@@ -354,6 +354,30 @@ python --version
 
 ## 💡 Advanced Usage
 
+### Interactive Dashboard
+The system includes a **dynamic dashboard** that integrates seamlessly within the chat interface:
+
+#### **Dashboard Features**
+- **Real-time Data**: Connected to production Neo4j database
+- **Interactive Charts**: Monthly trends, category performance, SKU analysis
+- **Financial Metrics**: Revenue, margins, supply-demand gaps
+- **Geographic Analysis**: Country-specific performance
+- **Filtering**: By category and country
+
+#### **How to Access Dashboard**
+Simply type these keywords in the chat:
+- "Show me a dashboard"
+- "Generate a report"
+- "Create charts and graphs"
+- "Display analytics"
+- "Show me KPIs"
+
+#### **Dashboard Insights**
+- **Total Revenue**: $930,200 with $326,319 gross profit
+- **Category Performance**: Dried Fruits (59% margin) vs Nuts/Spices (negative margins)
+- **Supply Chain Gaps**: Identified mismatches between demand and supply
+- **Seasonal Patterns**: 18-month trends visible across all SKUs
+
 ### Custom Analytical Queries
 The system can handle complex supply chain analysis:
 - **Demand Planning**: Analyze demand vs supply gaps
