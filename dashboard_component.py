@@ -8,11 +8,30 @@ import os
 import json
 
 def get_neo4j_config(key, default=""):
-    """Get Neo4j config from environment variables only"""
-    return os.getenv(key, default)
+    """Get Neo4j config from environment variables or secrets file"""
+    # First try environment variables
+    env_value = os.getenv(key)
+    if env_value:
+        return env_value
+    
+    # Then try secrets file
+    try:
+        secrets_path = ".streamlit/secrets.toml"
+        if os.path.exists(secrets_path):
+            with open(secrets_path, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and '=' in line and not line.startswith('#'):
+                        k, v = line.split('=', 1)
+                        if k.strip() == key:
+                            return v.strip().strip('"')
+    except:
+        pass
+    
+    return default
 
 def get_dashboard_data():
-    """Extract data from Neo4j for dashboard"""
+    """Extract data from Neo4j for dashboard - Enhanced for 100 SKU FMCG system"""
     try:
         graph = Neo4jGraph(
             url=get_neo4j_config("NEO4J_URI"),
@@ -69,20 +88,68 @@ def get_dashboard_data():
                         except:
                             data_dict[key] = value
             
-            # Parse monthly data from JSON
+            # Parse monthly data from plot_data
             demand_data = {}
             supply_data = {}
             inventory_data = {}
             
             try:
+                # First try to parse from dedicated fields
                 if row['demand_data'] and row['demand_data'] != 'Unknown':
-                    demand_data = json.loads(row['demand_data'])
+                    if isinstance(row['demand_data'], str):
+                        demand_data = json.loads(row['demand_data'])
+                    else:
+                        demand_data = row['demand_data']
                 if row['supply_data'] and row['supply_data'] != 'Unknown':
-                    supply_data = json.loads(row['supply_data'])
+                    if isinstance(row['supply_data'], str):
+                        supply_data = json.loads(row['supply_data'])
+                    else:
+                        supply_data = row['supply_data']
                 if row['inventory_data'] and row['inventory_data'] != 'Unknown':
-                    inventory_data = json.loads(row['inventory_data'])
-            except:
-                pass
+                    if isinstance(row['inventory_data'], str):
+                        inventory_data = json.loads(row['inventory_data'])
+                    else:
+                        inventory_data = row['inventory_data']
+            except Exception as e:
+                print(f"Warning: Could not parse dedicated data for {sku_id}: {e}")
+            
+            # If no data found in dedicated fields, try to extract from plot data
+            if not demand_data and not supply_data and not inventory_data:
+                plot_data = row.get('plot_data', '')
+                if plot_data:
+                    # Parse the plot data format: "jan_2024: 724 | Supply Plan: 664 | Inventory Plan: 911"
+                    for line in plot_data.split(' | '):
+                        if ':' in line:
+                            key, value = line.split(':', 1)
+                            key = key.strip()
+                            value = value.strip()
+                            
+                            # Check if this is a monthly data point
+                            if any(month in key for month in ['jan_', 'feb_', 'mar_', 'apr_', 'may_', 'jun_', 'jul_', 'aug_', 'sep_', 'oct_', 'nov_', 'dec_']):
+                                # This is demand data (direct monthly key)
+                                try:
+                                    demand_data[key] = float(value)
+                                except:
+                                    pass
+                            elif key == 'Supply Plan':
+                                # This is supply data - we need to find the corresponding month
+                                # Look for the previous line which should be the month
+                                try:
+                                    # Find the month from the previous demand entry
+                                    if demand_data:
+                                        last_month = list(demand_data.keys())[-1]
+                                        supply_data[last_month] = float(value)
+                                except:
+                                    pass
+                            elif key == 'Inventory Plan':
+                                # This is inventory data - we need to find the corresponding month
+                                try:
+                                    # Find the month from the previous demand entry
+                                    if demand_data:
+                                        last_month = list(demand_data.keys())[-1]
+                                        inventory_data[last_month] = float(value)
+                                except:
+                                    pass
             
             sku_data.append({
                 'sku_id': sku_id,
@@ -98,9 +165,9 @@ def get_dashboard_data():
         
         # Create monthly data for charts using enhanced structure
         monthly_data = []
-        months = ['jan-2024', 'feb-2024', 'mar-2024', 'apr-2024', 'may-2024', 'jun-2024',
-                 'jul-2024', 'aug-2024', 'sep-2024', 'oct-2024', 'nov-2024', 'dec-2024',
-                 'jan-2025', 'feb-2025', 'mar-2025', 'apr-2025', 'may-2025', 'jun-2025']
+        months = ['jan_2024', 'feb_2024', 'mar_2024', 'apr_2024', 'may_2024', 'jun_2024',
+                 'jul_2024', 'aug_2024', 'sep_2024', 'oct_2024', 'nov_2024', 'dec_2024',
+                 'jan_2025', 'feb_2025', 'mar_2025', 'apr_2025', 'may_2025', 'jun_2025']
         
         for _, row in df.iterrows():
             demand_data = row.get('demand_data', {})
@@ -172,7 +239,7 @@ def get_dashboard_data():
         return None, None, None
 
 def render_dashboard():
-    """Render a world-class dashboard with professional grid layout and KPI cards"""
+    """Render a world-class dashboard with professional grid layout and KPI cards for 100 SKU enhanced FMCG system"""
     
     # Show loading state with user-friendly message
     with st.spinner("🔄 Loading your dashboard data from the database..."):

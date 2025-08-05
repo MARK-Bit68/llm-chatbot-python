@@ -48,3 +48,4 @@ Before committing any changes:
 - **Test with real data** not dummy data
 - **Understand the data model** before modifying access patterns
 
+IF OU NEED CREDENTIALS STOP AND ASK ME or look for .streamlit/secrets.toml

@@ -33,8 +33,27 @@ def get_graph_connection():
         import os
         
         def get_neo4j_config(key, default=""):
-            """Get Neo4j config from environment variables only"""
-            return os.getenv(key, default)
+            """Get Neo4j config from environment variables or secrets file"""
+            # First try environment variables
+            env_value = os.getenv(key)
+            if env_value:
+                return env_value
+            
+            # Then try secrets file
+            try:
+                secrets_path = ".streamlit/secrets.toml"
+                if os.path.exists(secrets_path):
+                    with open(secrets_path, 'r') as f:
+                        for line in f:
+                            line = line.strip()
+                            if line and '=' in line and not line.startswith('#'):
+                                k, v = line.split('=', 1)
+                                if k.strip() == key:
+                                    return v.strip().strip('"')
+            except:
+                pass
+            
+            return default
         
         graph = Neo4jGraph(
             url=get_neo4j_config("NEO4J_URI"),
@@ -46,8 +65,7 @@ def get_graph_connection():
         graph.query("RETURN 1 as test")
         return graph
     except Exception as e:
-        st.error(f"❌ Neo4j connection failed: {str(e)}")
-        st.info("💡 Please install and start Neo4j to process Excel data.")
+        print(f"❌ Neo4j connection failed: {str(e)}")
         return None
 
 def create_enhanced_graph_schema(sku_data, graph):
@@ -77,8 +95,10 @@ def create_enhanced_graph_schema(sku_data, graph):
             # Create Demand Plan node with monthly data
             monthly_demand = {}
             for key, value in data['all_properties'].items():
-                if key.startswith('jan-') or key.startswith('feb-') or key.startswith('mar-') or key.startswith('apr-') or key.startswith('may-') or key.startswith('jun-') or key.startswith('jul-') or key.startswith('aug-') or key.startswith('sep-') or key.startswith('oct-') or key.startswith('nov-') or key.startswith('dec-'):
-                    monthly_demand[key] = value
+                if key.startswith('demand_plan_jan-') or key.startswith('demand_plan_feb-') or key.startswith('demand_plan_mar-') or key.startswith('demand_plan_apr-') or key.startswith('demand_plan_may-') or key.startswith('demand_plan_jun-') or key.startswith('demand_plan_jul-') or key.startswith('demand_plan_aug-') or key.startswith('demand_plan_sep-') or key.startswith('demand_plan_oct-') or key.startswith('demand_plan_nov-') or key.startswith('demand_plan_dec-'):
+                    # Extract month name from key
+                    month_key = key.replace('demand_plan_', '')
+                    monthly_demand[month_key] = value
             
             demand_plan_data = json.dumps(monthly_demand) if monthly_demand else "Unknown"
             demand_query = """
@@ -93,10 +113,10 @@ def create_enhanced_graph_schema(sku_data, graph):
             # Create Supply Plan node with monthly data
             monthly_supply = {}
             for key, value in data['all_properties'].items():
-                if key.startswith('jan-') or key.startswith('feb-') or key.startswith('mar-') or key.startswith('apr-') or key.startswith('may-') or key.startswith('jun-') or key.startswith('jul-') or key.startswith('aug-') or key.startswith('sep-') or key.startswith('oct-') or key.startswith('nov-') or key.startswith('dec-'):
-                    # Check if this is from supply plan sheet
-                    if 'supply_plan' in data['sheets'] and key in data['sheets']['supply_plan']:
-                        monthly_supply[key] = data['sheets']['supply_plan'][key]
+                if key.startswith('supply_plan_jan-') or key.startswith('supply_plan_feb-') or key.startswith('supply_plan_mar-') or key.startswith('supply_plan_apr-') or key.startswith('supply_plan_may-') or key.startswith('supply_plan_jun-') or key.startswith('supply_plan_jul-') or key.startswith('supply_plan_aug-') or key.startswith('supply_plan_sep-') or key.startswith('supply_plan_oct-') or key.startswith('supply_plan_nov-') or key.startswith('supply_plan_dec-'):
+                    # Extract month name from key
+                    month_key = key.replace('supply_plan_', '')
+                    monthly_supply[month_key] = value
             
             supply_plan_data = json.dumps(monthly_supply) if monthly_supply else "Unknown"
             supply_query = """
@@ -111,10 +131,10 @@ def create_enhanced_graph_schema(sku_data, graph):
             # Create Inventory node with monthly data
             monthly_inventory = {}
             for key, value in data['all_properties'].items():
-                if key.startswith('jan-') or key.startswith('feb-') or key.startswith('mar-') or key.startswith('apr-') or key.startswith('may-') or key.startswith('jun-') or key.startswith('jul-') or key.startswith('aug-') or key.startswith('sep-') or key.startswith('oct-') or key.startswith('nov-') or key.startswith('dec-'):
-                    # Check if this is from inventory plan sheet
-                    if 'inventory_plan' in data['sheets'] and key in data['sheets']['inventory_plan']:
-                        monthly_inventory[key] = data['sheets']['inventory_plan'][key]
+                if key.startswith('inventory_plan_jan-') or key.startswith('inventory_plan_feb-') or key.startswith('inventory_plan_mar-') or key.startswith('inventory_plan_apr-') or key.startswith('inventory_plan_may-') or key.startswith('inventory_plan_jun-') or key.startswith('inventory_plan_jul-') or key.startswith('inventory_plan_aug-') or key.startswith('inventory_plan_sep-') or key.startswith('inventory_plan_oct-') or key.startswith('inventory_plan_nov-') or key.startswith('inventory_plan_dec-'):
+                    # Extract month name from key
+                    month_key = key.replace('inventory_plan_', '')
+                    monthly_inventory[month_key] = value
             
             inventory_data = json.dumps(monthly_inventory) if monthly_inventory else "Unknown"
             inventory_query = """
@@ -224,14 +244,21 @@ def extract_enhanced_fmcg_data(excel_file_path, max_skus=100):
                 sku_data[sku_id]['sheets'][sheet_name.lower().replace(' ', '_')] = row_dict
                 sku_data[sku_id]['sheet_count'] += 1
                 
-                # Merge properties
+                # Merge properties with sheet-specific prefixes for monthly data
                 for col, value in row_dict.items():
                     if not col.endswith('_original_name'):
-                        if col not in sku_data[sku_id]['all_properties']:
-                            sku_data[sku_id]['all_properties'][col] = value
+                        # For monthly data, store with sheet prefix
+                        if any(month in col for month in ['jan-', 'feb-', 'mar-', 'apr-', 'may-', 'jun-', 'jul-', 'aug-', 'sep-', 'oct-', 'nov-', 'dec-']):
+                            sheet_prefix = sheet_name.lower().replace(' ', '_')
+                            prefixed_col = f"{sheet_prefix}_{col}"
+                            sku_data[sku_id]['all_properties'][prefixed_col] = value
                         else:
-                            existing = sku_data[sku_id]['all_properties'][col]
-                            sku_data[sku_id]['all_properties'][col] = f"{existing} | {sheet_name}: {value}"
+                            # For non-monthly data, merge as before
+                            if col not in sku_data[sku_id]['all_properties']:
+                                sku_data[sku_id]['all_properties'][col] = value
+                            else:
+                                existing = sku_data[sku_id]['all_properties'][col]
+                                sku_data[sku_id]['all_properties'][col] = f"{existing} | {sheet_name}: {value}"
                 
                 total_rows_processed += 1
                 
@@ -249,11 +276,44 @@ def extract_enhanced_fmcg_data(excel_file_path, max_skus=100):
     nodes_created = 0
     for sku_id, data in sku_data.items():
         try:
+            # Extract monthly data for this SKU
+            monthly_demand = {}
+            monthly_supply = {}
+            monthly_inventory = {}
+            
+            for key, value in data['all_properties'].items():
+                if key.startswith('demand_plan_jan-') or key.startswith('demand_plan_feb-') or key.startswith('demand_plan_mar-') or key.startswith('demand_plan_apr-') or key.startswith('demand_plan_may-') or key.startswith('demand_plan_jun-') or key.startswith('demand_plan_jul-') or key.startswith('demand_plan_aug-') or key.startswith('demand_plan_sep-') or key.startswith('demand_plan_oct-') or key.startswith('demand_plan_nov-') or key.startswith('demand_plan_dec-'):
+                    month_key = key.replace('demand_plan_', '')
+                    monthly_demand[month_key] = value
+            
+            for key, value in data['all_properties'].items():
+                if key.startswith('supply_plan_jan-') or key.startswith('supply_plan_feb-') or key.startswith('supply_plan_mar-') or key.startswith('supply_plan_apr-') or key.startswith('supply_plan_may-') or key.startswith('supply_plan_jun-') or key.startswith('supply_plan_jul-') or key.startswith('supply_plan_aug-') or key.startswith('supply_plan_sep-') or key.startswith('supply_plan_oct-') or key.startswith('supply_plan_nov-') or key.startswith('supply_plan_dec-'):
+                    month_key = key.replace('supply_plan_', '')
+                    monthly_supply[month_key] = value
+            
+            for key, value in data['all_properties'].items():
+                if key.startswith('inventory_plan_jan-') or key.startswith('inventory_plan_feb-') or key.startswith('inventory_plan_mar-') or key.startswith('inventory_plan_apr-') or key.startswith('inventory_plan_may-') or key.startswith('inventory_plan_jun-') or key.startswith('inventory_plan_jul-') or key.startswith('inventory_plan_aug-') or key.startswith('inventory_plan_sep-') or key.startswith('inventory_plan_oct-') or key.startswith('inventory_plan_nov-') or key.startswith('inventory_plan_dec-'):
+                    month_key = key.replace('inventory_plan_', '')
+                    monthly_inventory[month_key] = value
+            
             # Create text representation for embeddings
             plot_parts = []
             for key, value in data['all_properties'].items():
                 if key.lower() not in ['sku_code', 'sku', 'sku_id']:
                     plot_parts.append(f"{key}: {value}")
+            
+            # Add monthly data summary to plot
+            if monthly_demand:
+                demand_summary = f"demand_data: {json.dumps(monthly_demand)}"
+                plot_parts.append(demand_summary)
+            
+            if monthly_supply:
+                supply_summary = f"supply_data: {json.dumps(monthly_supply)}"
+                plot_parts.append(supply_summary)
+            
+            if monthly_inventory:
+                inventory_summary = f"inventory_data: {json.dumps(monthly_inventory)}"
+                plot_parts.append(inventory_summary)
             
             plot = " | ".join(plot_parts) if plot_parts else f"FMCG product information for {sku_id}"
             
