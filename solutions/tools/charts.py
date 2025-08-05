@@ -25,9 +25,9 @@ def create_monthly_demand_chart(sku_data):
               'jul_2024', 'aug_2024', 'sep_2024', 'oct_2024', 'nov_2024', 'dec_2024',
               'jan_2025', 'feb_2025', 'mar_2025', 'apr_2025', 'may_2025', 'jun_2025']
     
-    demand_data = [float(sku_data.get(f'demand_{month}', 0)) for month in months]
-    supply_data = [float(sku_data.get(f'supply_{month}', 0)) for month in months]
-    inventory_data = [float(sku_data.get(f'inventory_{month}', 0)) for month in months]
+    demand_data = [float(str(sku_data.get(f'demand_{month}', 0))) for month in months]
+    supply_data = [float(str(sku_data.get(f'supply_{month}', 0))) for month in months]
+    inventory_data = [float(str(sku_data.get(f'inventory_{month}', 0))) for month in months]
     
     # Create date range
     dates = pd.date_range(start='2024-01-01', periods=18, freq='ME')
