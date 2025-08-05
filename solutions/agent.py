@@ -46,7 +46,7 @@ tools = [
     Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description="Use this tool for ANY question about SKUs. Input: the question about the SKU (e.g., 'Tell me about SKU001', 'What country is SKU001 from?'). This tool queries the database and returns detailed SKU information."
+        description="Use this tool for ANY question about SKUs. Input: the question about the SKU (e.g., 'Tell me about SKU001', 'What country is SKU001 from?', 'What is the inventory plan for SKU001?'). This tool queries the database and returns comprehensive executive-level SKU information with detailed analysis."
     ),
     Tool(
         name="Entity Information Search",

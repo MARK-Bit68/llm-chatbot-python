@@ -213,46 +213,245 @@ def execute_dynamic_query(question, available_data=None):
 
 def analyze_and_format_results(question, results, count):
     """
-    Format query results as a markdown table (with all columns) for both all-SKU and single-SKU queries.
-    Optionally, add a summary/insights section after the table, but never instead of the table.
+    Format query results with executive-level analysis and insights.
     """
     if not results or count == 0:
         return "No results found."
 
-    # Extract all unique keys from the results
-    all_keys = set()
+    # Parse the data for executive insights
+    parsed_data = []
     for row in results:
         if isinstance(row, dict):
-            all_keys.update(row.keys())
-        elif hasattr(row, '_fields'):
-            all_keys.update(row._fields)
-    all_keys = list(all_keys)
-
-    # Build the markdown table header
-    header = "| " + " | ".join(all_keys) + " |"
-    separator = "|" + "---|" * len(all_keys)
-
-    # Build the table rows
-    rows = []
-    for row in results:
-        if isinstance(row, dict):
-            values = [str(row.get(k, "")) for k in all_keys]
-        elif hasattr(row, '_fields'):
-            values = [str(getattr(row, k, "")) for k in all_keys]
+            parsed_row = {}
+            for key, value in row.items():
+                if key == 'sku.plot' and value:
+                    # Parse the complex plot data
+                    plot_data = parse_sku_plot_data(value)
+                    parsed_row.update(plot_data)
+                else:
+                    parsed_row[key] = value
+            parsed_data.append(parsed_row)
         else:
-            values = [str(row)]
-        rows.append("| " + " | ".join(values) + " |")
+            parsed_data.append(row)
 
-    table = "\n".join([header, separator] + rows)
-
-    # Optionally, add a summary/insights section
-    summary = f"\n\n**Total Results:** {count}"
+    # Generate executive-level response
     if count == 1:
-        summary += "\n\n**Details for the requested SKU are shown above.**"
-    elif count > 1:
-        summary += "\n\n**Details for all matching SKUs are shown above.**"
+        return generate_executive_single_sku_response(question, parsed_data[0])
+    else:
+        return generate_executive_multi_sku_response(question, parsed_data)
 
-    return f"{table}{summary}"
+def parse_sku_plot_data(plot_string):
+    """
+    Parse the complex plot data string into structured data
+    """
+    data = {}
+    if not plot_string:
+        return data
+    
+    # Split by | and parse key-value pairs
+    parts = plot_string.split(' | ')
+    for part in parts:
+        if ':' in part:
+            key, value = part.split(':', 1)
+            key = key.strip()
+            value = value.strip()
+            
+            # Handle special cases
+            if key in ['jan_2024', 'feb_2024', 'mar_2024', 'apr_2024', 'may_2024', 'jun_2024',
+                      'jul_2024', 'aug_2024', 'sep_2024', 'oct_2024', 'nov_2024', 'dec_2024',
+                      'jan_2025', 'feb_2025', 'mar_2025', 'apr_2025', 'may_2025', 'jun_2025']:
+                try:
+                    data[f'demand_{key}'] = int(value)
+                except:
+                    data[f'demand_{key}'] = value
+            elif key in ['unit_price', 'unit_cost', 'distribution_cost']:
+                try:
+                    data[key] = float(value)
+                except:
+                    data[key] = value
+            elif key in ['initial_inventory', 'safety_stock', 'forecasted_volume', 'revenue', 'cogs', 'gross_profit']:
+                try:
+                    data[key] = float(value)
+                except:
+                    data[key] = value
+            else:
+                data[key] = value
+    
+    return data
+
+def generate_executive_single_sku_response(question, sku_data):
+    """
+    Generate executive-level response for single SKU queries
+    """
+    response = f"# 📊 Executive Summary: {sku_data.get('sku_id', 'SKU')}\n\n"
+    
+    # Basic Information
+    response += f"## 🏷️ Product Overview\n"
+    response += f"- **Product Name:** {sku_data.get('name', 'N/A')}\n"
+    response += f"- **Category:** {sku_data.get('category', 'N/A')}\n"
+    response += f"- **Country of Origin:** {sku_data.get('country', 'N/A')}\n"
+    response += f"- **Unit of Measure:** {sku_data.get('uom', 'N/A')}\n"
+    response += f"- **Warehouse:** {sku_data.get('warehouse', 'N/A')}\n\n"
+    
+    # Financial Metrics
+    response += f"## 💰 Financial Performance\n"
+    unit_price = sku_data.get('unit_price', 0)
+    unit_cost = sku_data.get('unit_cost', 0)
+    revenue = sku_data.get('revenue', 0)
+    cogs = sku_data.get('cogs', 0)
+    gross_profit = sku_data.get('gross_profit', 0)
+    distribution_cost = sku_data.get('distribution_cost', 0)
+    
+    response += f"- **Unit Price:** ${unit_price:.2f}\n"
+    response += f"- **Unit Cost:** ${unit_cost:.2f}\n"
+    response += f"- **Gross Profit per Unit:** ${unit_price - unit_cost:.2f}\n"
+    
+    # Calculate margin safely
+    margin = ((unit_price - unit_cost) / unit_price * 100) if unit_price > 0 else 0
+    response += f"- **Gross Profit Margin:** {margin:.1f}%\n"
+    
+    response += f"- **Total Revenue:** ${revenue:,.2f}\n"
+    response += f"- **Cost of Goods Sold:** ${cogs:,.2f}\n"
+    response += f"- **Gross Profit:** ${gross_profit:,.2f}\n"
+    response += f"- **Distribution Cost:** ${distribution_cost:.2f}\n\n"
+    
+    # Inventory Management
+    response += f"## 📦 Inventory Management\n"
+    response += f"- **Initial Inventory:** {sku_data.get('initial_inventory', 0):,} units\n"
+    response += f"- **Safety Stock:** {sku_data.get('safety_stock', 0):,} units\n"
+    response += f"- **Forecasted Volume:** {sku_data.get('forecasted_volume', 0):,} units\n"
+    response += f"- **Lead Time:** {sku_data.get('lead_time_days', 0)} days\n\n"
+    
+    # Monthly Demand Analysis
+    response += f"## 📈 Monthly Demand Analysis (2024-2025)\n"
+    months = ['jan_2024', 'feb_2024', 'mar_2024', 'apr_2024', 'may_2024', 'jun_2024',
+              'jul_2024', 'aug_2024', 'sep_2024', 'oct_2024', 'nov_2024', 'dec_2024',
+              'jan_2025', 'feb_2025', 'mar_2025', 'apr_2025', 'may_2025', 'jun_2025']
+    
+    response += "| Month | Demand | Supply Plan | Inventory Plan |\n"
+    response += "|------|--------|-------------|----------------|\n"
+    
+    for month in months:
+        demand = sku_data.get(f'demand_{month}', 0)
+        supply = sku_data.get(f'supply_{month}', 0)
+        inventory = sku_data.get(f'inventory_{month}', 0)
+        month_name = month.replace('_', ' ').title()
+        response += f"| {month_name} | {demand:,} | {supply:,} | {inventory:,} |\n"
+    
+    response += "\n"
+    
+    # Strategic Insights
+    response += f"## 🎯 Strategic Insights\n"
+    
+    # Calculate key metrics
+    avg_demand = sum(sku_data.get(f'demand_{month}', 0) for month in months) / len(months)
+    avg_inventory = sum(sku_data.get(f'inventory_{month}', 0) for month in months) / len(months)
+    total_revenue = sku_data.get('revenue', 0)
+    total_profit = sku_data.get('gross_profit', 0)
+    forecasted_volume = sku_data.get('forecasted_volume', 1)
+    
+    response += f"- **Average Monthly Demand:** {avg_demand:,.0f} units\n"
+    response += f"- **Average Monthly Inventory:** {avg_inventory:,.0f} units\n"
+    response += f"- **Inventory Turnover Ratio:** {avg_demand / avg_inventory if avg_inventory > 0 else 0:.2f}\n"
+    response += f"- **Revenue per Unit:** ${total_revenue / forecasted_volume:.2f}\n"
+    response += f"- **Profit per Unit:** ${total_profit / forecasted_volume:.2f}\n\n"
+    
+    # Recommendations
+    response += f"## 💡 Executive Recommendations\n"
+    
+    if avg_inventory > avg_demand * 1.5:
+        ratio = avg_inventory/avg_demand if avg_demand > 0 else 0
+        response += f"- ⚠️ **Inventory Optimization Needed:** Current inventory levels are {ratio:.1f}x higher than demand\n"
+    elif avg_inventory < avg_demand * 0.8:
+        ratio = avg_demand/avg_inventory if avg_inventory > 0 else 0
+        response += f"- ⚠️ **Stockout Risk:** Inventory levels are {ratio:.1f}x lower than demand\n"
+    else:
+        response += f"- ✅ **Optimal Inventory Levels:** Inventory is well-balanced with demand\n"
+    
+    if sku_data.get('gross_profit', 0) > 0:
+        unit_price = sku_data.get('unit_price', 0)
+        unit_cost = sku_data.get('unit_cost', 0)
+        margin = ((unit_price - unit_cost) / unit_price * 100) if unit_price > 0 else 0
+        response += f"- ✅ **Profitable Product:** Strong gross profit margin of {margin:.1f}%\n"
+    else:
+        response += f"- ❌ **Loss-Making Product:** Negative gross profit margin\n"
+    
+    response += f"- 📊 **Market Position:** {sku_data.get('category', 'N/A')} category with {sku_data.get('country', 'N/A')} sourcing\n"
+    
+    return response
+
+def generate_executive_multi_sku_response(question, sku_data_list):
+    """
+    Generate executive-level response for multiple SKU queries
+    """
+    response = f"# 📊 Executive Dashboard: {len(sku_data_list)} SKUs\n\n"
+    
+    # Summary Statistics
+    total_revenue = sum(sku.get('revenue', 0) for sku in sku_data_list)
+    total_profit = sum(sku.get('gross_profit', 0) for sku in sku_data_list)
+    total_volume = sum(sku.get('forecasted_volume', 0) for sku in sku_data_list)
+    
+    response += f"## 📈 Portfolio Overview\n"
+    response += f"- **Total Revenue:** ${total_revenue:,.2f}\n"
+    response += f"- **Total Gross Profit:** ${total_profit:,.2f}\n"
+    response += f"- **Total Forecasted Volume:** {total_volume:,.0f} units\n"
+    avg_margin = (total_profit/total_revenue*100) if total_revenue > 0 else 0
+    response += f"- **Average Profit Margin:** {avg_margin:.1f}%\n\n"
+    
+    # Category Analysis
+    categories = {}
+    for sku in sku_data_list:
+        category = sku.get('category', 'Unknown')
+        if category not in categories:
+            categories[category] = {'revenue': 0, 'profit': 0, 'volume': 0, 'count': 0}
+        categories[category]['revenue'] += sku.get('revenue', 0)
+        categories[category]['profit'] += sku.get('gross_profit', 0)
+        categories[category]['volume'] += sku.get('forecasted_volume', 0)
+        categories[category]['count'] += 1
+    
+    response += f"## 🏷️ Category Performance\n"
+    response += "| Category | SKUs | Revenue | Profit | Volume | Margin |\n"
+    response += "|----------|------|---------|--------|--------|--------|\n"
+    
+    for category, data in categories.items():
+        margin = (data['profit'] / data['revenue'] * 100) if data['revenue'] > 0 else 0
+        response += f"| {category} | {data['count']} | ${data['revenue']:,.0f} | ${data['profit']:,.0f} | {data['volume']:,.0f} | {margin:.1f}% |\n"
+    
+    response += "\n"
+    
+    # Top Performers
+    response += f"## 🏆 Top Performers\n"
+    sorted_by_revenue = sorted(sku_data_list, key=lambda x: x.get('revenue', 0), reverse=True)
+    
+    response += "| Rank | SKU | Revenue | Profit | Margin | Category |\n"
+    response += "|------|-----|---------|--------|--------|----------|\n"
+    
+    for i, sku in enumerate(sorted_by_revenue[:5], 1):
+        revenue = sku.get('revenue', 0)
+        profit = sku.get('gross_profit', 0)
+        margin = (profit / revenue * 100) if revenue > 0 else 0
+        response += f"| {i} | {sku.get('sku_id', 'N/A')} | ${revenue:,.0f} | ${profit:,.0f} | {margin:.1f}% | {sku.get('category', 'N/A')} |\n"
+    
+    response += "\n"
+    
+    # Strategic Insights
+    response += f"## 🎯 Strategic Insights\n"
+    
+    # Profitability analysis
+    profitable_skus = [sku for sku in sku_data_list if sku.get('gross_profit', 0) > 0]
+    loss_making_skus = [sku for sku in sku_data_list if sku.get('gross_profit', 0) <= 0]
+    
+    response += f"- **Profitable SKUs:** {len(profitable_skus)} ({len(profitable_skus)/len(sku_data_list)*100:.1f}% of portfolio)\n"
+    response += f"- **Loss-Making SKUs:** {len(loss_making_skus)} ({len(loss_making_skus)/len(sku_data_list)*100:.1f}% of portfolio)\n"
+    
+    # Category insights
+    best_category = max(categories.items(), key=lambda x: x[1]['profit']) if categories else None
+    if best_category:
+        response += f"- **Best Performing Category:** {best_category[0]} (${best_category[1]['profit']:,.0f} profit)\n"
+    
+    response += f"- **Portfolio Health:** {'Strong' if len(profitable_skus) > len(loss_making_skus) else 'Needs Attention'}\n"
+    
+    return response
 
 def enhanced_cypher_qa(question):
     print(f"🔍 DEBUG: ===== ENHANCED_CYPHER_QA CALLED =====")
