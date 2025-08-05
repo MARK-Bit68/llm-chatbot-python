@@ -31,6 +31,8 @@ if "neo4j_available" not in st.session_state:
     st.session_state.neo4j_available = False
 if "data_available" not in st.session_state:
     st.session_state.data_available = False
+if "message_count" not in st.session_state:
+    st.session_state.message_count = 0
 
 print("🔍 DEBUG: Session state initialized")
 
@@ -127,14 +129,21 @@ if "agent_initialized" not in st.session_state:
     print("🔍 DEBUG: Agent initialized for first time")
 
 # Display chat messages
-for message in st.session_state.messages:
+for i, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
+        
+        # Re-render dashboard if this was a dashboard message
+        if (message["role"] == "assistant" and 
+            st.session_state.get('show_dashboard', False) and
+            st.session_state.get('dashboard_data', {}).get('timestamp') == i):
+            render_dashboard()
 
 # Chat input
 if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state.message_count += 1
     
     # Display user message
     with st.chat_message("user"):
@@ -164,11 +173,19 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
                     dashboard_text = generate_dashboard_response()
                     message_placeholder.markdown(dashboard_text)
                     
+                    # Store dashboard state in session
+                    st.session_state.show_dashboard = True
+                    st.session_state.dashboard_data = {
+                        'text': dashboard_text,
+                        'timestamp': st.session_state.get('message_count', 0)
+                    }
+                    
                     # Render the interactive dashboard
                     render_dashboard()
                     
                     # Add assistant response to chat history
                     st.session_state.messages.append({"role": "assistant", "content": dashboard_text})
+                    st.session_state.message_count += 1
                     
                 else:
                     print("🔍 DEBUG: Calling generate_response...")
@@ -180,6 +197,7 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
                     
                     # Add assistant response to chat history
                     st.session_state.messages.append({"role": "assistant", "content": response})
+                    st.session_state.message_count += 1
                 
             except Exception as e:
                 error_msg = f"❌ Error processing your request: {str(e)}"
