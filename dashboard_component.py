@@ -299,20 +299,40 @@ def render_dashboard():
         )
         
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Add chart disclaimer if all supply/inventory are zero
+        if monthly_trend['supply'].sum() == 0 and monthly_trend['inventory'].sum() == 0:
+            st.info("📊 **Chart Note**: Supply and inventory data not available. Only demand data is shown.")
+        elif monthly_trend['supply'].sum() == 0:
+            st.info("📊 **Chart Note**: Supply data not available. Only demand and inventory shown.")
+        elif monthly_trend['inventory'].sum() == 0:
+            st.info("📊 **Chart Note**: Inventory data not available. Only demand and supply shown.")
     
     with col2:
         st.subheader("🥧 Category Distribution")
         
-        # Robust category pie chart
+        # Robust category pie chart with zero-value handling
         if 'revenue' in category_summary.columns and not category_summary['revenue'].isna().all():
-            fig_pie = px.pie(
-                category_summary,
-                values='revenue',
-                names='category',
-                title="Revenue by Category"
-            )
-            fig_pie.update_layout(height=300)
-            st.plotly_chart(fig_pie, use_container_width=True)
+            if category_summary['revenue'].sum() == 0:
+                st.info("💰 **Chart Note**: No revenue data available. Pie chart shows zero values.")
+                # Show empty pie chart with disclaimer
+                fig_pie = px.pie(
+                    category_summary,
+                    values='revenue',
+                    names='category',
+                    title="Revenue by Category (No Data)"
+                )
+                fig_pie.update_layout(height=300)
+                st.plotly_chart(fig_pie, use_container_width=True)
+            else:
+                fig_pie = px.pie(
+                    category_summary,
+                    values='revenue',
+                    names='category',
+                    title="Revenue by Category"
+                )
+                fig_pie.update_layout(height=300)
+                st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info("Revenue data not available for pie chart")
     
@@ -389,6 +409,7 @@ def render_dashboard():
             # Add insights about supply gaps
             if sku_performance['supply'].sum() == 0:
                 st.info("💡 **Insight**: All SKUs show demand but no supply. Consider loading supply data.")
+                st.info("📊 **Chart Note**: Supply bars are zero - only demand data available.")
             elif sku_performance['gap'].min() < 0:
                 st.info("💡 **Insight**: Some SKUs have supply gaps (demand > supply).")
                 
@@ -420,6 +441,7 @@ def render_dashboard():
             # Add geographic insights
             if country_performance['supply'].sum() == 0:
                 st.info("🌍 **Geographic Insight**: No supply data available by country.")
+                st.info("📊 **Chart Note**: Supply bars are zero - only demand data available.")
             else:
                 best_country = country_performance.loc[country_performance['demand'].idxmax()]
                 st.info(f"🌍 **Geographic Insight**: {best_country['country']} has highest demand.")
