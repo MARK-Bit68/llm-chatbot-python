@@ -41,29 +41,27 @@ chat_prompt = ChatPromptTemplate.from_messages(
 
 print("🔍 DEBUG: chat_prompt created")
 
-# Define tools
-# 1. Update tool descriptions
-# Enhanced Database Query: For ANY question about a specific SKU (e.g., 'Tell me about SKU001'), you MUST use this tool. For ALL SKUs, you MUST use this tool. For categories, analytics, etc., use this tool.
+# Define tools with clear, simple names and descriptions
 tools = [
     Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description="For ANY question about a specific SKU (e.g., 'Tell me about SKU001'), you MUST use this tool. For ALL SKUs (e.g., 'What SKUs are in the Master Data?'), you MUST use this tool. For questions about categories, analytics, or general data, use this tool. This tool generates Cypher queries and returns detailed data. DO NOT use any other tool for specific SKU or all SKU queries."
+        description="Use this tool for ANY question about SKUs. Input: the question about the SKU (e.g., 'Tell me about SKU001', 'What country is SKU001 from?'). This tool queries the database and returns detailed SKU information."
     ),
     Tool(
         name="Entity Information Search",
         func=get_sku_data,
-        description="Use ONLY for semantic similarity or fuzzy search when the Enhanced Database Query does not provide sufficient information. NEVER use for specific SKU or all SKU queries."
+        description="Use ONLY for semantic similarity search when Enhanced Database Query doesn't work. Input: search terms. NEVER use for specific SKU queries."
     ),
     Tool(
         name="Entity Data Parser",
         func=parse_sku_data,
-        description="Use ONLY to extract structured data from raw SKU data after using Enhanced Database Query."
+        description="Use ONLY to extract structured data from raw SKU data. Input: raw SKU data. Use after Enhanced Database Query."
     ),
     Tool(
         name="General Chat",
         func=lambda x: f"I can help you with {DOMAIN_CONFIG['domain_name']} questions. Please ask about specific {DOMAIN_CONFIG['entity_plural']}, categories, pricing, inventory, or supply chain operations.",
-        description=f"General conversation and guidance about {DOMAIN_CONFIG['domain_name']} topics. NEVER use for SKU queries."
+        description=f"General conversation about {DOMAIN_CONFIG['domain_name']} topics. Input: general questions. NEVER use for SKU queries."
     )
 ]
 
@@ -146,58 +144,12 @@ def get_agent():
             # Create tool names string for the prompt
             tool_names = ", ".join([tool.name for tool in tools])
             print(f"🔍 DEBUG: Tool names: {tool_names}")
+
+            # Use the standard LangChain hub prompt with better error handling
+            from langchain import hub
+            prompt = hub.pull("hwchase17/react")
             
-            # Create the prompt with the required variables
-            prompt = PromptTemplate.from_template("""
-You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
-
-CRITICAL: For ANY question about SKUs (including "Tell me about SKU001", "What SKUs are in the Master Data?", etc.), you MUST use the Enhanced Database Query tool. You CANNOT give a generic response without using a tool.
-
-ANALYTICAL QUERIES: When asked about "what if" scenarios, price changes, cost analysis, or financial impact calculations, you MUST:
-1. Get the current data using the Enhanced Database Query tool
-2. Perform the mathematical calculations based on the data
-3. Show the before/after comparison with specific numbers
-4. Calculate the exact impact (revenue change, profit change, etc.)
-
-MANDATORY: You MUST use a tool for EVERY question. You are NOT allowed to give generic responses or greetings. You MUST follow the ReAct format exactly.
-
-You have access to the following tools:
-
-{tools}
-
-IMPORTANT: You MUST use the ReAct format for EVERY response. This means:
-
-1. ALWAYS start with "Thought: Do I need to use a tool? Yes"
-2. ALWAYS specify "Action: [tool name]"
-3. ALWAYS specify "Action Input: [your input]"
-4. ALWAYS wait for "Observation: [tool result]"
-5. THEN provide "Final Answer: [your response]"
-
-Example format:
-```
-Thought: Do I need to use a tool? Yes
-Action: Enhanced Database Query
-Action Input: Tell me about SKU001
-Observation: [tool result here]
-Thought: Do I need to use a tool? No
-Final Answer: [your response here]
-```
-
-WHAT IF ANALYSIS EXAMPLE:
-User: "What if we increase the price of SKU001 by 10%?"
-1. Get SKU001 data using Enhanced Database Query
-2. Calculate: Current price $10.90 → New price $11.99 (10% increase)
-3. Calculate: Current revenue $107,888 → New revenue $118,636 (if demand unchanged)
-4. Show exact numbers and impact
-
-You CANNOT skip any of these steps. You MUST use tools for every question.
-
-Begin!
-
-{agent_scratchpad}
-""")
-
-            # Try using the standard ReAct agent creation with proper prompt
+            # Create agent with the standard hub prompt
             agent = create_react_agent(llm, tools, prompt)
             print(f"🔍 DEBUG: Agent created: {agent is not None}")
             
@@ -220,34 +172,7 @@ Begin!
             print(f"🔍 DEBUG: ChatAgent created: {chat_agent is not None}")
         except Exception as e:
             print(f"❌ DEBUG: Error creating agent: {e}")
-            # Try alternative approach - use hub prompt with better error handling
-            try:
-                print("🔍 DEBUG: Trying alternative approach with hub prompt...")
-                from langchain import hub
-                prompt = hub.pull("hwchase17/react")
-                agent = create_react_agent(llm, tools, prompt)
-                print(f"🔍 DEBUG: Agent created with hub prompt: {agent is not None}")
-                
-                agent_executor = AgentExecutor(
-                    agent=agent,
-                    tools=tools,
-                    verbose=True,
-                    handle_parsing_errors=True,
-                    max_iterations=10,  # Increased from 5 to 10 for complex queries
-                    return_intermediate_steps=True
-                )
-                print(f"🔍 DEBUG: AgentExecutor created with hub prompt: {agent_executor is not None}")
-
-                chat_agent = RunnableWithMessageHistory(
-                    agent_executor,
-                    get_memory,
-                    input_messages_key="input",
-                    history_messages_key="chat_history",
-                )
-                print(f"🔍 DEBUG: ChatAgent created with hub prompt: {chat_agent is not None}")
-            except Exception as e2:
-                print(f"❌ DEBUG: Error with hub prompt too: {e2}")
-                raise e
+            raise e
     
     return agent_executor
 

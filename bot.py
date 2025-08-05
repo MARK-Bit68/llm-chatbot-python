@@ -87,6 +87,7 @@ with st.sidebar:
     if st.button("🔄 Reset Agent"):
         reset_agent()
         st.success("Agent reset successfully!")
+        st.rerun()  # Force a complete page reload to clear all caches
     
     # Example queries
     st.header("💡 Example Queries")
@@ -110,6 +111,12 @@ with st.sidebar:
 
 # Main chat interface
 st.header("💬 Chat with the Assistant")
+
+# Force agent reset on first load to ensure we use the updated agent
+if "agent_initialized" not in st.session_state:
+    reset_agent()
+    st.session_state.agent_initialized = True
+    print("🔍 DEBUG: Agent initialized for first time")
 
 # Display chat messages
 for message in st.session_state.messages:
