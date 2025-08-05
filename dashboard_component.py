@@ -6,25 +6,9 @@ import numpy as np
 from langchain_neo4j import Neo4jGraph
 import os
 
-def load_secrets():
-    """Load secrets from .streamlit/secrets.toml"""
-    secrets = {}
-    try:
-        with open('.streamlit/secrets.toml', 'r') as f:
-            for line in f:
-                line = line.strip()
-                if line and '=' in line:
-                    key, value = line.split('=', 1)
-                    secrets[key.strip()] = value.strip()
-        return secrets
-    except Exception as e:
-        st.error(f"Error loading secrets: {e}")
-        return {}
-
 def get_neo4j_config(key, default=""):
-    """Get Neo4j config from secrets or environment variables"""
-    secrets = load_secrets()
-    return secrets.get(key, os.getenv(key, default))
+    """Get Neo4j config from environment variables only"""
+    return os.getenv(key, default)
 
 def get_dashboard_data():
     """Extract data from Neo4j for dashboard"""
@@ -103,22 +87,37 @@ def get_dashboard_data():
         
         monthly_df = pd.DataFrame(monthly_data)
         
-        # Create summary dataframes
-        category_summary = df.groupby('category').agg({
-            'revenue': 'sum',
-            'cogs': 'sum',
-            'gross_profit': 'sum',
-            'forecasted_volume': 'sum',
-            'unit_price': 'mean',
-            'unit_cost': 'mean'
-        }).reset_index()
+        # Create summary dataframes - handle missing columns gracefully
+        available_columns = df.columns.tolist()
         
-        financial_summary = df.agg({
-            'revenue': 'sum',
-            'cogs': 'sum',
-            'gross_profit': 'sum',
-            'forecasted_volume': 'sum'
-        }).to_dict()
+        # Define aggregation columns with fallbacks
+        agg_columns = {}
+        if 'revenue' in available_columns:
+            agg_columns['revenue'] = 'sum'
+        if 'cogs' in available_columns:
+            agg_columns['cogs'] = 'sum'
+        if 'gross_profit' in available_columns:
+            agg_columns['gross_profit'] = 'sum'
+        if 'forecasted_volume' in available_columns:
+            agg_columns['forecasted_volume'] = 'sum'
+        if 'unit_price' in available_columns:
+            agg_columns['unit_price'] = 'mean'
+        if 'unit_cost' in available_columns:
+            agg_columns['unit_cost'] = 'mean'
+        
+        if agg_columns:
+            category_summary = df.groupby('category').agg(agg_columns).reset_index()
+        else:
+            # Create empty summary if no financial columns available
+            category_summary = pd.DataFrame({'category': df['category'].unique()})
+        
+        # Create financial summary with available columns
+        financial_summary = {}
+        for col in ['revenue', 'cogs', 'gross_profit', 'forecasted_volume']:
+            if col in available_columns:
+                financial_summary[col] = df[col].sum()
+            else:
+                financial_summary[col] = 0.0
         
         return monthly_df, category_summary, financial_summary
         
@@ -140,29 +139,35 @@ def render_dashboard():
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
+        revenue = financial_summary.get('revenue', 0)
         st.metric(
             label="Total Revenue",
-            value=f"${financial_summary['revenue']:,.0f}",
-            delta=f"${financial_summary['gross_profit']:,.0f} profit"
+            value=f"${revenue:,.0f}",
+            delta=f"${financial_summary.get('gross_profit', 0):,.0f} profit"
         )
     
     with col2:
+        volume = financial_summary.get('forecasted_volume', 0)
         st.metric(
             label="Total Volume",
-            value=f"{financial_summary['forecasted_volume']:,.0f} units",
-            delta=f"${financial_summary['cogs']:,.0f} COGS"
+            value=f"{volume:,.0f} units",
+            delta=f"${financial_summary.get('cogs', 0):,.0f} COGS"
         )
     
     with col3:
-        margin_pct = (financial_summary['gross_profit'] / financial_summary['revenue']) * 100
+        revenue = financial_summary.get('revenue', 1)  # Avoid division by zero
+        gross_profit = financial_summary.get('gross_profit', 0)
+        margin_pct = (gross_profit / revenue) * 100 if revenue > 0 else 0
         st.metric(
             label="Gross Margin",
             value=f"{margin_pct:.1f}%",
-            delta=f"${financial_summary['gross_profit']:,.0f}"
+            delta=f"${gross_profit:,.0f}"
         )
     
     with col4:
-        avg_price = financial_summary['revenue'] / financial_summary['forecasted_volume']
+        revenue = financial_summary.get('revenue', 0)
+        volume = financial_summary.get('forecasted_volume', 1)  # Avoid division by zero
+        avg_price = revenue / volume if volume > 0 else 0
         st.metric(
             label="Avg Unit Price",
             value=f"${avg_price:.2f}",
@@ -250,30 +255,50 @@ def render_dashboard():
     with col2:
         st.subheader("📊 Category Performance")
         
-        # Category revenue chart
-        fig_pie = px.pie(
-            category_summary,
-            values='revenue',
-            names='category',
-            title="Revenue by Category"
-        )
-        fig_pie.update_layout(height=300)
-        st.plotly_chart(fig_pie, use_container_width=True)
+        # Category revenue chart - only if revenue data is available
+        if 'revenue' in category_summary.columns and not category_summary['revenue'].isna().all():
+            fig_pie = px.pie(
+                category_summary,
+                values='revenue',
+                names='category',
+                title="Revenue by Category"
+            )
+            fig_pie.update_layout(height=300)
+            st.plotly_chart(fig_pie, use_container_width=True)
+        else:
+            st.info("Revenue data not available for pie chart")
         
         # Category metrics table
         st.subheader("Category Metrics")
         category_display = category_summary.copy()
-        category_display['margin_pct'] = (category_display['gross_profit'] / category_display['revenue']) * 100
+        
+        # Add margin calculation if both revenue and gross_profit exist
+        if 'revenue' in category_display.columns and 'gross_profit' in category_display.columns:
+            category_display['margin_pct'] = (category_display['gross_profit'] / category_display['revenue']) * 100
+        else:
+            category_display['margin_pct'] = 0.0
+            
         category_display = category_display.round(2)
         
+        # Select available columns for display
+        display_columns = ['category']
+        for col in ['revenue', 'gross_profit', 'margin_pct', 'forecasted_volume']:
+            if col in category_display.columns:
+                display_columns.append(col)
+        
+        column_config = {}
+        if 'revenue' in display_columns:
+            column_config['revenue'] = st.column_config.NumberColumn('Revenue', format="$%.0f")
+        if 'gross_profit' in display_columns:
+            column_config['gross_profit'] = st.column_config.NumberColumn('Gross Profit', format="$%.0f")
+        if 'margin_pct' in display_columns:
+            column_config['margin_pct'] = st.column_config.NumberColumn('Margin %', format="%.1f%%")
+        if 'forecasted_volume' in display_columns:
+            column_config['forecasted_volume'] = st.column_config.NumberColumn('Volume', format="%.0f")
+        
         st.dataframe(
-            category_display[['category', 'revenue', 'gross_profit', 'margin_pct', 'forecasted_volume']],
-            column_config={
-                'revenue': st.column_config.NumberColumn('Revenue', format="$%.0f"),
-                'gross_profit': st.column_config.NumberColumn('Gross Profit', format="$%.0f"),
-                'margin_pct': st.column_config.NumberColumn('Margin %', format="%.1f%%"),
-                'forecasted_volume': st.column_config.NumberColumn('Volume', format="%.0f")
-            },
+            category_display[display_columns],
+            column_config=column_config,
             hide_index=True
         )
     
