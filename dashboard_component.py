@@ -139,7 +139,15 @@ def render_dashboard():
         st.error("Unable to load data from database. Please check your connection.")
         return
     
-    # Data quality warnings
+    # Calculate key metrics for KPI cards first
+    total_revenue = financial_summary.get('revenue', 0)
+    total_volume = financial_summary.get('forecasted_volume', 0)
+    gross_profit = financial_summary.get('gross_profit', 0)
+    cogs = financial_summary.get('cogs', 0)
+    margin_pct = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+    avg_unit_price = (total_revenue / total_volume) if total_volume > 0 else 0
+    
+    # Data quality warnings (after variables are calculated)
     if not monthly_df.empty:
         if monthly_df['supply'].sum() == 0:
             st.warning("⚠️ **Data Alert**: No supply data available. All supply values are zero.")
@@ -147,14 +155,6 @@ def render_dashboard():
             st.info("📦 **Note**: No inventory data available in current dataset.")
         if total_revenue == 0:
             st.info("💰 **Note**: Financial metrics not available in current dataset.")
-    
-    # Calculate key metrics for KPI cards
-    total_revenue = financial_summary.get('revenue', 0)
-    total_volume = financial_summary.get('forecasted_volume', 0)
-    gross_profit = financial_summary.get('gross_profit', 0)
-    cogs = financial_summary.get('cogs', 0)
-    margin_pct = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
-    avg_unit_price = (total_revenue / total_volume) if total_volume > 0 else 0
     
     # Calculate trend indicators with robust error handling
     demand_trend = 0
