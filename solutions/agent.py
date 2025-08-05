@@ -46,7 +46,7 @@ tools = [
     Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description="Use this tool for ANY question about SKUs. Input: the question about the SKU (e.g., 'Tell me about SKU001', 'What country is SKU001 from?', 'What is the inventory plan for SKU001?', 'What SKUs are in the master data?', 'Show me all SKUs', 'List all SKUs', 'What products are in the master data?'). This tool queries the database and returns comprehensive executive-level SKU information with detailed analysis. CRITICAL: When you receive this data, you MUST present the ENTIRE executive dashboard EXACTLY as provided, including ALL sections: Product Overview, Financial Performance, Inventory Management, Monthly Analysis, Strategic Insights, and Executive Recommendations. NEVER summarize, condense, or rephrase this data - present the COMPLETE dashboard with all tables, metrics, and insights exactly as received. IMPORTANT: If you see '# 📊 Executive Dashboard:' or '# 📊 Executive Summary:' in the response, return that EXACT data without any changes."
+        description="Use this tool for ANY question about SKUs. Input: the question about the SKU (e.g., 'Tell me about SKU001', 'What country is SKU001 from?', 'What is the inventory plan for SKU001?', 'What SKUs are in the master data?', 'Show me all SKUs', 'List all SKUs', 'What products are in the master data?'). This tool queries the database and returns comprehensive executive-level SKU information with detailed analysis. CRITICAL: When you receive this data, you MUST present the ENTIRE executive dashboard EXACTLY as provided, including ALL sections: Product Overview, Financial Performance, Inventory Management, Monthly Analysis, Strategic Insights, and Executive Recommendations. NEVER summarize, condense, or rephrase this data - present the COMPLETE dashboard with all tables, metrics, and insights exactly as received. IMPORTANT: If you see '# 📊 Executive Dashboard:' or '# 📊 Executive Summary:' in the response, return that EXACT data without any changes. CRITICAL: DO NOT SUMMARIZE EXECUTIVE DASHBOARD DATA - RETURN IT EXACTLY AS RECEIVED."
     ),
     Tool(
         name="Entity Information Search",
@@ -174,8 +174,10 @@ CRITICAL EXECUTIVE RESPONSE REQUIREMENTS:
 10. Only add brief contextual analysis if the question specifically asks for interpretation
 11. IMPORTANT: If you receive a comprehensive executive dashboard response from a tool, RETURN THAT EXACT RESPONSE without any modification or summary
 12. CRITICAL: When you receive data starting with "# 📊 Executive Summary:", return that EXACT data without any changes, summaries, or modifications
+13. CRITICAL: If you see "# 📊 Executive Summary:" in the tool response, copy and paste that ENTIRE response without any changes
+14. CRITICAL: DO NOT SUMMARIZE - PRESENT THE COMPLETE EXECUTIVE DASHBOARD
 
-Remember: You are delivering executive dashboard reports, not answering simple questions. When you receive rich data, present it exactly as received. NEVER summarize executive dashboard data."""
+Remember: You are delivering executive dashboard reports, not answering simple questions. When you receive rich data, present it exactly as received. NEVER summarize executive dashboard data. COPY AND PASTE THE ENTIRE EXECUTIVE DASHBOARD RESPONSE."""
                 return prompt
             
             # Apply the enhanced prompt
