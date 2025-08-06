@@ -73,46 +73,40 @@ def get_memory(session_id):
 
 # 2. Add concrete prompt examples for both all SKUs and single SKU queries
 agent_prompt = PromptTemplate.from_template("""
-You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
-
-CRITICAL: For ANY question about SKUs, supply chain analysis, or data queries, you MUST use the Enhanced Database Query tool. You CANNOT give a generic response without using a tool.
-
-SUPPLY CHAIN ANALYSIS: When asked about supply chain gaps, shortages, surpluses, or analytical queries, you MUST:
-1. Use the Enhanced Database Query tool to get comprehensive data
-2. Analyze the data for supply chain issues
-3. Present the findings with specific metrics and insights
-
-ANALYTICAL QUERIES: When asked about "what if" scenarios, price changes, cost analysis, or financial impact calculations, you MUST:
-1. Get the current data using the Enhanced Database Query tool
-2. Perform the mathematical calculations based on the data
-3. Show the before/after comparison with specific numbers
-4. Calculate the exact impact (revenue change, profit change, etc.)
-
-MANDATORY: You MUST use a tool for EVERY question. You are NOT allowed to give generic responses or greetings. You MUST follow the ReAct format exactly.
+You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data.
 
 You have access to the following tools:
-
 {tools}
 
-IMPORTANT: You MUST use the ReAct format for EVERY response. This means:
+CRITICAL RULES FOR TOOL USAGE:
+1. For ANY data queries about SKUs, supply chain, analytics, or business intelligence, you MUST use the Enhanced Database Query tool
+2. For greetings, casual conversation, or non-data requests, respond directly with "Final Answer:"
+3. ALWAYS use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
+4. For direct responses: "Final Answer:" then your response
+5. NEVER include "Invalid Format" or error messages in your response
+6. NEVER loop or repeat the same action multiple times
+7. If a tool fails, try a different approach or provide a helpful response
+8. For supply chain analysis, inventory questions, or SKU-specific queries, ALWAYS use the Enhanced Database Query tool
+9. For general data requests like "show me all SKUs" or "list products", use the Enhanced Database Query tool
+10. For analytical queries like "gaps", "shortages", "profitability", use the Enhanced Database Query tool
 
-1. ALWAYS start with "Thought: Do I need to use a tool? Yes"
-2. ALWAYS specify "Action: [tool name]"
-3. ALWAYS specify "Action Input: [your input]"
-4. ALWAYS wait for "Observation: [tool result]"
-5. THEN provide "Final Answer: [your response]"
+EXECUTIVE DASHBOARD REQUIREMENTS:
+- When you receive comprehensive SKU data with executive dashboard format, PRESENT THE ENTIRE DASHBOARD AS-IS
+- NEVER summarize, condense, or rephrase the executive dashboard data
+- If the data includes sections like "📊 Executive Summary", "💰 Financial Performance", "📦 Inventory Management", "📈 Monthly Demand Analysis", "🎯 Strategic Insights", and "💡 Executive Recommendations" - PRESENT ALL OF THEM
+- Include ALL tables, metrics, and detailed analysis exactly as provided
+- For inventory questions, show the complete monthly demand analysis table with all 18 months
+- For financial questions, include all revenue, cost, margin, and profitability calculations
+- Present the data in the exact same professional format with all markdown formatting
+- If charts or visualizations are included, present them as well
+- The goal is to provide COMPLETE executive-level business intelligence, not summaries
+- Only add brief contextual analysis if the question specifically asks for interpretation
+- IMPORTANT: If you receive a comprehensive executive dashboard response from a tool, RETURN THAT EXACT RESPONSE without any modification or summary
+- CRITICAL: When you receive data starting with "# 📊 Executive Summary:", return that EXACT data without any changes, summaries, or modifications
+- CRITICAL: If you see "# 📊 Executive Summary:" in the tool response, copy and paste that ENTIRE response without any changes
+- CRITICAL: DO NOT SUMMARIZE - PRESENT THE COMPLETE EXECUTIVE DASHBOARD
 
-Example format:
-```
-Thought: Do I need to use a tool? Yes
-Action: Enhanced Database Query
-Action Input: Tell me about SKU001
-Observation: [tool result here]
-Thought: Do I need to use a tool? No
-Final Answer: [your response here]
-```
-
-You CANNOT skip any of these steps. You MUST use tools for every question.
+Remember: You are delivering executive dashboard reports, not answering simple questions. When you receive rich data, present it exactly as received. NEVER summarize executive dashboard data. COPY AND PASTE THE ENTIRE EXECUTIVE DASHBOARD RESPONSE.
 
 Begin!
 
@@ -284,10 +278,14 @@ def generate_response(user_input):
             from solutions.supervisor import supervisor
             supervised_response = supervisor.supervise_response(user_input, validated_response, query_type)
             
-            # STEP 5: Detect and fix common issues
-            final_response = supervisor.detect_and_fix_common_issues(user_input, supervised_response)
-            
-            return final_response
+            # STEP 5: Only apply issue detection if supervisor didn't already handle it
+            if supervised_response == validated_response:
+                # Supervisor didn't change the response, so it's likely good
+                return supervised_response
+            else:
+                # Supervisor modified the response, apply final checks
+                final_response = supervisor.detect_and_fix_common_issues(user_input, supervised_response)
+                return final_response
             
     except Exception as e:
         error_msg = str(e)
@@ -307,31 +305,45 @@ def generate_response(user_input):
         return supervisor.detect_and_fix_common_issues(user_input, final_error_response)
 
 def analyze_query_type(user_input):
-    """Analyze the type of query to determine appropriate handling strategy"""
-    user_input_lower = user_input.lower()
-    
-    # SKU-specific queries
-    if any(sku_pattern in user_input_lower for sku_pattern in ['sku', 'product', 'item']):
-        return "SKU_SPECIFIC"
-    
-    # Analytical queries
-    analytical_keywords = ['gap', 'gap analysis', 'supply chain gap', 'inventory gap', 'demand gap', 
-                          'shortage', 'surplus', 'stockout', 'overstock', 'analysis', 'analytics',
-                          'performance', 'metrics', 'kpi', 'financial', 'revenue', 'profit', 'margin']
-    if any(keyword in user_input_lower for keyword in analytical_keywords):
-        return "ANALYTICAL"
-    
-    # General data queries
-    general_keywords = ['all', 'list', 'show', 'display', 'find', 'search', 'what', 'how many']
-    if any(keyword in user_input_lower for keyword in general_keywords):
-        return "GENERAL_DATA"
-    
-    # Conversational queries
-    conversational_keywords = ['hello', 'hi', 'help', 'thanks', 'thank you', 'goodbye', 'invalid query']
-    if any(keyword in user_input_lower for keyword in conversational_keywords):
-        return "CONVERSATIONAL"
-    
-    return "UNKNOWN"
+    """Analyze the type of query using LLM instead of hard-coded patterns"""
+    try:
+        from llm import get_llm
+        llm = get_llm()
+        
+        prompt = f"""
+        Analyze this user query and classify it into one of these categories:
+        
+        - SKU_SPECIFIC: Queries about specific SKUs, products, or individual items
+        - ANALYTICAL: Queries about analysis, trends, patterns, gaps, shortages, financial performance
+        - GENERAL_DATA: Queries asking for lists, overviews, summaries, or general data
+        - CONVERSATIONAL: Greetings, thanks, casual conversation, or help requests
+        - UNKNOWN: Queries that don't fit the above categories
+        
+        User Query: "{user_input}"
+        
+        Return only the category name (SKU_SPECIFIC, ANALYTICAL, GENERAL_DATA, CONVERSATIONAL, or UNKNOWN):
+        """
+        
+        result = llm.invoke(prompt)
+        if hasattr(result, 'content'):
+            result_text = result.content
+        elif hasattr(result, 'strip'):
+            result_text = result.strip()
+        else:
+            result_text = str(result)
+        
+        # Clean up the response
+        category = result_text.strip().upper()
+        valid_categories = ["SKU_SPECIFIC", "ANALYTICAL", "GENERAL_DATA", "CONVERSATIONAL", "UNKNOWN"]
+        
+        if category in valid_categories:
+            return category
+        else:
+            return "UNKNOWN"
+            
+    except Exception as e:
+        print(f"🔍 DEBUG: Query type analysis failed: {e}")
+        return "UNKNOWN"
 
 def validate_and_fix_response(response, user_input, query_type):
     """Validate the agent response and apply fixes if needed"""
@@ -383,20 +395,8 @@ def validate_and_fix_response(response, user_input, query_type):
     if 'output' in response:
         output = response['output']
         
-        # Check for generic responses
-        generic_responses = [
-            "Hello! How can I assist you",
-            "How can I assist you?",
-            "How can I help you?",
-            "Let me know if you have any questions",
-            "If you have any specific questions",
-            "Could you please specify",
-            "This will help me identify"
-        ]
-        
-        if any(generic in output for generic in generic_responses):
-            print("🔍 DEBUG: Generic response detected")
-            return None
+        # For now, skip generic response detection in validation to avoid conflicts with supervisor
+        # The supervisor will handle this more intelligently
     
     # Response looks good
     return response.get('output', str(response))

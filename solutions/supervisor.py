@@ -77,6 +77,9 @@ class ResponseSupervisor:
             - GENERAL_DATA: Should contain comprehensive data overview
             - CONVERSATIONAL: Should be helpful and friendly
             
+            IMPORTANT: If the response is relevant and helpful, give it a score of 0.7 or higher.
+            Only give low scores (0.0-0.3) if the response is completely irrelevant or contains errors.
+            
             Return only a number between 0.0 and 1.0:
             """
             
@@ -93,11 +96,11 @@ class ResponseSupervisor:
                 score = float(result_text.strip())
                 return max(0.0, min(1.0, score))
             except ValueError:
-                return 0.5  # Default score if parsing fails
+                return 0.7  # More lenient default score
                 
         except Exception as e:
             print(f"🔍 SUPERVISOR: Quality assessment failed: {e}")
-            return 0.5
+            return 0.7  # More lenient default score
     
     def _enhance_response(self, user_input: str, response: str, query_type: str) -> Optional[str]:
         """
@@ -111,6 +114,9 @@ class ResponseSupervisor:
             Query Type: {query_type}
             Current Response: "{response}"
             
+            IMPORTANT: Only enhance if the response needs improvement.
+            If the response is already good and helpful, return "NO_ENHANCEMENT_NEEDED".
+            
             Enhance the response by:
             1. Adding missing context if needed
             2. Clarifying unclear information
@@ -118,7 +124,7 @@ class ResponseSupervisor:
             4. Adding helpful suggestions if appropriate
             
             Keep the core information but make it more complete and useful.
-            Return only the enhanced response:
+            Return only the enhanced response or "NO_ENHANCEMENT_NEEDED":
             """
             
             enhanced = self.llm.invoke(prompt)
@@ -129,6 +135,9 @@ class ResponseSupervisor:
                 enhanced_text = enhanced.strip()
             else:
                 enhanced_text = str(enhanced)
+            
+            if "NO_ENHANCEMENT_NEEDED" in enhanced_text.upper():
+                return None
             
             if enhanced_text and len(enhanced_text.strip()) > 10:
                 return enhanced_text.strip()
@@ -232,22 +241,49 @@ class ResponseSupervisor:
                 return self._generate_intelligent_fallback(user_input, "UNKNOWN")
         
         # Check for empty or very short responses
-        if len(response.strip()) < 20:
+        if len(response.strip()) < 10:
             print("🔍 SUPERVISOR: Detected very short response")
             return self._generate_intelligent_fallback(user_input, "UNKNOWN")
         
-        # Check for generic responses
-        generic_patterns = [
-            "how can i assist you",
-            "how can i help you",
-            "let me know if you have any questions",
-            "if you have any specific questions"
-        ]
-        
-        for pattern in generic_patterns:
-            if pattern.lower() in response.lower():
-                print(f"🔍 SUPERVISOR: Detected generic response pattern")
-                return self._generate_intelligent_fallback(user_input, "UNKNOWN")
+        # Use LLM to detect generic responses instead of hard-coded patterns
+        try:
+            prompt = f"""
+            Analyze this response to determine if it's too generic or unhelpful.
+            
+            Response: "{response}"
+            
+            A response is too generic if it:
+            - Only offers general help without specific information
+            - Doesn't address the user's actual question
+            - Is overly vague or non-committal
+            - Contains only boilerplate text
+            
+            Return "GENERIC" if the response is too generic, or "GOOD" if it's helpful and specific.
+            """
+            
+            result = self.llm.invoke(prompt)
+            if hasattr(result, 'content'):
+                result_text = result.content
+            elif hasattr(result, 'strip'):
+                result_text = result.strip()
+            else:
+                result_text = str(result)
+            
+            if "GENERIC" in result_text.upper():
+                print(f"🔍 SUPERVISOR: LLM detected generic response")
+                fallback = self._generate_intelligent_fallback(user_input, "UNKNOWN")
+                return fallback if fallback else response  # Return original if fallback fails
+            
+            # If LLM says it's good, return the original response
+            return response
+                
+        except Exception as e:
+            print(f"🔍 SUPERVISOR: Generic response detection failed: {e}")
+            # Fall back to length-based check if LLM fails
+            if len(response.strip()) < 20:
+                print(f"🔍 SUPERVISOR: Detected very short response")
+                fallback = self._generate_intelligent_fallback(user_input, "UNKNOWN")
+                return fallback if fallback else response  # Return original if fallback fails
         
         return response
     

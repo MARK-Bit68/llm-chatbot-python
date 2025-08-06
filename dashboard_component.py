@@ -393,11 +393,11 @@ def render_dashboard():
         col_filter1, col_filter2 = st.columns(2)
         with col_filter1:
             categories = ['All'] + list(monthly_df['category'].unique())
-            selected_category = st.selectbox("Category", categories, key="dashboard_category")
+            selected_category = st.selectbox("Category", categories, key=f"dashboard_category_{st.session_state.get('message_count', 0)}")
         
         with col_filter2:
             countries = ['All'] + list(monthly_df['country'].unique())
-            selected_country = st.selectbox("Country", countries, key="dashboard_country")
+            selected_country = st.selectbox("Country", countries, key=f"dashboard_country_{st.session_state.get('message_count', 0)}")
         
         # Filter data
         filtered_df = monthly_df.copy()

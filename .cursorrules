@@ -28,6 +28,15 @@
 - **Testable**: Changes should be verifiable
 - **Backward Compatible**: Don't break existing APIs or data structures
 
+### CRITICAL: USE LLM METHODS, NOT HARD-CODED PATTERNS
+- **NEVER** use hard-coded string matching for query classification or response analysis
+- **ALWAYS** use LLM-based methods for parsing, classification, and analysis
+- **DO** use prompts to let the LLM determine query types, response quality, etc.
+- **DO NOT** use lists of keywords like `["hello", "hi", "assist"]` for classification
+- **DO** create robust prompts that can handle edge cases and variations
+- **DO** use LLM for quality assessment, response enhancement, and error detection
+- **DO NOT** rely on simple string matching or regex patterns for intelligent tasks
+
 ## 2. CHANGE IMPACT ASSESSMENT
 Before committing any changes:
 1. **What existing functionality could this break?**
