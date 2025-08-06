@@ -104,11 +104,11 @@ class ResponseSupervisor:
     
     def _enhance_response(self, user_input: str, response: str, query_type: str) -> Optional[str]:
         """
-        Try to enhance the response using the nano model.
+        Try to enhance the response using the nano model with personality.
         """
         try:
             prompt = f"""
-            Enhance this response to make it more helpful and complete.
+            You are a helpful FMCG supply chain expert. Enhance this response to make it more helpful, complete, and personable.
             
             User Query: "{user_input}"
             Query Type: {query_type}
@@ -120,10 +120,11 @@ class ResponseSupervisor:
             Enhance the response by:
             1. Adding missing context if needed
             2. Clarifying unclear information
-            3. Making it more user-friendly
+            3. Making it more user-friendly and personable
             4. Adding helpful suggestions if appropriate
+            5. Adding a touch of personality while maintaining professionalism
             
-            Keep the core information but make it more complete and useful.
+            Keep the core information but make it more complete, useful, and engaging.
             Return only the enhanced response or "NO_ENHANCEMENT_NEEDED":
             """
             
@@ -149,25 +150,34 @@ class ResponseSupervisor:
     
     def _generate_intelligent_fallback(self, user_input: str, query_type: str) -> str:
         """
-        Generate an intelligent fallback response based on query type.
+        Generate an intelligent fallback response with personality using LLM.
         """
         try:
             prompt = f"""
-            Generate a helpful response for this user query when the system encountered an issue.
+            You are a helpful, knowledgeable FMCG supply chain expert with a warm, professional personality.
+            The user is having trouble with their query and needs your assistance.
             
             User Query: "{user_input}"
             Query Type: {query_type}
             
             Create a response that:
-            1. Acknowledges the issue gracefully
-            2. Provides helpful alternatives
-            3. Suggests rephrasing if needed
-            4. Maintains a professional, helpful tone
+            1. Shows empathy and understanding
+            2. Demonstrates expertise in supply chain and FMCG
+            3. Provides specific, actionable alternatives
+            4. Uses a warm, professional tone with personality
+            5. Shows you care about their success
+            
+            Personality traits to convey:
+            - Knowledgeable but approachable
+            - Patient and helpful
+            - Confident in your expertise
+            - Caring about the user's needs
+            - Professional but friendly
             
             For different query types:
-            - SKU_SPECIFIC: Suggest specific SKU queries
-            - ANALYTICAL: Suggest analytical approaches
-            - GENERAL_DATA: Suggest data exploration
+            - SKU_SPECIFIC: Help them find specific SKU information
+            - ANALYTICAL: Guide them through analytical approaches
+            - GENERAL_DATA: Help them explore data effectively
             - CONVERSATIONAL: Be friendly and helpful
             
             Return only the response:

@@ -6,110 +6,97 @@ import re
 
 def generate_dynamic_cypher_query(question, available_data=None):
     """
-    Generate a dynamic Cypher query based on the user's question and available data.
-    If the question contains one or more valid SKU IDs (e.g., SKU001), override the query to filter for those SKUs.
-    Otherwise, use the LLM to generate the query as before.
+    Generate a dynamic Cypher query based on the user's question using LLM classification.
     """
     print(f"🔍 DEBUG: generate_dynamic_cypher_query() called with question: '{question}'")
 
-    # Check for analytical queries FIRST (before SKU detection)
-    question_lower = question.lower()
-    
-    # Detect all valid SKU IDs in the question (e.g., SKU001, SKU002, ...)
-    sku_pattern = r"SKU\d{3,}"  # Matches SKU followed by at least 3 digits
-    sku_ids = re.findall(sku_pattern, question.upper())
-    sku_ids = list(set(sku_ids))  # Remove duplicates
-    print(f"🔍 DEBUG: Detected SKU IDs: {sku_ids}")
-    print(f"🔍 DEBUG: Question in uppercase: '{question.upper()}'")
-    print(f"🔍 DEBUG: Regex pattern: {sku_pattern}")
+    # Use LLM to classify the query type instead of hard-coded patterns
+    query_classification = classify_query_with_llm(question)
+    print(f"🔍 DEBUG: LLM classified query as: {query_classification}")
 
-    # PRIORITY 1: If SKU is detected, handle it as a SKU query (not analytical)
-    if len(sku_ids) >= 1:
-        if len(sku_ids) == 1:
-            # Single SKU query (case-insensitive)
-            cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) = '{sku_ids[0].upper()}' RETURN sku.sku_id, sku.name, sku.plot"
-            print(f"🔍 DEBUG: Overriding query for single SKU: {cypher_query}")
-            return cypher_query
-        elif len(sku_ids) > 1:
-            # Multi-SKU query (case-insensitive)
-            sku_list = ', '.join([f"'{sku.upper()}'" for sku in sku_ids])
-            cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
-            print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
-            return cypher_query
-
-    # PRIORITY 2: Handle "all SKUs" queries
-    if any(keyword in question_lower for keyword in ['all skus', 'show me all', 'list all', 'what skus are in']):
-        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
-        print(f"🔍 DEBUG: Detected 'all SKUs' query, using simple query: {cypher_query}")
-        return cypher_query
-
-    # PRIORITY 3: Handle supply chain gap queries
-    if any(keyword in question_lower for keyword in ['supply chain gap', 'gap', 'shortage', 'surplus']):
-        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot LIMIT 10"
-        print(f"🔍 DEBUG: Detected supply chain gap query, using general query: {cypher_query}")
-        return cypher_query
-
-    # PRIORITY 4: Handle profitability queries
-    if any(keyword in question_lower for keyword in ['profitable', 'profitability', 'most profitable', 'best performing']):
-        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot ORDER BY sku.sku_id LIMIT 10"
-        print(f"🔍 DEBUG: Detected profitability query, using general query: {cypher_query}")
-        return cypher_query
-    
-    # PRIORITY 2: Check for "all SKUs" type queries
-    simple_all_patterns = [
-        "what skus are in the master data",
-        "show me all skus",
-        "list all skus", 
-        "display all skus",
-        "display every sku",
-        "what skus do we have",
-        "which skus do we have",
-        "which skus are available",
-        "show me all products",
-        "list all products",
-        "what products are in the master data"
-    ]
-    
-    # Check for exact simple patterns first
-    if any(pattern in question_lower for pattern in simple_all_patterns):
-        # "All SKUs" query detected
-        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
-        print(f"🔍 DEBUG: Detected 'all SKUs' query, using simple query: {cypher_query}")
-        return cypher_query
-    
-    # PRIORITY 3: Only then check for analytical queries (more specific patterns)
-    analytical_indicators = [
-        # True analytical/calculation terms
-        "what if", "if we", "impact", "analysis", "compare", "versus", "vs", "negative", "positive", 
-        "top", "bottom", "average", "sum", "count", "profit", "revenue", "cost", "added", "increased", 
-        "decreased", "reduced", "more", "less",
+    # Handle based on LLM classification
+    if query_classification == "SKU_SPECIFIC":
+        # Detect SKU IDs in the question
+        sku_pattern = r"SKU\d{3,}"
+        sku_ids = re.findall(sku_pattern, question.upper())
+        sku_ids = list(set(sku_ids))
         
-        # Complex analytical scenarios
-        "capacity planning", "resource planning", "mrp", "erp", "s&op", "sales and operations planning",
-        "demand planning", "supply planning", "financial planning",
-        "budget", "forecast accuracy", "bias", "seasonality", "trend", "volatility",
-        "optimization", "efficiency", "productivity", "utilization", "bottleneck", "constraint",
-        "scenario", "simulation", "what-if", "sensitivity", "risk", "mitigation", "contingency",
-        "escalation", "escalate", "alert", "threshold", "kpi", "metric", "performance",
-        "baseline", "target", "goal", "objective", "strategy", "tactical", "operational",
-        "strategic", "tactical", "operational", "daily", "weekly", "monthly", "quarterly", "annual",
-        "yearly", "period", "cycle", "season", "peak", "off-peak", "holiday", "promotion",
-        "campaign", "marketing", "advertising", "discount", "pricing", "margin", "markup",
-        "cost structure", "fixed cost", "variable cost", "direct cost", "indirect cost",
-        "overhead", "allocation", "absorption", "standard cost", "actual cost", "variance",
-        "efficiency variance", "price variance", "usage variance", "volume variance",
-        "absorption variance", "capacity variance", "mix variance", "yield variance"
-    ]
+        if len(sku_ids) >= 1:
+            if len(sku_ids) == 1:
+                cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) = '{sku_ids[0].upper()}' RETURN sku.sku_id, sku.name, sku.plot"
+                print(f"🔍 DEBUG: Single SKU query: {cypher_query}")
+                return cypher_query
+            else:
+                sku_list = ', '.join([f"'{sku.upper()}'" for sku in sku_ids])
+                cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
+                print(f"🔍 DEBUG: Multi-SKU query: {cypher_query}")
+                return cypher_query
     
-    has_analytical_indicator = any(indicator in question_lower for indicator in analytical_indicators)
-    if has_analytical_indicator:
-        print(f"🔍 DEBUG: Detected analytical query, falling back to LLM")
-        # Let LLM handle analytical queries - return None to fall back to LLM generation
+    elif query_classification == "ALL_SKUS":
+        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
+        print(f"🔍 DEBUG: All SKUs query: {cypher_query}")
+        return cypher_query
+    
+    elif query_classification == "DATA_QUERY":
+        # Generate Cypher query using LLM
+        return generate_cypher_with_llm(question)
+    
+    elif query_classification == "ANALYTICAL":
+        print(f"🔍 DEBUG: Analytical query detected, falling back to LLM")
         return None
     
-    print(f"🔍 DEBUG: No specific patterns detected, falling back to LLM query generation")
+    else:
+        # Default to LLM generation
+        return generate_cypher_with_llm(question)
 
-    # Otherwise, use the LLM to generate the query as before
+def classify_query_with_llm(question):
+    """
+    Use LLM to classify the query type instead of hard-coded patterns.
+    """
+    try:
+        from llm import get_llm
+        llm = get_llm()
+        
+        prompt = f"""
+        Classify this FMCG supply chain query into one of these categories:
+        
+        - SKU_SPECIFIC: Queries about specific SKU IDs (e.g., "Tell me about SKU001", "What is SKU002's category?")
+        - ALL_SKUS: Queries asking for all SKUs or general data (e.g., "Show me all SKUs", "List all products")
+        - DATA_QUERY: Queries that can be answered with direct data lookup (e.g., "Which SKUs have negative profit?", "Show me profitable SKUs")
+        - ANALYTICAL: Queries requiring complex calculations or what-if scenarios (e.g., "What if we increase prices by 10%?", "How would demand change if...")
+        
+        User Query: "{question}"
+        
+        Return only the category name (SKU_SPECIFIC, ALL_SKUS, DATA_QUERY, or ANALYTICAL):
+        """
+        
+        result = llm.invoke(prompt)
+        if hasattr(result, 'content'):
+            result_text = result.content
+        elif hasattr(result, 'strip'):
+            result_text = result.strip()
+        else:
+            result_text = str(result)
+        
+        # Clean up the response
+        category = result_text.strip().upper()
+        valid_categories = ["SKU_SPECIFIC", "ALL_SKUS", "DATA_QUERY", "ANALYTICAL"]
+        
+        if category in valid_categories:
+            return category
+        else:
+            return "DATA_QUERY"  # Default to data query
+            
+    except Exception as e:
+        print(f"🔍 DEBUG: Query classification failed: {e}")
+        return "DATA_QUERY"  # Default to data query
+    
+def generate_cypher_with_llm(question):
+    """
+    Generate Cypher query using LLM instead of hard-coded patterns.
+    """
+    print(f"🔍 DEBUG: Generating Cypher query with LLM for: '{question}'")
+
     # Create a prompt for the LLM to generate Cypher queries
     cypher_generation_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are a Cypher query expert for Neo4j. Your task is to generate precise Cypher queries based on user questions.
