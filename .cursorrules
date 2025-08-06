@@ -48,4 +48,30 @@ Before committing any changes:
 - **Test with real data** not dummy data
 - **Understand the data model** before modifying access patterns
 
-IF OU NEED CREDENTIALS STOP AND ASK ME or look for .streamlit/secrets.toml
+## 5. ACCESSING PROTECTED RESOURCES DURING DEVELOPMENT AND TESTING
+IF YOU NEED CREDENTIALS TO RUN YOUR CODE, ESPECIALLY TEST CODE THAT IS AIMING TO VALIDATE FUNCTIONALITY, STOP AND ASK ME or look for .streamlit/secrets.toml and DO NOT MAKE ANY ASSUMPTION OR LIMIT YOUR WORK IF YOU ARE UNABLE TO ACCESS PROTECTED RESOURCES.
+
+## 6. TESTING AND VALIDATION IN HIGH-QUALITY ENGINEERING PROCESS
+**Testing is not an afterthought - it's a core component of robust code development.**
+
+### Test-Driven Development Principles:
+- **Write tests FIRST** before implementing features to define expected behavior
+- **Use existing test files** (`test_stack.py`, `test_deployment_config.py`, `test_improved_chatbot.py`, `test_vector_search.py`) as templates for new functionality
+- **Test at multiple levels**: unit tests for individual functions, integration tests for component interactions, and end-to-end tests for complete workflows
+- **Validate with real data** - never test with dummy/placeholder data that masks real issues
+- **Test error conditions** - ensure graceful handling of edge cases, missing data, and system failures
+
+### Testing Best Practices:
+- **Automated validation** - create scripts that can run independently to verify functionality
+- **Production-like testing** - test against actual databases, APIs, and external services when possible
+- **Regression testing** - ensure new changes don't break existing functionality
+- **Data integrity verification** - validate that data transformations, database operations, and API responses are correct
+- **Performance testing** - verify that enhanced systems (like 100 SKU processing) perform within acceptable limits
+
+### When Writing Test Code:
+- **Be comprehensive** - test both happy path and error scenarios
+- **Use descriptive test names** that clearly indicate what is being tested
+- **Include setup and teardown** to ensure clean test environments
+- **Document test assumptions** and dependencies clearly
+- **Make tests repeatable** - they should produce the same results on each run
+
