@@ -125,7 +125,7 @@ Example queries:
 
 Analytical Query Examples:
 - Top selling product:
-  MATCH (sku:SKU) WITH sku, toFloat(split(split(sku.plot, 'revenue: ')[1], ' | ')[0]) AS revenue RETURN sku.sku_id, sku.name, revenue ORDER BY revenue DESC LIMIT 1
+  MATCH (sku:SKU) WITH sku, toFloat(split(split(sku.plot, 'total_revenue: ')[1], ' | ')[0]) AS revenue RETURN sku.sku_id, sku.name, revenue ORDER BY revenue DESC LIMIT 1
 - SKUs with negative gross profit:
   MATCH (sku:SKU) WITH sku, toFloat(split(split(sku.plot, 'gross_profit: ')[1], ' | ')[0]) AS gp WHERE gp < 0 RETURN sku.sku_id, sku.name, gp
 - Average lead time by category:

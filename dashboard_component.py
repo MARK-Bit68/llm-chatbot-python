@@ -209,12 +209,12 @@ def get_dashboard_data():
         # Create summary dataframes - handle missing columns gracefully
         available_columns = df.columns.tolist()
         
-        # Define aggregation columns with fallbacks
+        # Define aggregation columns with fallbacks - Updated for correct field names
         agg_columns = {}
-        if 'revenue' in available_columns:
-            agg_columns['revenue'] = 'sum'
-        if 'cogs' in available_columns:
-            agg_columns['cogs'] = 'sum'
+        if 'total_revenue' in available_columns:
+            agg_columns['total_revenue'] = 'sum'
+        if 'total_cogs' in available_columns:
+            agg_columns['total_cogs'] = 'sum'
         if 'gross_profit' in available_columns:
             agg_columns['gross_profit'] = 'sum'
         if 'forecasted_volume' in available_columns:
@@ -242,43 +242,27 @@ def get_dashboard_data():
         # Create financial summary with available columns
         financial_summary = {}
         
-        # Map plot data keys to financial summary keys
-        key_mapping = {
-            'total_revenue': 'revenue',
-            'total_cogs': 'cogs', 
-            'gross_profit': 'gross_profit',
-            'total_volume': 'forecasted_volume'
+        # Extract financial data from the df DataFrame which contains parsed financial fields
+        financial_summary = {
+            'revenue': 0.0,
+            'cogs': 0.0,
+            'gross_profit': 0.0,
+            'forecasted_volume': 0.0
         }
         
-        # First try to get from DataFrame columns
-        for col in ['revenue', 'cogs', 'gross_profit', 'forecasted_volume']:
-            if col in available_columns:
-                financial_summary[col] = df[col].sum()
-            else:
-                financial_summary[col] = 0.0
-        
-        # If no financial data in DataFrame, try to extract from plot data
-        if financial_summary['revenue'] == 0 and financial_summary['forecasted_volume'] == 0:
-            total_revenue = 0
-            total_volume = 0
-            total_cogs = 0
-            total_profit = 0
-            
-            for _, row in df.iterrows():
-                # Extract from data_dict if available
-                if 'total_revenue' in row:
-                    total_revenue += float(row['total_revenue'])
-                if 'total_volume' in row:
-                    total_volume += float(row['total_volume'])
-                if 'total_cogs' in row:
-                    total_cogs += float(row['total_cogs'])
-                if 'gross_profit' in row:
-                    total_profit += float(row['gross_profit'])
-            
-            financial_summary['revenue'] = total_revenue
-            financial_summary['forecasted_volume'] = total_volume
-            financial_summary['cogs'] = total_cogs
-            financial_summary['gross_profit'] = total_profit
+        # Use the df DataFrame which has the financial columns from parsed plot data
+        if not df.empty:
+            # Aggregate financial data from df DataFrame
+            if 'total_revenue' in df.columns:
+                financial_summary['revenue'] = df['total_revenue'].sum()
+            if 'total_cogs' in df.columns:
+                financial_summary['cogs'] = df['total_cogs'].sum()
+            if 'gross_profit' in df.columns:
+                financial_summary['gross_profit'] = df['gross_profit'].sum()
+            if 'total_volume' in df.columns:
+                financial_summary['forecasted_volume'] = df['total_volume'].sum()
+            elif 'forecasted_volume' in df.columns:
+                financial_summary['forecasted_volume'] = df['forecasted_volume'].sum()
         
         return monthly_df, category_summary, financial_summary
         

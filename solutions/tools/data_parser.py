@@ -22,18 +22,22 @@ def parse_financial_data(plot_text: str) -> Dict[str, float]:
         except ValueError:
             pass
     
-    # Extract revenue
-    revenue_match = re.search(r'revenue: ([^|]+)', plot_text)
+    # Extract total_revenue (correct field name)
+    revenue_match = re.search(r'total_revenue: ([^|]+)', plot_text)
     if revenue_match:
         try:
+            financial_data['total_revenue'] = float(revenue_match.group(1).strip())
+            # Also set legacy field name for backward compatibility
             financial_data['revenue'] = float(revenue_match.group(1).strip())
         except ValueError:
             pass
     
-    # Extract cogs
-    cogs_match = re.search(r'cogs: ([^|]+)', plot_text)
+    # Extract total_cogs (correct field name)
+    cogs_match = re.search(r'total_cogs: ([^|]+)', plot_text)
     if cogs_match:
         try:
+            financial_data['total_cogs'] = float(cogs_match.group(1).strip())
+            # Also set legacy field name for backward compatibility
             financial_data['cogs'] = float(cogs_match.group(1).strip())
         except ValueError:
             pass
