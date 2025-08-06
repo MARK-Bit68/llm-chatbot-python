@@ -133,7 +133,6 @@ def get_dashboard_data():
                                     pass
                             elif key == 'Supply Plan':
                                 # This is supply data - we need to find the corresponding month
-                                # Look for the previous line which should be the month
                                 try:
                                     # Find the month from the previous demand entry
                                     if demand_data:
@@ -148,6 +147,13 @@ def get_dashboard_data():
                                     if demand_data:
                                         last_month = list(demand_data.keys())[-1]
                                         inventory_data[last_month] = float(value)
+                                except:
+                                    pass
+                            
+                            # Extract financial data
+                            elif key in ['total_volume', 'total_revenue', 'total_cogs', 'gross_profit', 'gross_margin', 'unit_price', 'unit_cost']:
+                                try:
+                                    data_dict[key] = float(value)
                                 except:
                                     pass
             
@@ -218,6 +224,15 @@ def get_dashboard_data():
         if 'unit_cost' in available_columns:
             agg_columns['unit_cost'] = 'mean'
         
+        # Also check for financial data from plot extraction
+        plot_financial_columns = ['total_revenue', 'total_cogs', 'gross_profit', 'total_volume', 'unit_price', 'unit_cost']
+        for col in plot_financial_columns:
+            if col in available_columns:
+                if col in ['total_revenue', 'total_cogs', 'gross_profit', 'total_volume']:
+                    agg_columns[col] = 'sum'
+                else:
+                    agg_columns[col] = 'mean'
+        
         if agg_columns:
             category_summary = df.groupby('category').agg(agg_columns).reset_index()
         else:
@@ -226,11 +241,44 @@ def get_dashboard_data():
         
         # Create financial summary with available columns
         financial_summary = {}
+        
+        # Map plot data keys to financial summary keys
+        key_mapping = {
+            'total_revenue': 'revenue',
+            'total_cogs': 'cogs', 
+            'gross_profit': 'gross_profit',
+            'total_volume': 'forecasted_volume'
+        }
+        
+        # First try to get from DataFrame columns
         for col in ['revenue', 'cogs', 'gross_profit', 'forecasted_volume']:
             if col in available_columns:
                 financial_summary[col] = df[col].sum()
             else:
                 financial_summary[col] = 0.0
+        
+        # If no financial data in DataFrame, try to extract from plot data
+        if financial_summary['revenue'] == 0 and financial_summary['forecasted_volume'] == 0:
+            total_revenue = 0
+            total_volume = 0
+            total_cogs = 0
+            total_profit = 0
+            
+            for _, row in df.iterrows():
+                # Extract from data_dict if available
+                if 'total_revenue' in row:
+                    total_revenue += float(row['total_revenue'])
+                if 'total_volume' in row:
+                    total_volume += float(row['total_volume'])
+                if 'total_cogs' in row:
+                    total_cogs += float(row['total_cogs'])
+                if 'gross_profit' in row:
+                    total_profit += float(row['gross_profit'])
+            
+            financial_summary['revenue'] = total_revenue
+            financial_summary['forecasted_volume'] = total_volume
+            financial_summary['cogs'] = total_cogs
+            financial_summary['gross_profit'] = total_profit
         
         return monthly_df, category_summary, financial_summary
         
