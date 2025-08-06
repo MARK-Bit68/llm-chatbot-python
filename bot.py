@@ -199,7 +199,20 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
                         from solutions.supervisor import supervisor
                         query_suggestion = supervisor.suggest_query_improvements(prompt)
                         if query_suggestion:
-                            st.info(f"💡 **Query Suggestion**: {query_suggestion}")
+                            # Additional safety check to prevent internal analysis from reaching users
+                            internal_analysis_phrases = [
+                                'the user query', 'somewhat vague', 'assumes the user', 'does not specify',
+                                'suggestions for improvement', 'more specific wording', 'alternative phrasings',
+                                'related queries that might', 'clarifying what specific information',
+                                'analysis', 'internal', 'debug', 'query analysis'
+                            ]
+                            
+                            is_internal_analysis = any(phrase in query_suggestion.lower() for phrase in internal_analysis_phrases)
+                            
+                            if not is_internal_analysis:
+                                st.info(f"💡 **Query Suggestion**: {query_suggestion}")
+                            else:
+                                print(f"🔍 DEBUG: Blocked internal analysis from reaching user: {query_suggestion[:50]}...")
                     except Exception as e:
                         print(f"🔍 DEBUG: Query suggestion failed: {e}")
                     

@@ -169,5 +169,5 @@ def get_sku_data(input):
         return result
     except Exception as e:
         print(f"❌ DEBUG: Error accessing vector index: {e}")
-        return f"Error accessing vector index: {str(e)}"
+        return "I'm having trouble finding relevant information right now. Please try rephrasing your question."
 # end::get_sku_data[]

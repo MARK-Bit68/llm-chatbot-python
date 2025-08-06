@@ -476,10 +476,10 @@ def enhanced_cypher_qa(question):
     try:
         cypher_query = generate_dynamic_cypher_query(question)
         
-        # If analytical query detected, return a message to let LLM handle it
+        # If analytical query detected, return a user-friendly message
         if cypher_query is None:
             print(f"🔍 DEBUG: Analytical query detected, returning message for LLM handling")
-            return "ANALYTICAL_QUERY_DETECTED: This is an analytical query that requires LLM reasoning. Please use the LLM to perform calculations and analysis based on the data."
+            return "I understand you're looking for analytical insights. Let me analyze the available data to provide you with a comprehensive response."
             
         print(f"🔍 DEBUG: Final Cypher query to execute: {cypher_query}")
         
@@ -496,7 +496,7 @@ def enhanced_cypher_qa(question):
         
     except Exception as e:
         print(f"❌ DEBUG: Error in enhanced_cypher_qa: {e}")
-        return f"Error processing your request: {str(e)}"
+        return "I'm having trouble accessing the data right now. Please try again or rephrase your question."
 
 # Keep the original simple cypher_search for backward compatibility
 def cypher_search(query):

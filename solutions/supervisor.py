@@ -300,37 +300,76 @@ class ResponseSupervisor:
     def suggest_query_improvements(self, user_input: str) -> Optional[str]:
         """
         Suggest improvements to the user's query if it seems unclear.
+        Returns user-friendly suggestions only when helpful.
         """
         try:
             prompt = f"""
-            Analyze this user query and suggest improvements if needed.
+            Analyze this user query and determine if it needs improvement.
             
             User Query: "{user_input}"
             
-            If the query is unclear, vague, or could be improved, suggest:
-            1. More specific wording
-            2. Alternative phrasings
-            3. Related queries that might be more helpful
+            A query needs improvement if it is:
+            - Too vague (e.g., "stuff", "what", "help")
+            - Too broad (e.g., "show me everything")
+            - Unclear about what information is needed
+            - Missing specific details that would help get better results
             
-            If the query is clear and specific, return "CLEAR".
-            Otherwise, return helpful suggestions.
+            A query is GOOD and doesn't need improvement if it:
+            - Is specific and clear (e.g., "tell me about SKU001", "show me all SKUs")
+            - Asks for specific information (e.g., "which SKUs have negative profit?")
+            - Is conversational but clear (e.g., "hello", "thanks")
+            
+            If the query is already good and clear, return "NO_SUGGESTIONS_NEEDED".
+            If the query is vague or could be improved, provide 1-2 specific, actionable suggestions in a user-friendly format.
+            
+            Examples of good suggestions:
+            - "You might also want to know: 'What are the current inventory levels for SKU001?'"
+            - "Another useful question would be: 'Show me the financial performance of SKU001'"
+            
+            IMPORTANT: Make suggestions sound natural and helpful, not like internal analysis.
+            Avoid phrases like "Consider:", "Try asking:", or "You could also ask:".
+            Instead, use natural language like "You might also want to know:" or "Another useful question would be:".
+            
+            Return only the suggestions or "NO_SUGGESTIONS_NEEDED":
             """
             
-            suggestion = self.llm.invoke(prompt)
-            # Handle different response types
-            if hasattr(suggestion, 'content'):
-                suggestion_text = suggestion.content
-            elif hasattr(suggestion, 'strip'):
-                suggestion_text = suggestion.strip()
+            result = self.llm.invoke(prompt)
+            if hasattr(result, 'content'):
+                result_text = result.content
+            elif hasattr(result, 'strip'):
+                result_text = result.strip()
             else:
-                suggestion_text = str(suggestion)
+                result_text = str(result)
             
-            if suggestion_text and "CLEAR" not in suggestion_text.upper():
-                return suggestion_text.strip()
+            if "NO_SUGGESTIONS_NEEDED" in result_text.upper():
+                return None
+            
+            # Clean up the suggestion to make it user-friendly
+            suggestion = result_text.strip()
+            
+            # Only return if it's a reasonable suggestion (not internal analysis)
+            if len(suggestion) > 20 and len(suggestion) < 200:
+                # Check for internal analysis indicators
+                internal_indicators = [
+                    'consider:', 'try asking:', 'you could also ask:', 'internal', 'analysis',
+                    'user query', 'this user query', 'query analysis', 'debug',
+                    'the user query', 'somewhat vague', 'assumes the user', 'does not specify',
+                    'suggestions for improvement', 'more specific wording', 'alternative phrasings',
+                    'related queries that might', 'clarifying what specific information'
+                ]
+                
+                has_internal_indicators = any(indicator in suggestion.lower() for indicator in internal_indicators)
+                
+                if not has_internal_indicators:
+                    return suggestion
+                else:
+                    print(f"🔍 SUPERVISOR: Filtered out internal analysis: {suggestion[:50]}...")
+                    return None
+            
             return None
             
         except Exception as e:
-            print(f"🔍 SUPERVISOR: Query improvement suggestion failed: {e}")
+            print(f"🔍 SUPERVISOR: Query suggestion failed: {e}")
             return None
 
 # Global supervisor instance
