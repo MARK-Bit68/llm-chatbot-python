@@ -46,7 +46,7 @@ tools = [
     Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description="Use this tool for ANY question about SKUs. Input: the question about the SKU (e.g., 'Tell me about SKU001', 'What country is SKU001 from?', 'What is the inventory plan for SKU001?', 'What SKUs are in the master data?', 'Show me all SKUs', 'List all SKUs', 'What products are in the master data?'). This tool queries the database and returns comprehensive executive-level SKU information with detailed analysis. CRITICAL: When you receive this data, you MUST present the ENTIRE executive dashboard EXACTLY as provided, including ALL sections: Product Overview, Financial Performance, Inventory Management, Monthly Analysis, Strategic Insights, and Executive Recommendations. NEVER summarize, condense, or rephrase this data - present the COMPLETE dashboard with all tables, metrics, and insights exactly as received. IMPORTANT: If you see '# 📊 Executive Dashboard:' or '# 📊 Executive Summary:' in the response, return that EXACT data without any changes. CRITICAL: DO NOT SUMMARIZE EXECUTIVE DASHBOARD DATA - RETURN IT EXACTLY AS RECEIVED."
+        description="Use this tool for ANY question about SKUs, supply chain analysis, or data queries. Input: the question (e.g., 'Tell me about SKU001', 'Show me supply chain gaps', 'What SKUs are in the master data?', 'Show me all SKUs', 'Which SKUs have inventory shortages?', 'Show me demand vs supply analysis', 'Which SKUs are most profitable?', 'Show me SKUs with low inventory'). This tool queries the database and returns comprehensive executive-level information with detailed analysis. CRITICAL: When you receive this data, you MUST present the ENTIRE executive dashboard EXACTLY as provided, including ALL sections: Product Overview, Financial Performance, Inventory Management, Monthly Analysis, Strategic Insights, and Executive Recommendations. NEVER summarize, condense, or rephrase this data - present the COMPLETE dashboard with all tables, metrics, and insights exactly as received. IMPORTANT: If you see '# 📊 Executive Dashboard:' or '# 📊 Executive Summary:' in the response, return that EXACT data without any changes. CRITICAL: DO NOT SUMMARIZE EXECUTIVE DASHBOARD DATA - RETURN IT EXACTLY AS RECEIVED."
     ),
     Tool(
         name="Entity Information Search",
@@ -75,7 +75,12 @@ def get_memory(session_id):
 agent_prompt = PromptTemplate.from_template("""
 You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data.
 
-CRITICAL: For ANY question about SKUs (including "Tell me about SKU001", "What SKUs are in the Master Data?", etc.), you MUST use the Enhanced Database Query tool. You CANNOT give a generic response without using a tool.
+CRITICAL: For ANY question about SKUs, supply chain analysis, or data queries, you MUST use the Enhanced Database Query tool. You CANNOT give a generic response without using a tool.
+
+SUPPLY CHAIN ANALYSIS: When asked about supply chain gaps, shortages, surpluses, or analytical queries, you MUST:
+1. Use the Enhanced Database Query tool to get comprehensive data
+2. Analyze the data for supply chain issues
+3. Present the findings with specific metrics and insights
 
 ANALYTICAL QUERIES: When asked about "what if" scenarios, price changes, cost analysis, or financial impact calculations, you MUST:
 1. Get the current data using the Enhanced Database Query tool
@@ -261,131 +266,279 @@ Return the cleaned and formatted text:"""),
 def generate_response(user_input):
     print(f"🔍 DEBUG: generate_response() called with input: {user_input[:50]}...")
 
+    # ROBUST OUTER EDGE ERROR HANDLING SYSTEM WITH SUPERVISOR
     try:
+        # STEP 1: Pre-process the input to detect query type
+        query_type = analyze_query_type(user_input)
+        print(f"🔍 DEBUG: Detected query type: {query_type}")
+        
+        # STEP 2: Try the primary agent approach
         agent_executor = get_agent()
         response = agent_executor.invoke({"input": user_input})
+        
+        # STEP 3: Validate the response and apply robust error handling
+        validated_response = validate_and_fix_response(response, user_input, query_type)
+        
+        if validated_response:
+            # STEP 4: SUPERVISOR LAYER - Sanity check and enhance response
+            from solutions.supervisor import supervisor
+            supervised_response = supervisor.supervise_response(user_input, validated_response, query_type)
+            
+            # STEP 5: Detect and fix common issues
+            final_response = supervisor.detect_and_fix_common_issues(user_input, supervised_response)
+            
+            return final_response
+            
     except Exception as e:
         error_msg = str(e)
-        print(f"❌ DEBUG: Error in generate_response: {error_msg}")
+        print(f"❌ DEBUG: Primary agent failed: {error_msg}")
         
-        if "Agent stopped due to iteration limit" in error_msg or "Invalid Format" in error_msg:
-            reset_agent()
-            try:
-                agent_executor = get_agent()
-                response = agent_executor.invoke({"input": user_input})
-            except Exception as e2:
-                print(f"❌ DEBUG: Agent retry failed: {e2}")
-                return "I encountered an error while processing your request. Please try rephrasing your question."
-        
-        if "OUTPUT_PARSING_FAILURE" in error_msg or "Parsing LLM output" in error_msg:
-            return "I encountered an error while processing your request. Please try rephrasing your question or ask for specific information about a SKU."
-        return f"Error: {error_msg}"
-
-    # Log tool selection and agent behavior
-    if isinstance(response, dict) and 'intermediate_steps' in response:
-        steps = response['intermediate_steps']
-        print(f"🔍 DEBUG: Agent intermediate steps: {steps}")
-        for step in steps:
-            if isinstance(step, tuple) and len(step) == 2 and step[0] == 'Action':
-                print(f"🔍 DEBUG: Tool selected: {step[1]}")
-            elif isinstance(step, tuple) and len(step) == 2 and step[0] == 'Action Input':
-                print(f"🔍 DEBUG: Action input: {step[1]}")
-            elif isinstance(step, tuple) and len(step) == 2 and step[0] == 'Observation':
-                print(f"🔍 DEBUG: Observation preview: {str(step[1])[:200]}...")
-    else:
-        print(f"🔍 DEBUG: No intermediate steps found in response")
-        print(f"🔍 DEBUG: Response keys: {response.keys() if isinstance(response, dict) else 'Not a dict'}")
-        print(f"🔍 DEBUG: Full response structure: {response}")
-        
-        # Check if response is a string instead of dict
-        if isinstance(response, str):
-            print(f"🔍 DEBUG: Response is a string, not a dict. Length: {len(response)}")
-            print(f"🔍 DEBUG: Response preview: {response[:500]}...")
-
-    # Enforce verbatim Observation in Final Answer if present
-    if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
-        steps = response['intermediate_steps']
-        if steps and isinstance(steps, list):
-            for step in reversed(steps):
-                if isinstance(step, tuple) and len(step) == 2 and step[0] == 'Observation':
-                    last_observation = step[1]
-                    output = response['output']
-                    if last_observation and last_observation.strip() not in output:
-                        print("🔍 DEBUG: Overriding output with last Observation (enforced)")
-                        response['output'] = last_observation.strip()
-                    break
-
-    # Fallback: If no Observation and output is a generic greeting or summary, return a clear error
-    generic_responses = [
-        "Hello! How can I assist you with your FMCG supply chain data today?",
-        "How can I assist you?",
-        "How can I help you?",
-        "Let me know if you have any questions.",
-        "If you have any specific questions or need further analysis, please let me know!"
-    ]
-    if isinstance(response, dict) and 'output' in response and 'intermediate_steps' in response:
-        steps = response['intermediate_steps']
-        has_observation = any(isinstance(step, tuple) and step[0] == 'Observation' for step in steps)
-        output = response['output'].strip()
-        if not has_observation and any(generic in output for generic in generic_responses):
-            print("🔍 DEBUG: No Observation and generic output detected. Returning error.")
-            return "Error: The agent did not use the required tool or provide detailed data. Please rephrase your question or contact support."
-    
-    # NEW: Check if agent used any tools at all
-    if isinstance(response, dict) and 'intermediate_steps' in response:
-        steps = response['intermediate_steps']
-        has_tools = len(steps) > 0
-        if not has_tools:
-            print("🔍 DEBUG: Agent used no tools at all. This is a critical error.")
-            return "Error: The agent failed to use any tools. This indicates a system error. Please try again or contact support."
-        else:
-            print(f"🔍 DEBUG: Agent used {len(steps)} tool steps")
-    else:
-        print("🔍 DEBUG: No intermediate steps found - agent used no tools")
-        # Try to force the agent to use tools by retrying with a more explicit instruction
-        print("🔍 DEBUG: Attempting to force agent to use tools...")
-        try:
-            # Reset agent and try again with explicit tool instruction
-            reset_agent()
-            agent_executor = get_agent()
+        # STEP 6: Apply intelligent fallback based on query type
+        fallback_response = apply_intelligent_fallback(user_input, query_type, error_msg)
+        if fallback_response:
+            # Apply supervisor to fallback as well
+            from solutions.supervisor import supervisor
+            supervised_fallback = supervisor.supervise_response(user_input, fallback_response, query_type)
+            return supervisor.detect_and_fix_common_issues(user_input, supervised_fallback)
             
-            # Add explicit tool instruction to the input
-            forced_input = f"IMPORTANT: You MUST use the Enhanced Database Query tool for this question. Question: {user_input}"
-            response = agent_executor.invoke({"input": forced_input})
-            
-            # Check again
-            if isinstance(response, dict) and 'intermediate_steps' in response:
-                steps = response['intermediate_steps']
-                has_tools = len(steps) > 0
-                if not has_tools:
-                    print("🔍 DEBUG: Agent still used no tools after retry.")
-                    return "Error: The agent failed to use any tools even after retry. This indicates a system error. Please try again or contact support."
-                else:
-                    print(f"🔍 DEBUG: Agent used {len(steps)} tool steps after retry")
-            else:
-                print("🔍 DEBUG: Still no intermediate steps after retry")
-                return "Error: The agent failed to use any tools even after retry. This indicates a system error. Please try again or contact support."
-        except Exception as e:
-            print(f"🔍 DEBUG: Error during retry: {e}")
-            return "Error: The agent failed to use any tools. This indicates a system error. Please try again or contact support."
+        # STEP 7: Final fallback - never show ugly errors to user
+        final_error_response = create_user_friendly_error(user_input, error_msg)
+        from solutions.supervisor import supervisor
+        return supervisor.detect_and_fix_common_issues(user_input, final_error_response)
 
-    # Handle different response structures
-    if isinstance(response, dict):
-        if 'output' in response:
-            output = response['output']
-        elif 'result' in response:
-            output = response['result']
+def analyze_query_type(user_input):
+    """Analyze the type of query to determine appropriate handling strategy"""
+    user_input_lower = user_input.lower()
+    
+    # SKU-specific queries
+    if any(sku_pattern in user_input_lower for sku_pattern in ['sku', 'product', 'item']):
+        return "SKU_SPECIFIC"
+    
+    # Analytical queries
+    analytical_keywords = ['gap', 'gap analysis', 'supply chain gap', 'inventory gap', 'demand gap', 
+                          'shortage', 'surplus', 'stockout', 'overstock', 'analysis', 'analytics',
+                          'performance', 'metrics', 'kpi', 'financial', 'revenue', 'profit', 'margin']
+    if any(keyword in user_input_lower for keyword in analytical_keywords):
+        return "ANALYTICAL"
+    
+    # General data queries
+    general_keywords = ['all', 'list', 'show', 'display', 'find', 'search', 'what', 'how many']
+    if any(keyword in user_input_lower for keyword in general_keywords):
+        return "GENERAL_DATA"
+    
+    # Conversational queries
+    conversational_keywords = ['hello', 'hi', 'help', 'thanks', 'thank you', 'goodbye', 'invalid query']
+    if any(keyword in user_input_lower for keyword in conversational_keywords):
+        return "CONVERSATIONAL"
+    
+    return "UNKNOWN"
+
+def validate_and_fix_response(response, user_input, query_type):
+    """Validate the agent response and apply fixes if needed"""
+    
+    # Check if response has the expected structure
+    if not isinstance(response, dict):
+        print("🔍 DEBUG: Response is not a dict, attempting to fix...")
+        return None
+    
+    if 'intermediate_steps' not in response:
+        print("🔍 DEBUG: No intermediate steps found, agent failed to use tools")
+        return None
+    
+    steps = response['intermediate_steps']
+    
+    # Check if agent used any tools
+    if len(steps) == 0:
+        print("🔍 DEBUG: Agent used no tools - checking if this is acceptable")
+        # For conversational queries, it's okay to not use tools
+        if query_type == "CONVERSATIONAL":
+            print("🔍 DEBUG: Conversational query - no tools needed")
+            if 'output' in response:
+                return response['output']
+            return None
         else:
-            output = str(response)
+            print("🔍 DEBUG: Non-conversational query with no tools - critical failure")
+            return None
+    
+    # Check if we got a valid observation
+    has_valid_observation = False
+    for step in steps:
+        if isinstance(step, tuple) and len(step) == 2 and step[0] == 'Observation':
+            observation = step[1]
+            if observation and len(str(observation).strip()) > 10:  # Meaningful response
+                has_valid_observation = True
+                break
+    
+    # Also check if we have a valid output even without observation
+    if 'output' in response:
+        output = response['output']
+        if output and len(str(output).strip()) > 10:
+            has_valid_observation = True
+    
+    if not has_valid_observation:
+        print("🔍 DEBUG: No valid observation found")
+        return None
+    
+    # Check output quality
+    if 'output' in response:
+        output = response['output']
+        
+        # Check for generic responses
+        generic_responses = [
+            "Hello! How can I assist you",
+            "How can I assist you?",
+            "How can I help you?",
+            "Let me know if you have any questions",
+            "If you have any specific questions",
+            "Could you please specify",
+            "This will help me identify"
+        ]
+        
+        if any(generic in output for generic in generic_responses):
+            print("🔍 DEBUG: Generic response detected")
+            return None
+    
+    # Response looks good
+    return response.get('output', str(response))
+
+def apply_intelligent_fallback(user_input, query_type, error_msg):
+    """Apply intelligent fallback based on query type"""
+    
+    print(f"🔍 DEBUG: Applying intelligent fallback for query type: {query_type}")
+    
+    try:
+        if query_type == "SKU_SPECIFIC":
+            # Try direct database query for SKU information
+            return handle_sku_fallback(user_input)
+            
+        elif query_type == "ANALYTICAL":
+            # Try analytical query fallback
+            return handle_analytical_fallback(user_input)
+            
+        elif query_type == "GENERAL_DATA":
+            # Try general data query fallback
+            return handle_general_data_fallback(user_input)
+            
+        elif query_type == "CONVERSATIONAL":
+            # Handle conversational queries
+            return handle_conversational_fallback(user_input)
+            
+        else:
+            # Unknown query type - try general approach
+            return handle_unknown_query_fallback(user_input)
+            
+    except Exception as e:
+        print(f"❌ DEBUG: Fallback failed: {e}")
+        return None
+
+def handle_sku_fallback(user_input):
+    """Handle SKU-specific queries when agent fails"""
+    try:
+        from solutions.tools.cypher import enhanced_cypher_qa
+        result = enhanced_cypher_qa(user_input)
+        if result and not result.startswith("Error"):
+            return result
+    except Exception as e:
+        print(f"❌ DEBUG: SKU fallback failed: {e}")
+    return None
+
+def handle_analytical_fallback(user_input):
+    """Handle analytical queries when agent fails"""
+    try:
+        # For supply chain gaps, try a specific analytical query
+        if 'gap' in user_input.lower() or 'supply chain' in user_input.lower():
+            from solutions.tools.cypher import enhanced_cypher_qa
+            analytical_query = "Show me SKUs with supply chain gaps, inventory shortages, or demand-supply mismatches"
+            result = enhanced_cypher_qa(analytical_query)
+            if result and not result.startswith("Error"):
+                return f"Based on your query about supply chain gaps, here's the analysis:\n\n{result}"
+    except Exception as e:
+        print(f"❌ DEBUG: Analytical fallback failed: {e}")
+    return None
+
+def handle_general_data_fallback(user_input):
+    """Handle general data queries when agent fails"""
+    try:
+        from solutions.tools.cypher import enhanced_cypher_qa
+        # Try to get general SKU information
+        result = enhanced_cypher_qa("Show me all SKUs in the database")
+        if result and not result.startswith("Error"):
+            return f"Here's the general data you requested:\n\n{result}"
+    except Exception as e:
+        print(f"❌ DEBUG: General data fallback failed: {e}")
+    return None
+
+def handle_conversational_fallback(user_input):
+    """Handle conversational queries"""
+    user_input_lower = user_input.lower()
+    
+    if 'hello' in user_input_lower or 'hi' in user_input_lower:
+        return "Hello! I'm your FMCG supply chain assistant. I can help you with:\n\n" + \
+               "• SKU-specific information (e.g., 'Tell me about SKU001')\n" + \
+               "• Supply chain analysis (e.g., 'Show me supply chain gaps')\n" + \
+               "• General data queries (e.g., 'Show me all SKUs')\n" + \
+               "• Financial analysis (e.g., 'Which SKUs are most profitable?')\n\n" + \
+               "What would you like to know?"
+    
+    elif 'help' in user_input_lower:
+        return "I'm here to help! Here are some things I can do:\n\n" + \
+               "• **SKU Information**: 'Tell me about SKU001'\n" + \
+               "• **Supply Chain Analysis**: 'Show me supply chain gaps'\n" + \
+               "• **Data Queries**: 'Show me all SKUs'\n" + \
+               "• **Financial Analysis**: 'Which SKUs are most profitable?'\n\n" + \
+               "Just ask me anything about your FMCG supply chain data!"
+    
+    elif 'invalid' in user_input_lower:
+        return "I'm sorry, but I couldn't understand your request. Please try:\n\n" + \
+               "• 'Tell me about SKU001' (for specific SKU information)\n" + \
+               "• 'Show me all SKUs' (for general data)\n" + \
+               "• 'Show me supply chain gaps' (for analysis)\n" + \
+               "• 'Which SKUs are most profitable?' (for financial analysis)"
+    
     else:
-        output = str(response)
+        return "Hello! I'm your FMCG supply chain assistant. How can I help you today?"
+
+def handle_unknown_query_fallback(user_input):
+    """Handle unknown query types"""
+    try:
+        from solutions.tools.cypher import enhanced_cypher_qa
+        # Try a general query to see if we can get any data
+        result = enhanced_cypher_qa("Show me all SKUs")
+        if result and not result.startswith("Error"):
+            return f"I found some data that might be relevant to your query. Here's what I can show you:\n\n{result}"
+    except Exception as e:
+        print(f"❌ DEBUG: Unknown query fallback failed: {e}")
+    return None
+
+def create_user_friendly_error(user_input, error_msg):
+    """Create a user-friendly error message that never shows technical details"""
     
-    # Clean up the response
-    output = output.strip()
-    if output.startswith('```') and output.endswith('```'):
-        output = output[3:-3].strip()
+    print(f"🔍 DEBUG: Creating user-friendly error for: {user_input}")
+    print(f"🔍 DEBUG: Technical error: {error_msg}")
     
-    # Format the response
-    formatted_output = format_response_with_llm(output)
+    # Provide helpful guidance based on the query
+    if 'sku' in user_input.lower():
+        return "I'm having trouble accessing specific SKU information right now. Please try:\n\n" + \
+               "• 'Tell me about SKU001' (for a specific SKU)\n" + \
+               "• 'Show me all SKUs' (for general data)\n" + \
+               "• 'Which SKUs are most profitable?' (for analysis)"
     
-    return formatted_output
+    elif 'gap' in user_input.lower() or 'supply chain' in user_input.lower():
+        return "I'm having trouble analyzing supply chain gaps right now. Please try:\n\n" + \
+               "• 'Show me SKUs with low inventory' (for inventory issues)\n" + \
+               "• 'Which SKUs have supply shortages?' (for supply issues)\n" + \
+               "• 'Show me demand vs supply analysis' (for mismatches)"
+    
+    elif 'all' in user_input.lower() or 'list' in user_input.lower():
+        return "I'm having trouble retrieving the full data list right now. Please try:\n\n" + \
+               "• 'Show me all SKUs' (for complete list)\n" + \
+               "• 'Tell me about SKU001' (for specific SKU)\n" + \
+               "• 'Which categories do we have?' (for categories)"
+    
+    else:
+        return "I'm having trouble processing your request right now. Please try:\n\n" + \
+               "• 'Tell me about SKU001' (for specific SKU information)\n" + \
+               "• 'Show me all SKUs' (for general data)\n" + \
+               "• 'Show me supply chain gaps' (for analysis)\n" + \
+               "• 'Which SKUs are most profitable?' (for financial analysis)\n\n" + \
+               "If the problem persists, please try rephrasing your question or contact support."

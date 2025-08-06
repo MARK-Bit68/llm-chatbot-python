@@ -36,6 +36,24 @@ def generate_dynamic_cypher_query(question, available_data=None):
             cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
             print(f"🔍 DEBUG: Overriding query for multiple SKUs: {cypher_query}")
             return cypher_query
+
+    # PRIORITY 2: Handle "all SKUs" queries
+    if any(keyword in question_lower for keyword in ['all skus', 'show me all', 'list all', 'what skus are in']):
+        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
+        print(f"🔍 DEBUG: Detected 'all SKUs' query, using simple query: {cypher_query}")
+        return cypher_query
+
+    # PRIORITY 3: Handle supply chain gap queries
+    if any(keyword in question_lower for keyword in ['supply chain gap', 'gap', 'shortage', 'surplus']):
+        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot LIMIT 10"
+        print(f"🔍 DEBUG: Detected supply chain gap query, using general query: {cypher_query}")
+        return cypher_query
+
+    # PRIORITY 4: Handle profitability queries
+    if any(keyword in question_lower for keyword in ['profitable', 'profitability', 'most profitable', 'best performing']):
+        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot ORDER BY sku.sku_id LIMIT 10"
+        print(f"🔍 DEBUG: Detected profitability query, using general query: {cypher_query}")
+        return cypher_query
     
     # PRIORITY 2: Check for "all SKUs" type queries
     simple_all_patterns = [

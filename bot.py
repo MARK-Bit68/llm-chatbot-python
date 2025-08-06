@@ -194,6 +194,15 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
                     st.session_state.message_count += 1
                     
                 else:
+                    # SUPERVISOR: Suggest query improvements if needed
+                    try:
+                        from solutions.supervisor import supervisor
+                        query_suggestion = supervisor.suggest_query_improvements(prompt)
+                        if query_suggestion:
+                            st.info(f"💡 **Query Suggestion**: {query_suggestion}")
+                    except Exception as e:
+                        print(f"🔍 DEBUG: Query suggestion failed: {e}")
+                    
                     print("🔍 DEBUG: Calling generate_response...")
                     response = generate_response(prompt)
                     print(f"🔍 DEBUG: generate_response returned: {response[:100]}...")
