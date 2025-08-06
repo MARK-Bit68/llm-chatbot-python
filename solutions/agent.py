@@ -329,7 +329,7 @@ def analyze_query_type(user_input):
             result_text = result.content
         elif hasattr(result, 'strip'):
             result_text = result.strip()
-    else:
+        else:
             result_text = str(result)
         
         # Clean up the response
