@@ -329,7 +329,7 @@ def analyze_query_type(user_input):
             result_text = result.content
         elif hasattr(result, 'strip'):
             result_text = result.strip()
-        else:
+    else:
             result_text = str(result)
         
         # Clean up the response
@@ -357,7 +357,7 @@ def validate_and_fix_response(response, user_input, query_type):
         print("🔍 DEBUG: No intermediate steps found, agent failed to use tools")
         return None
     
-    steps = response['intermediate_steps']
+        steps = response['intermediate_steps']
     
     # Check if agent used any tools
     if len(steps) == 0:

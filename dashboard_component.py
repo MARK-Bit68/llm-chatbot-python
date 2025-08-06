@@ -58,7 +58,7 @@ def get_dashboard_data():
         """)
         
         if not result:
-            return None, None, None
+            return None, None, None, None
         
         # Parse the enhanced data for each SKU
         sku_data = []
@@ -264,11 +264,11 @@ def get_dashboard_data():
             elif 'forecasted_volume' in df.columns:
                 financial_summary['forecasted_volume'] = df['forecasted_volume'].sum()
         
-        return monthly_df, category_summary, financial_summary
+        return monthly_df, category_summary, financial_summary, df
         
     except Exception as e:
         st.error(f"Error connecting to database: {e}")
-        return None, None, None
+        return None, None, None, None
 
 def render_dashboard():
     """Render a world-class dashboard with professional grid layout and KPI cards for 100 SKU enhanced FMCG system"""
@@ -278,7 +278,7 @@ def render_dashboard():
         st.info("📊 **Building your personalized dashboard** - This may take a moment while I fetch your latest data.")
         
         # Load data
-        monthly_df, category_summary, financial_summary = get_dashboard_data()
+        monthly_df, category_summary, financial_summary, sku_df = get_dashboard_data()
     
     if monthly_df is None:
         st.error("Unable to load data from database. Please check your connection.")
@@ -604,17 +604,29 @@ def render_dashboard():
         'inventory': 'mean'
     }).reset_index()
     
-    # Add financial metrics from original data
-    monthly_df_temp, _, _ = get_dashboard_data()
-    if monthly_df_temp is not None:
-        # Get available financial columns
+    # Add financial metrics from the SKU DataFrame which contains the parsed financial data
+    monthly_df_temp, _, _, sku_df_temp = get_dashboard_data()
+    if sku_df_temp is not None and not sku_df_temp.empty:
+        # Get available financial columns from the SKU DataFrame (which has the correct field names)
         available_financial_cols = []
-        for col in ['revenue', 'cogs', 'gross_profit', 'unit_price', 'unit_cost']:
-            if col in monthly_df_temp.columns:
-                available_financial_cols.append(col)
+        # Map from stored field names to display field names
+        field_mapping = {
+            'total_revenue': 'revenue',
+            'total_cogs': 'cogs',
+            'gross_profit': 'gross_profit',
+            'unit_price': 'unit_price',
+            'unit_cost': 'unit_cost'
+        }
+        
+        # Create a financial data frame with the correct field names
+        sku_financial = sku_df_temp[['sku_id']].copy()
+        
+        for stored_field, display_field in field_mapping.items():
+            if stored_field in sku_df_temp.columns:
+                sku_financial[display_field] = sku_df_temp[stored_field]
+                available_financial_cols.append(display_field)
         
         if available_financial_cols:
-            sku_financial = monthly_df_temp.groupby('sku_id').first()[available_financial_cols].reset_index()
             detailed_sku_data = detailed_sku_data.merge(sku_financial, on='sku_id', how='left')
             
             # Calculate margin if both revenue and gross_profit exist
