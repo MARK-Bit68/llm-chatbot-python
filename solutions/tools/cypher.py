@@ -289,12 +289,14 @@ def generate_executive_single_sku_response(question, sku_data):
     Generate executive-level response for single SKU queries with rich visualizations
     """
     # Import chart generation
+    charts = {}
     try:
         from solutions.tools.charts import generate_executive_charts, embed_charts_in_response
         charts = generate_executive_charts(sku_data)
+    except ImportError:
+        print("🔍 DEBUG: Chart generation not available (matplotlib not installed)")
     except Exception as e:
         print(f"❌ DEBUG: Chart generation failed: {e}")
-        charts = {}
     
     response = f"# 📊 Executive Summary: {sku_data.get('sku_id', 'SKU')}\n\n"
     
@@ -310,10 +312,11 @@ def generate_executive_single_sku_response(question, sku_data):
     response += f"## 💰 Financial Performance\n"
     unit_price = sku_data.get('unit_price', 0)
     unit_cost = sku_data.get('unit_cost', 0)
-    revenue = sku_data.get('revenue', 0)
-    cogs = sku_data.get('cogs', 0)
-    gross_profit = sku_data.get('gross_profit', 0)
-    distribution_cost = sku_data.get('distribution_cost', 0)
+    # Use correct field names with fallbacks and ensure numeric types
+    revenue = float(sku_data.get('total_revenue', sku_data.get('revenue', 0)) or 0)
+    cogs = float(sku_data.get('total_cogs', sku_data.get('cogs', 0)) or 0)
+    gross_profit = float(sku_data.get('gross_profit', 0) or 0)
+    distribution_cost = float(sku_data.get('distribution_cost', 0) or 0)
     
     response += f"- **Unit Price:** ${unit_price:.2f}\n"
     response += f"- **Unit Cost:** ${unit_cost:.2f}\n"
@@ -326,7 +329,7 @@ def generate_executive_single_sku_response(question, sku_data):
     response += f"- **Total Revenue:** ${revenue:,.2f}\n"
     response += f"- **Cost of Goods Sold:** ${cogs:,.2f}\n"
     response += f"- **Gross Profit:** ${gross_profit:,.2f}\n"
-    response += f"- **Distribution Cost:** ${distribution_cost:.2f}\n\n"
+    response += f"- **Distribution Cost:** ${distribution_cost:,.2f}\n\n"
     
     # Inventory Management
     response += f"## 📦 Inventory Management\n"
@@ -357,11 +360,11 @@ def generate_executive_single_sku_response(question, sku_data):
     response += f"## 🎯 Strategic Insights\n"
     
     # Calculate key metrics
-    avg_demand = sum(sku_data.get(f'demand_{month}', 0) for month in months) / len(months)
-    avg_inventory = sum(sku_data.get(f'inventory_{month}', 0) for month in months) / len(months)
-    total_revenue = sku_data.get('revenue', 0)
-    total_profit = sku_data.get('gross_profit', 0)
-    forecasted_volume = sku_data.get('forecasted_volume', 1)
+    avg_demand = sum(float(sku_data.get(f'demand_{month}', 0) or 0) for month in months) / len(months)
+    avg_inventory = sum(float(sku_data.get(f'inventory_{month}', 0) or 0) for month in months) / len(months)
+    total_revenue = float(sku_data.get('total_revenue', sku_data.get('revenue', 0)) or 0)
+    total_profit = float(sku_data.get('gross_profit', 0) or 0)
+    forecasted_volume = float(sku_data.get('forecasted_volume', 1) or 1)
     
     response += f"- **Average Monthly Demand:** {avg_demand:,.0f} units\n"
     response += f"- **Average Monthly Inventory:** {avg_inventory:,.0f} units\n"
@@ -404,7 +407,7 @@ def generate_executive_multi_sku_response(question, sku_data_list):
     response = f"# 📊 Executive Dashboard: {len(sku_data_list)} SKUs\n\n"
     
     # Summary Statistics
-    total_revenue = sum(sku.get('revenue', 0) for sku in sku_data_list)
+    total_revenue = sum(sku.get('total_revenue', sku.get('revenue', 0)) for sku in sku_data_list)
     total_profit = sum(sku.get('gross_profit', 0) for sku in sku_data_list)
     total_volume = sum(sku.get('forecasted_volume', 0) for sku in sku_data_list)
     

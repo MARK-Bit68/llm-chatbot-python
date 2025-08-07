@@ -169,6 +169,9 @@ def get_dashboard_data():
         
         df = pd.DataFrame(sku_data)
         
+        # Remove corrupted records (None values)
+        df = df[df['sku_id'].notna() & (df['sku_id'] != 'None')].copy()
+        
         # Create monthly data for charts using enhanced structure
         monthly_data = []
         months = ['jan_2024', 'feb_2024', 'mar_2024', 'apr_2024', 'may_2024', 'jun_2024',
@@ -489,20 +492,41 @@ def render_dashboard():
             # Find best and worst performers safely
             try:
                 if 'gross_profit' in category_summary.columns:
-                    best_category = category_summary.loc[category_summary['gross_profit'].idxmax()]
-                    worst_category = category_summary.loc[category_summary['gross_profit'].idxmin()]
+                    # Filter out Unknown category and categories with zero profit
+                    valid_categories = category_summary[
+                        (category_summary['category'] != 'Unknown') & 
+                        (category_summary['gross_profit'] > 0)
+                    ]
                     
-                    st.metric(
-                        label="🏆 Best Performer",
-                        value=best_category['category'],
-                        delta=f"${best_category.get('gross_profit', 0):,.0f} profit"
-                    )
-                    
-                    st.metric(
-                        label="⚠️ Needs Attention",
-                        value=worst_category['category'],
-                        delta=f"${worst_category.get('gross_profit', 0):,.0f} profit"
-                    )
+                    if len(valid_categories) > 0:
+                        best_category = valid_categories.loc[valid_categories['gross_profit'].idxmax()]
+                        worst_category = valid_categories.loc[valid_categories['gross_profit'].idxmin()]
+                        
+                        st.metric(
+                            label="🏆 Best Performer",
+                            value=best_category['category'],
+                            delta=f"${best_category.get('gross_profit', 0):,.0f} profit"
+                        )
+                        
+                        st.metric(
+                            label="⚠️ Needs Attention",
+                            value=worst_category['category'],
+                            delta=f"${worst_category.get('gross_profit', 0):,.0f} profit"
+                        )
+                    else:
+                        # Fallback if no valid categories
+                        best_category = category_summary.loc[category_summary['gross_profit'].idxmax()]
+                        st.metric(
+                            label="🏆 Best Performer",
+                            value=best_category['category'],
+                            delta=f"${best_category.get('gross_profit', 0):,.0f} profit"
+                        )
+                        
+                        st.metric(
+                            label="⚠️ Needs Attention",
+                            value="All categories performing well",
+                            delta="No issues detected"
+                        )
             except Exception as e:
                 st.info("Category analysis not available")
         
