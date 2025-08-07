@@ -291,6 +291,13 @@ def analyze_and_format_results(question, results, count):
     if not results or count == 0:
         return "No results found."
 
+    # Check if this is a non-SKU query (like country, category, etc.)
+    if results and isinstance(results[0], dict):
+        first_row = results[0]
+        # If the query doesn't return SKU fields, handle it specially
+        if 'sku.sku_id' not in first_row and 'sku_id' not in first_row:
+            return generate_simple_list_response(question, results)
+
     # Parse the data for executive insights
     parsed_data = []
     for row in results:
@@ -302,6 +309,12 @@ def analyze_and_format_results(question, results, count):
                     sku_id = row.get('sku.sku_id') or row.get('sku_id')
                     plot_data = parse_sku_plot_data(value, sku_id)
                     parsed_row.update(plot_data)
+                elif key == 'sku.sku_id':
+                    # Ensure sku_id is set even when plot data is not available
+                    parsed_row['sku_id'] = value
+                elif key == 'sku.name':
+                    # Ensure name is set
+                    parsed_row['name'] = value
                 else:
                     parsed_row[key] = value
             parsed_data.append(parsed_row)
@@ -552,6 +565,46 @@ def generate_executive_multi_sku_response(question, sku_data_list):
     response += f"- **Portfolio Health:** {'Strong' if len(profitable_skus) > len(loss_making_skus) else 'Needs Attention'}\n"
     
     return response
+
+def generate_simple_list_response(question, results):
+    """
+    Generate a simple response for non-SKU queries (like country, category lists)
+    """
+    if not results:
+        return "No results found."
+    
+    # Extract the main field from the results
+    if isinstance(results[0], dict):
+        # Get the first non-None field
+        first_row = results[0]
+        main_field = None
+        main_values = []
+        
+        for key, value in first_row.items():
+            if value is not None and value != '':
+                main_field = key
+                break
+        
+        if main_field:
+            # Extract all values for this field
+            for row in results:
+                if isinstance(row, dict) and row.get(main_field):
+                    main_values.append(row[main_field])
+            
+            # Remove duplicates and None values
+            main_values = list(set([v for v in main_values if v is not None]))
+            
+            if main_values:
+                response = f"# 📊 {question.title()}\n\n"
+                response += f"Found **{len(main_values)}** unique {main_field.replace('_', ' ').title()}:\n\n"
+                
+                for i, value in enumerate(main_values, 1):
+                    response += f"{i}. **{value}**\n"
+                
+                return response
+    
+    # Fallback for unexpected data structure
+    return f"# 📊 Query Results\n\nFound **{len(results)}** results for your query."
 
 def enhanced_cypher_qa(question):
     print(f"🔍 DEBUG: ===== ENHANCED_CYPHER_QA CALLED =====")
