@@ -33,13 +33,27 @@ def generate_dynamic_cypher_query(question, available_data=None):
                 return cypher_query
     
     elif query_classification == "ALL_SKUS":
-        cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
-        print(f"🔍 DEBUG: All SKUs query: {cypher_query}")
+        # Use LLM to determine if financial data is needed
+        financial_classification = classify_financial_data_needed(question)
+        if financial_classification == "FINANCIAL_DATA_NEEDED":
+            cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot ORDER BY sku.sku_id"
+            print(f"🔍 DEBUG: All SKUs with financial data query: {cypher_query}")
+        else:
+            cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
+            print(f"🔍 DEBUG: All SKUs query: {cypher_query}")
         return cypher_query
     
     elif query_classification == "DATA_QUERY":
-        # Generate Cypher query using LLM
-        return generate_cypher_with_llm(question)
+        # Use LLM to determine if financial data is needed
+        financial_classification = classify_financial_data_needed(question)
+        if financial_classification == "FINANCIAL_DATA_NEEDED":
+            # For financial data queries, return full plot data
+            cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot ORDER BY sku.sku_id"
+            print(f"🔍 DEBUG: Data query with financial data: {cypher_query}")
+            return cypher_query
+        else:
+            # Generate Cypher query using LLM for non-financial data queries
+            return generate_cypher_with_llm(question)
     
     elif query_classification == "ANALYTICAL":
         print(f"🔍 DEBUG: Analytical query detected, falling back to LLM")
@@ -90,6 +104,57 @@ def classify_query_with_llm(question):
     except Exception as e:
         print(f"🔍 DEBUG: Query classification failed: {e}")
         return "DATA_QUERY"  # Default to data query
+
+def classify_financial_data_needed(question):
+    """
+    Use LLM to determine if financial data is needed for the query.
+    """
+    try:
+        from llm import get_llm
+        llm = get_llm()
+        
+        prompt = f"""
+        Determine if this FMCG supply chain query requires financial data (revenue, profit, cost, margin, etc.).
+        
+        Return ONLY one of these classifications:
+        - FINANCIAL_DATA_NEEDED: Query explicitly asks for financial metrics, money, revenue, profit, cost, margin, pricing, financial analysis, supply chain gaps, performance analysis, or profitability assessment
+        - GENERAL_DATA_ONLY: Query asks for general information like categories, names, basic data without financial focus
+        
+        Examples:
+        - "Show me all SKUs with revenue" → FINANCIAL_DATA_NEEDED
+        - "List all products with profit data" → FINANCIAL_DATA_NEEDED  
+        - "Show me all SKUs" → GENERAL_DATA_ONLY
+        - "What categories do we have?" → GENERAL_DATA_ONLY
+        - "Which SKUs are profitable?" → FINANCIAL_DATA_NEEDED
+        - "Show me supply chain gaps" → FINANCIAL_DATA_NEEDED
+        - "Analyze supply chain performance" → FINANCIAL_DATA_NEEDED
+        - "Which products are loss-making?" → FINANCIAL_DATA_NEEDED
+        
+        User Query: "{question}"
+        
+        Return only the classification (FINANCIAL_DATA_NEEDED or GENERAL_DATA_ONLY):
+        """
+        
+        result = llm.invoke(prompt)
+        if hasattr(result, 'content'):
+            result_text = result.content
+        elif hasattr(result, 'strip'):
+            result_text = result.strip()
+        else:
+            result_text = str(result)
+        
+        # Clean up the response
+        classification = result_text.strip().upper()
+        valid_classifications = ["FINANCIAL_DATA_NEEDED", "GENERAL_DATA_ONLY"]
+        
+        if classification in valid_classifications:
+            return classification
+        else:
+            return "GENERAL_DATA_ONLY"  # Default to general data
+            
+    except Exception as e:
+        print(f"🔍 DEBUG: Financial classification failed: {e}")
+        return "GENERAL_DATA_ONLY"  # Default to general data
     
 def generate_cypher_with_llm(question):
     """
@@ -145,8 +210,11 @@ IMPORTANT RULES:
 CRITICAL: When the user asks about a SPECIFIC SKU (e.g., "Tell me about SKU001", "What is the category of SKU001?"), use:
 MATCH (sku:SKU {{sku_id: 'SKU001'}}) RETURN sku.sku_id, sku.name, sku.plot
 
-When the user asks about ALL SKUs (e.g., "What SKUs are in the Master Data?", "Show me all SKUs"), use:
+When the user asks about ALL SKUs with financial data (e.g., "Show me all SKUs with revenue", "List all products with profit data"), use:
 MATCH (sku:SKU) RETURN sku.sku_id, sku.name, sku.plot LIMIT 10
+
+When the user asks about ALL SKUs without financial data (e.g., "What SKUs are in the Master Data?", "Show me all SKUs"), use:
+MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 10
 
 When the user asks about countries (e.g., "Which countries are our products from?"), use:
 MATCH (sku:SKU) RETURN DISTINCT split(split(sku.plot, 'country: ')[1], ' | ')[0] as country
@@ -231,7 +299,8 @@ def analyze_and_format_results(question, results, count):
             for key, value in row.items():
                 if key == 'sku.plot' and value:
                     # Parse the complex plot data
-                    plot_data = parse_sku_plot_data(value)
+                    sku_id = row.get('sku.sku_id') or row.get('sku_id')
+                    plot_data = parse_sku_plot_data(value, sku_id)
                     parsed_row.update(plot_data)
                 else:
                     parsed_row[key] = value
@@ -245,13 +314,17 @@ def analyze_and_format_results(question, results, count):
     else:
         return generate_executive_multi_sku_response(question, parsed_data)
 
-def parse_sku_plot_data(plot_string):
+def parse_sku_plot_data(plot_string, sku_id=None):
     """
     Parse the complex plot data string into structured data
     """
     data = {}
     if not plot_string:
         return data
+    
+    # Set the sku_id if provided
+    if sku_id:
+        data['sku_id'] = sku_id
     
     # Split by | and parse key-value pairs
     parts = plot_string.split(' | ')
@@ -274,7 +347,7 @@ def parse_sku_plot_data(plot_string):
                     data[key] = float(value)
                 except:
                     data[key] = value
-            elif key in ['initial_inventory', 'safety_stock', 'forecasted_volume', 'revenue', 'cogs', 'gross_profit']:
+            elif key in ['initial_inventory', 'safety_stock', 'forecasted_volume', 'total_revenue', 'total_cogs', 'gross_profit', 'revenue', 'cogs']:
                 try:
                     data[key] = float(value)
                 except:
@@ -406,10 +479,13 @@ def generate_executive_multi_sku_response(question, sku_data_list):
     """
     response = f"# 📊 Executive Dashboard: {len(sku_data_list)} SKUs\n\n"
     
+    # Filter out corrupted records and use correct field names
+    valid_skus = [sku for sku in sku_data_list if sku.get('sku_id') and sku.get('sku_id') != 'None']
+    
     # Summary Statistics
-    total_revenue = sum(sku.get('total_revenue', sku.get('revenue', 0)) for sku in sku_data_list)
-    total_profit = sum(sku.get('gross_profit', 0) for sku in sku_data_list)
-    total_volume = sum(sku.get('forecasted_volume', 0) for sku in sku_data_list)
+    total_revenue = sum(float(sku.get('total_revenue', sku.get('revenue', 0)) or 0) for sku in valid_skus)
+    total_profit = sum(float(sku.get('gross_profit', 0) or 0) for sku in valid_skus)
+    total_volume = sum(float(sku.get('forecasted_volume', 0) or 0) for sku in valid_skus)
     
     response += f"## 📈 Portfolio Overview\n"
     response += f"- **Total Revenue:** ${total_revenue:,.2f}\n"
@@ -420,13 +496,13 @@ def generate_executive_multi_sku_response(question, sku_data_list):
     
     # Category Analysis
     categories = {}
-    for sku in sku_data_list:
+    for sku in valid_skus:
         category = sku.get('category', 'Unknown')
         if category not in categories:
             categories[category] = {'revenue': 0, 'profit': 0, 'volume': 0, 'count': 0}
-        categories[category]['revenue'] += sku.get('revenue', 0)
-        categories[category]['profit'] += sku.get('gross_profit', 0)
-        categories[category]['volume'] += sku.get('forecasted_volume', 0)
+        categories[category]['revenue'] += float(sku.get('total_revenue', sku.get('revenue', 0)) or 0)
+        categories[category]['profit'] += float(sku.get('gross_profit', 0) or 0)
+        categories[category]['volume'] += float(sku.get('forecasted_volume', 0) or 0)
         categories[category]['count'] += 1
     
     response += f"## 🏷️ Category Performance\n"
@@ -441,14 +517,14 @@ def generate_executive_multi_sku_response(question, sku_data_list):
     
     # Top Performers
     response += f"## 🏆 Top Performers\n"
-    sorted_by_revenue = sorted(sku_data_list, key=lambda x: x.get('revenue', 0), reverse=True)
+    sorted_by_revenue = sorted(valid_skus, key=lambda x: float(x.get('total_revenue', x.get('revenue', 0)) or 0), reverse=True)
     
     response += "| Rank | SKU | Revenue | Profit | Margin | Category |\n"
     response += "|------|-----|---------|--------|--------|----------|\n"
     
     for i, sku in enumerate(sorted_by_revenue[:5], 1):
-        revenue = sku.get('revenue', 0)
-        profit = sku.get('gross_profit', 0)
+        revenue = float(sku.get('total_revenue', sku.get('revenue', 0)) or 0)
+        profit = float(sku.get('gross_profit', 0) or 0)
         margin = (profit / revenue * 100) if revenue > 0 else 0
         response += f"| {i} | {sku.get('sku_id', 'N/A')} | ${revenue:,.0f} | ${profit:,.0f} | {margin:.1f}% | {sku.get('category', 'N/A')} |\n"
     
@@ -458,11 +534,15 @@ def generate_executive_multi_sku_response(question, sku_data_list):
     response += f"## 🎯 Strategic Insights\n"
     
     # Profitability analysis
-    profitable_skus = [sku for sku in sku_data_list if sku.get('gross_profit', 0) > 0]
-    loss_making_skus = [sku for sku in sku_data_list if sku.get('gross_profit', 0) <= 0]
+    profitable_skus = [sku for sku in valid_skus if float(sku.get('gross_profit', 0) or 0) > 0]
+    loss_making_skus = [sku for sku in valid_skus if float(sku.get('gross_profit', 0) or 0) <= 0]
     
-    response += f"- **Profitable SKUs:** {len(profitable_skus)} ({len(profitable_skus)/len(sku_data_list)*100:.1f}% of portfolio)\n"
-    response += f"- **Loss-Making SKUs:** {len(loss_making_skus)} ({len(loss_making_skus)/len(sku_data_list)*100:.1f}% of portfolio)\n"
+    valid_count = len(valid_skus)
+    if valid_count > 0:
+        response += f"- **Profitable SKUs:** {len(profitable_skus)} ({len(profitable_skus)/valid_count*100:.1f}% of portfolio)\n"
+        response += f"- **Loss-Making SKUs:** {len(loss_making_skus)} ({len(loss_making_skus)/valid_count*100:.1f}% of portfolio)\n"
+    else:
+        response += f"- **No valid SKUs found**\n"
     
     # Category insights
     best_category = max(categories.items(), key=lambda x: x[1]['profit']) if categories else None
