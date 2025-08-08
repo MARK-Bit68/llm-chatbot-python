@@ -20,11 +20,11 @@ print("🔍 DEBUG: solutions/agent.py imported successfully")
 
 # Domain configuration - can be easily changed for different domains
 DOMAIN_CONFIG = {
-    "domain_name": "FMCG (Fast Moving Consumer Goods) supply chain",
+    "domain_name": "S&OP (Sales & Operations Planning) supply chain",
     "entity_type": "SKU",
-    "entity_label": "SKU",
+    "entity_label": "SKU", 
     "entity_id_field": "sku_id",
-    "domain_expertise": "supply chain data, inventory, demand, and financial data",
+    "domain_expertise": "supply chain planning, manufacturing capacity, inventory management, demand forecasting, customer prioritization, regional analysis, promotional impact, and cross-functional collaboration",
     "entity_plural": "SKUs",
     "entity_singular": "SKU"
 }
@@ -33,7 +33,26 @@ print("🔍 DEBUG: DOMAIN_CONFIG created")
 
 chat_prompt = ChatPromptTemplate.from_messages(
     [
-        ("system", "You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data."),
+        ("system", """You are a thoughtful, collaborative S&OP (Sales & Operations Planning) supply chain colleague. You analyze real-time scenarios across supply, demand, and sales while understanding trade-offs between manufacturing capacity, inventory, customer service levels, and forecast accuracy.
+
+Your communication style is natural and collaborative - never robotic or overly formal. You respond thoughtfully to:
+- Forecast changes and their impact on production capacity
+- Supply shortages and allocation strategies  
+- Backlog issues and customer prioritization
+- Excess inventory and promotional opportunities
+- Regional demand variations and manufacturing constraints
+
+Key concepts you understand and discuss:
+- Manufacturing constraints and capacity limits
+- Customer prioritization and relationship impact
+- Regional demand variations and forecast assumptions
+- Promotional uplift and its effect on production and inventory
+- Lead time planning and replenishment feasibility
+- Inventory balancing across locations
+- Backorder management and forecast alignment
+- Cross-functional feedback loops between Sales, Demand, and Supply Planning
+
+You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data. Always provide detailed, accurate responses based on the available data with a focus on practical business impact and collaborative problem-solving."""),
         ("human", "{input}"),
         ("assistant", "{agent_scratchpad}")
     ]
@@ -46,7 +65,7 @@ tools = [
     Tool(
         name="Enhanced Database Query",
         func=enhanced_cypher_qa,
-        description="Use this tool for ANY question about SKUs, supply chain analysis, or data queries. Input: the question (e.g., 'Tell me about SKU001', 'Show me supply chain gaps', 'What SKUs are in the master data?', 'Show me all SKUs', 'Which SKUs have inventory shortages?', 'Show me demand vs supply analysis', 'Which SKUs are most profitable?', 'Show me SKUs with low inventory'). This tool queries the database and returns comprehensive executive-level information with detailed analysis. CRITICAL: When you receive this data, you MUST present the ENTIRE executive dashboard EXACTLY as provided, including ALL sections: Product Overview, Financial Performance, Inventory Management, Monthly Analysis, Strategic Insights, and Executive Recommendations. NEVER summarize, condense, or rephrase this data - present the COMPLETE dashboard with all tables, metrics, and insights exactly as received. IMPORTANT: If you see '# 📊 Executive Dashboard:' or '# 📊 Executive Summary:' in the response, return that EXACT data without any changes. CRITICAL: DO NOT SUMMARIZE EXECUTIVE DASHBOARD DATA - RETURN IT EXACTLY AS RECEIVED."
+        description="Use this tool for ANY S&OP supply chain analysis, including manufacturing capacity constraints, customer prioritization, regional demand variations, promotional impact, inventory balancing, and cross-functional planning scenarios. Input: the question (e.g., 'Which customer orders can be delayed without hurting key relationships?', 'How should we prioritize limited supply across orders?', 'Which SKUs can we trim to fit within capacity limits?', 'What is the promotional impact on production capacity?', 'Show me excess inventory for promotions', 'Analyze regional demand variations', 'Which SKUs have manufacturing constraints?', 'Show me customer prioritization matrix'). This tool queries the database and returns comprehensive S&OP-level information with detailed analysis of trade-offs and business impact. CRITICAL: When you receive this data, you MUST present the ENTIRE executive dashboard EXACTLY as provided, including ALL sections: Product Overview, Financial Performance, Inventory Management, Monthly Analysis, Strategic Insights, and Executive Recommendations. NEVER summarize, condense, or rephrase this data - present the COMPLETE dashboard with all tables, metrics, and insights exactly as received. IMPORTANT: If you see '# 📊 Executive Dashboard:' or '# 📊 Executive Summary:' in the response, return that EXACT data without any changes. CRITICAL: DO NOT SUMMARIZE EXECUTIVE DASHBOARD DATA - RETURN IT EXACTLY AS RECEIVED."
     ),
     Tool(
         name="Entity Information Search",
@@ -60,7 +79,7 @@ tools = [
     ),
     Tool(
         name="General Chat",
-        func=lambda x: f"I can help you with {DOMAIN_CONFIG['domain_name']} questions. Please ask about specific {DOMAIN_CONFIG['entity_plural']}, categories, pricing, inventory, or supply chain operations.",
+        func=lambda x: f"I can help you with {DOMAIN_CONFIG['domain_name']} questions. Please ask about specific {DOMAIN_CONFIG['entity_plural']}, manufacturing capacity, customer prioritization, regional demand, promotional impact, or supply chain operations.",
         description=f"General conversation about {DOMAIN_CONFIG['domain_name']} topics. Input: general questions. NEVER use for SKU queries."
     )
 ]
@@ -73,22 +92,30 @@ def get_memory(session_id):
 
 # 2. Add concrete prompt examples for both all SKUs and single SKU queries
 agent_prompt = PromptTemplate.from_template("""
-You are a helpful FMCG (Fast Moving Consumer Goods) supply chain assistant. You can help analyze supply chain data, answer questions about SKUs, and provide insights about inventory, demand, and financial data.
+You are a thoughtful, collaborative S&OP (Sales & Operations Planning) supply chain colleague. You analyze real-time scenarios across supply, demand, and sales while understanding trade-offs between manufacturing capacity, inventory, customer service levels, and forecast accuracy.
 
 You have access to the following tools:
 {tools}
 
 CRITICAL RULES FOR TOOL USAGE:
-1. For ANY data queries about SKUs, supply chain, analytics, or business intelligence, you MUST use the Enhanced Database Query tool
+1. For ANY S&OP supply chain analysis, manufacturing capacity constraints, customer prioritization, regional demand variations, promotional impact, inventory balancing, or cross-functional planning scenarios, you MUST use the Enhanced Database Query tool
 2. For greetings, casual conversation, or non-data requests, respond directly with "Final Answer:"
 3. ALWAYS use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
 4. For direct responses: "Final Answer:" then your response
 5. NEVER include "Invalid Format" or error messages in your response
 6. NEVER loop or repeat the same action multiple times
 7. If a tool fails, try a different approach or provide a helpful response
-8. For supply chain analysis, inventory questions, or SKU-specific queries, ALWAYS use the Enhanced Database Query tool
+8. For supply chain analysis, manufacturing constraints, customer prioritization, regional analysis, promotional impact, or SKU-specific queries, ALWAYS use the Enhanced Database Query tool
 9. For general data requests like "show me all SKUs" or "list products", use the Enhanced Database Query tool
-10. For analytical queries like "gaps", "shortages", "profitability", use the Enhanced Database Query tool
+10. For analytical queries like "capacity constraints", "customer prioritization", "regional demand", "promotional impact", use the Enhanced Database Query tool
+
+S&OP ANALYSIS REQUIREMENTS:
+- When analyzing manufacturing capacity constraints, consider utilization rates, available capacity, and production feasibility
+- When discussing customer prioritization, consider relationship impact, revenue contribution, and strategic importance
+- When examining regional demand variations, consider market size, growth rates, and service level requirements
+- When assessing promotional impact, consider demand uplift, budget allocation, and production capacity requirements
+- When analyzing inventory balancing, consider safety stock, reorder points, and excess inventory opportunities
+- When discussing cross-functional planning, consider the feedback loops between Sales, Demand, and Supply Planning
 
 EXECUTIVE DASHBOARD REQUIREMENTS:
 - When you receive comprehensive SKU data with executive dashboard format, PRESENT THE ENTIRE DASHBOARD AS-IS

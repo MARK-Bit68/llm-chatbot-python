@@ -37,10 +37,11 @@ if "message_count" not in st.session_state:
 print("🔍 DEBUG: Session state initialized")
 
 # Title and description
-st.title("🤖 FMCG Supply Chain Assistant")
+st.title("🤖 S&OP Supply Chain Assistant")
 st.markdown("""
-This AI assistant helps you analyze FMCG (Fast Moving Consumer Goods) supply chain data, 
-including SKU information, inventory levels, demand forecasts, and financial metrics.
+This AI assistant helps you analyze S&OP (Sales & Operations Planning) supply chain scenarios, 
+including manufacturing capacity constraints, customer prioritization, regional demand variations, 
+promotional impact, and cross-functional planning between Sales, Demand, and Supply Planning.
 """)
 
 # Sidebar for controls
@@ -97,6 +98,32 @@ with st.sidebar:
     st.markdown("""
     Try these example queries:
     
+    **S&OP Supply Chain Analysis:**
+    - "Which customer orders can be delayed without hurting key relationships?"
+    - "How should we prioritize limited supply across orders?"
+    - "Which SKUs can we trim to fit within capacity limits?"
+    - "What is the promotional impact on production capacity?"
+    - "Show me excess inventory for promotions"
+    - "Analyze regional demand variations"
+    
+    **Manufacturing & Capacity:**
+    - "Which SKUs have manufacturing constraints?"
+    - "Show me plants with high utilization rates"
+    - "What is our available manufacturing capacity?"
+    - "Which SKUs exceed production capacity?"
+    
+    **Customer & Regional Analysis:**
+    - "Show me customer prioritization matrix"
+    - "Which regions have highest demand growth?"
+    - "Analyze customer relationship impact"
+    - "Show me regional service level requirements"
+    
+    **Inventory & Planning:**
+    - "Show me safety stock and reorder analysis"
+    - "Which SKUs have excess inventory?"
+    - "Analyze inventory balancing across locations"
+    - "Show me lead time planning data"
+    
     **Dashboard & Analytics:**
     - "Show me a dashboard"
     - "Generate a report"
@@ -108,21 +135,6 @@ with st.sidebar:
     - "Tell me about SKU001"
     - "What SKUs are in the Master Data?"
     - "Show me all SKUs"
-    
-    **Analytics:**
-    - "Which categories do we have?"
-    - "What is our demand plan for SKU001?"
-    - "Show me products with highest revenue"
-    
-    **Inventory:**
-    - "What is the inventory level for SKU001?"
-    - "Which SKUs have negative gross profit?"
-    
-    **Enhanced Data (100 SKUs):**
-    - "Show me supply chain gaps"
-    - "Which SKUs have supply issues?"
-    - "Display inventory trends"
-    - "Analyze seasonal patterns"
     """)
 
 # Main chat interface
