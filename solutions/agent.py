@@ -1,5 +1,6 @@
 import streamlit as st
 from llm import get_llm
+from monitoring import record_event, timeit
 from solutions.graph import get_graph
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts import PromptTemplate
@@ -209,6 +210,7 @@ Remember: You are delivering executive dashboard reports, not answering simple q
             # Apply the enhanced prompt
             agent = create_react_agent(llm, tools, enhance_prompt_with_executive_instructions(prompt))
             print(f"🔍 DEBUG: Agent created: {agent is not None}")
+            record_event("agent.created", {"tools": [t.name for t in tools]})
             
             agent_executor = AgentExecutor(
                 agent=agent,
@@ -219,6 +221,7 @@ Remember: You are delivering executive dashboard reports, not answering simple q
                 return_intermediate_steps=True
             )
             print(f"🔍 DEBUG: AgentExecutor created: {agent_executor is not None}")
+            record_event("agent.executor.created", {"max_iterations": 10})
             
             chat_agent = RunnableWithMessageHistory(
                 agent_executor,
@@ -286,6 +289,7 @@ Return the cleaned and formatted text:"""),
 
 def generate_response(user_input):
     print(f"🔍 DEBUG: generate_response() called with input: {user_input[:50]}...")
+    record_event("generate_response.start", {"preview": user_input[:120]})
 
     # ROBUST OUTER EDGE ERROR HANDLING SYSTEM WITH SUPERVISOR
     try:
@@ -295,7 +299,9 @@ def generate_response(user_input):
         
         # STEP 2: Try the primary agent approach
         agent_executor = get_agent()
-        response = agent_executor.invoke({"input": user_input})
+        with timeit("agent.invoke"):
+            response = agent_executor.invoke({"input": user_input})
+        record_event("agent.invoke.done", {"has_steps": isinstance(response, dict) and 'intermediate_steps' in response})
         
         # STEP 3: Validate the response and apply robust error handling
         validated_response = validate_and_fix_response(response, user_input, query_type)
@@ -303,7 +309,8 @@ def generate_response(user_input):
         if validated_response:
             # STEP 4: SUPERVISOR LAYER - Sanity check and enhance response
             from solutions.supervisor import supervisor
-            supervised_response = supervisor.supervise_response(user_input, validated_response, query_type)
+            with timeit("supervisor.supervise_response"):
+                supervised_response = supervisor.supervise_response(user_input, validated_response, query_type)
             
             # STEP 5: Only apply issue detection if supervisor didn't already handle it
             if supervised_response == validated_response:
@@ -311,25 +318,35 @@ def generate_response(user_input):
                 return supervised_response
             else:
                 # Supervisor modified the response, apply final checks
-                final_response = supervisor.detect_and_fix_common_issues(user_input, supervised_response)
+                with timeit("supervisor.detect_and_fix_common_issues"):
+                    final_response = supervisor.detect_and_fix_common_issues(user_input, supervised_response)
+                record_event("generate_response.success", {"length": len(final_response)})
                 return final_response
+            record_event("generate_response.success", {"length": len(supervised_response)})
             
     except Exception as e:
         error_msg = str(e)
         print(f"❌ DEBUG: Primary agent failed: {error_msg}")
+        record_event("generate_response.error", {"message": error_msg})
         
         # STEP 6: Apply intelligent fallback based on query type
         fallback_response = apply_intelligent_fallback(user_input, query_type, error_msg)
         if fallback_response:
             # Apply supervisor to fallback as well
             from solutions.supervisor import supervisor
-            supervised_fallback = supervisor.supervise_response(user_input, fallback_response, query_type)
-            return supervisor.detect_and_fix_common_issues(user_input, supervised_fallback)
+            with timeit("supervisor.supervise_response.fallback"):
+                supervised_fallback = supervisor.supervise_response(user_input, fallback_response, query_type)
+            with timeit("supervisor.detect_and_fix_common_issues.fallback"):
+                final_fb = supervisor.detect_and_fix_common_issues(user_input, supervised_fallback)
+            record_event("generate_response.fallback", {"length": len(final_fb)})
+            return final_fb
             
         # STEP 7: Final fallback - never show ugly errors to user
         final_error_response = create_user_friendly_error(user_input, error_msg)
         from solutions.supervisor import supervisor
-        return supervisor.detect_and_fix_common_issues(user_input, final_error_response)
+        final_checked = supervisor.detect_and_fix_common_issues(user_input, final_error_response)
+        record_event("generate_response.final_error", {"length": len(final_checked)})
+        return final_checked
 
 def analyze_query_type(user_input):
     """Analyze the type of query using LLM instead of hard-coded patterns"""

@@ -1,13 +1,12 @@
-import streamlit as st
-from llm import llm, embeddings
-from graph import graph
+"""Compatibility layer forwarding to the production vector tools.
 
-# Create the Neo4jVector
+This preserves existing imports in tests and external scripts:
+    from tools.vector import get_sku_data
+"""
 
-# Create the retriever
+from solutions.tools.vector import get_sku_data, get_neo4j_vector  # noqa: F401
 
-# Create the prompt
-
-# Create the chain 
-
-# Create a function to call the chain
+__all__ = [
+    "get_sku_data",
+    "get_neo4j_vector",
+]

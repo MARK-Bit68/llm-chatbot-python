@@ -1,5 +1,6 @@
 import streamlit as st
 from llm import get_llm
+from monitoring import record_event, timeit
 from solutions.graph import get_graph
 from langchain_core.prompts import ChatPromptTemplate
 import re
@@ -13,6 +14,7 @@ def generate_dynamic_cypher_query(question, available_data=None):
     # Use LLM to classify the query type instead of hard-coded patterns
     query_classification = classify_query_with_llm(question)
     print(f"🔍 DEBUG: LLM classified query as: {query_classification}")
+    record_event("cypher.query.classified", {"class": query_classification})
 
     # Handle based on LLM classification
     if query_classification == "SKU_SPECIFIC":
@@ -25,11 +27,13 @@ def generate_dynamic_cypher_query(question, available_data=None):
             if len(sku_ids) == 1:
                 cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) = '{sku_ids[0].upper()}' RETURN sku.sku_id, sku.name, sku.plot"
                 print(f"🔍 DEBUG: Single SKU query: {cypher_query}")
+                record_event("cypher.query.generated", {"type": "single_sku"})
                 return cypher_query
             else:
                 sku_list = ', '.join([f"'{sku.upper()}'" for sku in sku_ids])
                 cypher_query = f"MATCH (sku:SKU) WHERE toUpper(sku.sku_id) IN [{sku_list}] RETURN sku.sku_id, sku.name, sku.plot"
                 print(f"🔍 DEBUG: Multi-SKU query: {cypher_query}")
+                record_event("cypher.query.generated", {"type": "multi_sku", "count": len(sku_ids)})
                 return cypher_query
     
     elif query_classification == "ALL_SKUS":
@@ -41,6 +45,7 @@ def generate_dynamic_cypher_query(question, available_data=None):
         else:
             cypher_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category ORDER BY sku.sku_id"
             print(f"🔍 DEBUG: All SKUs query: {cypher_query}")
+        record_event("cypher.query.generated", {"type": "all_skus"})
         return cypher_query
     
     elif query_classification == "DATA_QUERY":
@@ -53,15 +58,20 @@ def generate_dynamic_cypher_query(question, available_data=None):
             return cypher_query
         else:
             # Generate Cypher query using LLM for non-financial data queries
-            return generate_cypher_with_llm(question)
+            q = generate_cypher_with_llm(question)
+            record_event("cypher.query.generated", {"type": "data_query"})
+            return q
     
     elif query_classification == "ANALYTICAL":
         print(f"🔍 DEBUG: Analytical query detected, falling back to LLM")
+        record_event("cypher.query.analytical", {"note": "handled by LLM"})
         return None
     
     else:
         # Default to LLM generation
-        return generate_cypher_with_llm(question)
+        q = generate_cypher_with_llm(question)
+        record_event("cypher.query.generated", {"type": "default"})
+        return q
 
 def classify_query_with_llm(question):
     """
@@ -228,9 +238,10 @@ Generate the Cypher query:"""),
     try:
         # Generate the query using the LLM
         chain = cypher_generation_prompt | get_llm()
-        response = chain.invoke({
-            "question": question
-        })
+        with timeit("llm.generate_cypher", {"preview": question[:120]}):
+            response = chain.invoke({
+                "question": question
+            })
         
         # Extract the query from the response
         query = response.content.strip()
@@ -252,12 +263,14 @@ Generate the Cypher query:"""),
             query = query.replace("plotEmbedding", "").replace("sku.plotEmbedding", "")
         
         print(f"🔍 DEBUG: Final query: {query}")
+        record_event("cypher.query.generated.llm", {"length": len(query)})
         return query
     except Exception as e:
         print(f"❌ DEBUG: Error generating Cypher query: {e}")
         # Return a safe fallback query
         fallback_query = "MATCH (sku:SKU) RETURN sku.sku_id, sku.name, split(split(sku.plot, 'category: ')[1], ' | ')[0] as category LIMIT 5"
         print(f"🔍 DEBUG: Using error fallback query: {fallback_query}")
+        record_event("cypher.query.fallback", {})
         return fallback_query
 
 def execute_dynamic_query(question, available_data=None):
@@ -274,14 +287,18 @@ def execute_dynamic_query(question, available_data=None):
         print(f"Generated Cypher query: {query}")
         
         # Execute the query
-        results = get_graph().query(query)
+        with timeit("neo4j.query", {"query_preview": query[:140]}):
+            results = get_graph().query(query)
         
-        return {
+        payload = {
             "query": query,
             "results": results,
             "count": len(results) if results else 0
         }
+        record_event("cypher.query.results", {"count": payload["count"]})
+        return payload
     except Exception as e:
+        record_event("cypher.query.error", {"message": str(e)})
         return {"error": f"Query execution failed: {str(e)}"}
 
 def analyze_and_format_results(question, results, count):
@@ -624,14 +641,17 @@ def enhanced_cypher_qa(question):
             print("❌ DEBUG: Graph instance is None")
             return "Database connection not available."
         
-        result = graph.query(cypher_query)
+        with timeit("neo4j.query", {"query_preview": cypher_query[:140]}):
+            result = graph.query(cypher_query)
         print(f"🔍 DEBUG: Query returned {len(result)} results")
+        record_event("cypher.query.results", {"count": len(result)})
         
         formatted_response = analyze_and_format_results(question, result, len(result))
         return formatted_response
         
     except Exception as e:
         print(f"❌ DEBUG: Error in enhanced_cypher_qa: {e}")
+        record_event("cypher.qa.error", {"message": str(e)})
         return "I'm having trouble accessing the data right now. Please try again or rephrase your question."
 
 # Keep the original simple cypher_search for backward compatibility

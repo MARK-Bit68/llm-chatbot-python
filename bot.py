@@ -11,6 +11,8 @@ from solutions.agent import generate_response, reset_agent
 from solutions.graph import get_graph
 from dashboard_component import render_dashboard, generate_dashboard_response
 import os
+from monitoring import enable_monitoring, render_debug_panel, record_event, clear_trace
+from llm import get_openai_model
 
 print("🔍 DEBUG: bot.py starting...")
 
@@ -87,6 +89,27 @@ with st.sidebar:
         st.error("❌ Neo4j Database Not Available")
         st.info("Please check your database connection settings.")
     
+    # Model selection
+    available_models = [
+        "gpt-5-nano",
+        "gpt-4o-mini",
+        "gpt-4o",
+    ]
+    current_model = st.session_state.get("selected_model", get_openai_model())
+    selected = st.selectbox("Model", options=available_models, index=max(0, available_models.index(current_model)) if current_model in available_models else 0)
+    model_changed = selected != st.session_state.get("selected_model")
+    if model_changed:
+        st.session_state["selected_model"] = selected
+        record_event("model.changed", {"model": selected})
+        reset_agent()  # ensure new LLM is used
+        st.toast(f"Model switched to {selected}")
+
+    # Monitoring toggle
+    monitoring_on = st.toggle("Enable monitoring", value=st.session_state.get("monitoring_enabled", False))
+    enable_monitoring(monitoring_on)
+    if st.button("Clear trace"):
+        clear_trace()
+
     # Reset button
     if st.button("🔄 Reset Agent"):
         reset_agent()
@@ -170,6 +193,7 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
     # Display assistant response
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
+        render_debug_panel()
         
         # Check if we have the required infrastructure
         if not st.session_state.neo4j_available:
@@ -179,6 +203,7 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
         else:
             try:
                 print(f"🔍 DEBUG: handle_submit() called with message: {prompt[:50]}...")
+                record_event("user.message", {"text": prompt})
                 
                 # Check if user is requesting a dashboard
                 dashboard_keywords = ['dashboard', 'chart', 'graph', 'visualization', 'report', 'analytics', 'metrics', 'kpi']
@@ -186,9 +211,12 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
                 
                 if is_dashboard_request:
                     print("🔍 DEBUG: Dashboard request detected")
+                    record_event("dashboard.request", {"query": prompt})
                     
                     # Generate dashboard response text
-                    dashboard_text = generate_dashboard_response()
+                    with st.spinner("Generating dashboard..."):
+                        dashboard_text = generate_dashboard_response()
+                    record_event("dashboard.response", {"length": len(dashboard_text)})
                     message_placeholder.markdown(dashboard_text)
                     
                     # Store dashboard state in session
@@ -229,7 +257,9 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
                         print(f"🔍 DEBUG: Query suggestion failed: {e}")
                     
                     print("🔍 DEBUG: Calling generate_response...")
-                    response = generate_response(prompt)
+                    with st.spinner("Thinking..."):
+                        response = generate_response(prompt)
+                    record_event("assistant.response", {"length": len(response)})
                     print(f"🔍 DEBUG: generate_response returned: {response[:100]}...")
                     
                     # Display the response
@@ -243,6 +273,7 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
                 error_msg = f"❌ Error processing your request: {str(e)}"
                 message_placeholder.error(error_msg)
                 print(f"❌ DEBUG: Error in chat: {e}")
+            record_event("error", {"message": str(e)})
 
 # Footer
 st.markdown("---")

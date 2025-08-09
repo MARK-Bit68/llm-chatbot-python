@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from monitoring import record_event
 
 def get_openai_key():
     """Get OpenAI API key from environment variables only"""
@@ -12,8 +13,20 @@ def get_openai_key():
     return api_key
 
 def get_openai_model():
-    """Get OpenAI model from environment variables only"""
-    return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+    """Get OpenAI model from environment variables and session overrides.
+
+    Default model is set to 'gpt-5-nano'. A Streamlit session override under
+    key 'selected_model' will take precedence when present.
+    """
+    # Streamlit session override if available
+    default_model = "gpt-5-nano"
+    try:
+        # Avoid import cycles: st is already imported at top
+        if hasattr(st, "session_state") and st.session_state.get("selected_model"):
+            return st.session_state["selected_model"]
+    except Exception:
+        pass
+    return os.getenv("OPENAI_MODEL", default_model)
 
 # Initialize LLM and embeddings as None - will be created when needed
 llm = None
@@ -33,6 +46,7 @@ def get_llm():
                     temperature=0.1  # Low temperature for factual, consistent responses
                 )
                 print("✅ LLM created successfully")
+                record_event("llm.created", {"model": model})
             else:
                 print("⚠️ No OpenAI API key or model available for LLM")
                 llm = None

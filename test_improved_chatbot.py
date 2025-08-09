@@ -2,15 +2,22 @@
 """
 Test the improved chatbot with better SKU prioritization
 """
-import streamlit as st
+import os
+import pytest
 from langchain_neo4j import Neo4jVector
 from llm import embeddings
-from graph import graph
+from graph import get_graph
+
 
 def test_improved_chatbot():
     """Test improved chatbot functionality"""
-    
-    # Create Neo4jVector retriever
+    if not os.getenv("NEO4J_URI") or embeddings is None:
+        pytest.skip("Neo4j or embeddings not configured")
+
+    graph = get_graph()
+    if graph is None:
+        pytest.skip("Neo4j not available")
+
     neo4jvector = Neo4jVector.from_existing_index(
         embeddings,
         graph=graph,
@@ -30,21 +37,11 @@ RETURN
     } AS metadata
 """
     )
-    
+
     retriever = neo4jvector.as_retriever(search_kwargs={"k": 5})
-    
+
     # Test query
     query = "What is the demand plan for SKU001?"
     results = retriever.invoke(query)
-    
-    print(f"Query: {query}")
-    print(f"Found {len(results)} results")
-    
-    for i, doc in enumerate(results):
-        print(f"Result {i+1}:")
-        print(f"  Content: {doc.page_content[:100]}...")
-        print(f"  Metadata: {doc.metadata}")
-        print()
 
-if __name__ == "__main__":
-    test_improved_chatbot() 
+    assert results is not None

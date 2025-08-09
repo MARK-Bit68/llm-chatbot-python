@@ -1,5 +1,6 @@
 import streamlit as st
 from llm import get_llm, get_embeddings
+from monitoring import record_event, timeit
 from solutions.graph import get_graph
 
 # tag::import_vector[]
@@ -33,6 +34,7 @@ def get_neo4j_vector():
             print("🔍 DEBUG: Getting embeddings...")
             embeddings_instance = get_embeddings()
             print(f"🔍 DEBUG: Embeddings created: {embeddings_instance is not None}")
+            record_event("embeddings.ready", {"available": embeddings_instance is not None})
             
             if not embeddings_instance:
                 print("⚠️ DEBUG: Embeddings not available")
@@ -41,6 +43,7 @@ def get_neo4j_vector():
             print("🔍 DEBUG: Getting graph instance...")
             graph_instance = get_graph()
             print(f"🔍 DEBUG: Graph instance created: {graph_instance is not None}")
+            record_event("graph.ready", {"available": graph_instance is not None})
             
             print("🔍 DEBUG: Creating Neo4jVector...")
             # Try to get existing index, create if it doesn't exist
@@ -65,9 +68,11 @@ RETURN
 """
                 )
                 print("🔍 DEBUG: Using existing vector index")
+                record_event("vector.index.ready", {"status": "existing"})
             except ValueError as e:
                 if "does not exist" in str(e):
                     print("⚠️ DEBUG: Vector index does not exist, creating new one...")
+                    record_event("vector.index.missing", {})
                     # Create new index
                     neo4jvector = Neo4jVector.from_texts(
                         texts=["placeholder"],  # Will be replaced by actual data
@@ -90,14 +95,17 @@ RETURN
 """
                     )
                     print("🔍 DEBUG: Created new vector index")
+                    record_event("vector.index.created", {})
                 else:
                     raise e
             print("🔍 DEBUG: Neo4jVector created successfully")
+            record_event("vector.index.created_or_loaded", {})
             
             # Create retriever and chain
             print("🔍 DEBUG: Creating retriever...")
             retriever = neo4jvector.as_retriever() if neo4jvector else None
             print(f"🔍 DEBUG: Retriever created: {retriever is not None}")
+            record_event("vector.retriever.ready", {"available": retriever is not None})
             
             # tag::prompt[]
             print("🔍 DEBUG: Creating prompt...")
@@ -122,6 +130,7 @@ RETURN
             print("🔍 DEBUG: Creating question_answer_chain...")
             question_answer_chain = create_stuff_documents_chain(get_llm(), prompt)
             print("🔍 DEBUG: question_answer_chain created successfully")
+            record_event("vector.qa_chain.ready", {})
             
             print("🔍 DEBUG: Creating plot_retriever...")
             plot_retriever = create_retrieval_chain(
@@ -129,6 +138,7 @@ RETURN
                 question_answer_chain
             ) if retriever else None
             print(f"🔍 DEBUG: plot_retriever created: {plot_retriever is not None}")
+            record_event("vector.plot_retriever.ready", {"available": plot_retriever is not None})
             # end::chain[]
             
         except ValueError as e:
@@ -149,6 +159,7 @@ RETURN
 # tag::get_sku_data[]
 def get_sku_data(input):
     print(f"🔍 DEBUG: get_sku_data() called with input: {input[:50]}...")
+    record_event("vector.search.start", {"preview": input[:120]})
     
     # Ensure vector index is created
     print("🔍 DEBUG: Ensuring vector index is created...")
@@ -164,10 +175,13 @@ def get_sku_data(input):
     
     try:
         print("🔍 DEBUG: Invoking plot_retriever...")
-        result = plot_retriever.invoke({"input": input})
+        with timeit("vector.retrieve"):
+            result = plot_retriever.invoke({"input": input})
         print("🔍 DEBUG: plot_retriever invoked successfully")
+        record_event("vector.search.success", {})
         return result
     except Exception as e:
         print(f"❌ DEBUG: Error accessing vector index: {e}")
+        record_event("vector.search.error", {"message": str(e)})
         return "I'm having trouble finding relevant information right now. Please try rephrasing your question."
 # end::get_sku_data[]
