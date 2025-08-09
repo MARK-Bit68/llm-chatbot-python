@@ -5,30 +5,56 @@ from typing import Any, Dict, List, Optional
 
 import streamlit as st
 
+# Fallback storage when Streamlit session_state is unavailable
+_fallback_enabled = False
+_fallback_trace = []
+
 
 def _ensure_trace_initialized() -> None:
-    if "monitoring_enabled" not in st.session_state:
-        st.session_state.monitoring_enabled = False
-    if "trace" not in st.session_state:
-        st.session_state.trace = []  # type: ignore[var-annotated]
+    global _fallback_enabled, _fallback_trace
+    try:
+        # Accessing session_state can raise if not in a Streamlit context
+        if "monitoring_enabled" not in st.session_state:
+            st.session_state.monitoring_enabled = False
+        if "trace" not in st.session_state:
+            st.session_state.trace = []  # type: ignore[var-annotated]
+    except Exception:
+        # Use module-level fallback to avoid crashing in non-Streamlit contexts
+        if _fallback_trace is None:
+            _fallback_trace = []
 
 
 def enable_monitoring(enable: bool) -> None:
     _ensure_trace_initialized()
-    st.session_state.monitoring_enabled = enable
+    try:
+        st.session_state.monitoring_enabled = enable
+    except Exception:
+        global _fallback_enabled
+        _fallback_enabled = enable
 
 
 def record_event(event_type: str, details: Optional[Dict[str, Any]] = None) -> None:
     _ensure_trace_initialized()
-    if not st.session_state.monitoring_enabled:
-        return
-    event = {
-        "id": str(uuid.uuid4()),
-        "ts": time.time(),
-        "type": event_type,
-        "details": details or {},
-    }
-    st.session_state.trace.append(event)
+    try:
+        if not st.session_state.monitoring_enabled:
+            return
+        event = {
+            "id": str(uuid.uuid4()),
+            "ts": time.time(),
+            "type": event_type,
+            "details": details or {},
+        }
+        st.session_state.trace.append(event)
+    except Exception:
+        # Fallback mode (non-Streamlit)
+        if not _fallback_enabled:
+            return
+        _fallback_trace.append({
+            "id": str(uuid.uuid4()),
+            "ts": time.time(),
+            "type": event_type,
+            "details": details or {},
+        })
 
 
 @contextmanager
@@ -44,19 +70,29 @@ def timeit(label: str, extra: Optional[Dict[str, Any]] = None):
 
 def get_trace() -> List[Dict[str, Any]]:
     _ensure_trace_initialized()
-    # Return a shallow copy to avoid external mutation
-    return list(st.session_state.trace)
+    try:
+        return list(st.session_state.trace)
+    except Exception:
+        return list(_fallback_trace)
 
 
 def clear_trace() -> None:
     _ensure_trace_initialized()
-    st.session_state.trace = []
+    try:
+        st.session_state.trace = []
+    except Exception:
+        global _fallback_trace
+        _fallback_trace = []
 
 
 def render_debug_panel() -> None:
     """Render a collapsible debug panel with the current trace."""
     _ensure_trace_initialized()
-    if not st.session_state.monitoring_enabled:
+    try:
+        if not st.session_state.monitoring_enabled:
+            return
+    except Exception:
+        # Outside Streamlit: nothing to render
         return
     with st.expander("🛠️ Debug Trace", expanded=False):
         trace = get_trace()

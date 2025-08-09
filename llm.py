@@ -26,7 +26,13 @@ def get_openai_model():
             return st.session_state["selected_model"]
     except Exception:
         pass
-    return os.getenv("OPENAI_MODEL", default_model)
+    env_model = os.getenv("OPENAI_MODEL", default_model)
+    # Fallback if env/model invalid at runtime
+    fallback_order = [env_model, default_model, "gpt-4o-mini", "gpt-4o"]
+    for m in fallback_order:
+        if m:
+            return m
+    return default_model
 
 # Initialize LLM and embeddings as None - will be created when needed
 llm = None
