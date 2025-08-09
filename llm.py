@@ -46,11 +46,25 @@ def get_llm():
             api_key = get_openai_key()
             model = get_openai_model()
             if api_key and model:
-                llm = ChatOpenAI(
-                    openai_api_key=api_key,
-                    model=model,
-                    temperature=0.1  # Low temperature for factual, consistent responses
-                )
+                try:
+                    # Preferred: low temperature for factual consistency
+                    llm = ChatOpenAI(
+                        openai_api_key=api_key,
+                        model=model,
+                        temperature=0.1,
+                    )
+                except Exception as e:
+                    # Some models (e.g., lightweight variants) only allow default temperature (1)
+                    if "temperature" in str(e).lower():
+                        print("⚠️ Model does not support custom temperature; retrying with default (1)")
+                        record_event("llm.temperature_unsupported", {"model": model})
+                        llm = ChatOpenAI(
+                            openai_api_key=api_key,
+                            model=model,
+                            # omit temperature to use provider default
+                        )
+                    else:
+                        raise
                 print("✅ LLM created successfully")
                 record_event("llm.created", {"model": model})
             else:
