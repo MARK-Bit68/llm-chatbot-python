@@ -273,7 +273,7 @@ if prompt := st.chat_input("Ask about your FMCG supply chain data..."):
                 error_msg = f"❌ Error processing your request: {str(e)}"
                 message_placeholder.error(error_msg)
                 print(f"❌ DEBUG: Error in chat: {e}")
-            record_event("error", {"message": str(e)})
+                record_event("error", {"message": str(e)})
 
 # Footer
 st.markdown("---")
