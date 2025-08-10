@@ -91,9 +91,10 @@ with st.sidebar:
     
     # Model selection
     available_models = [
-        "gpt-5-nano",
+        "gpt-4.1-nano",
         "gpt-4o-mini",
         "gpt-4o",
+        "gpt-5-nano",
     ]
     current_model = st.session_state.get("selected_model", get_openai_model())
     selected = st.selectbox("Model", options=available_models, index=max(0, available_models.index(current_model)) if current_model in available_models else 0)

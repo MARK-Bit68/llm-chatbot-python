@@ -19,7 +19,7 @@ def get_openai_model():
     key 'selected_model' will take precedence when present.
     """
     # Streamlit session override if available
-    default_model = "gpt-5-nano"
+    default_model = "gpt-4.1-nano"
     try:
         # Avoid import cycles: st is already imported at top
         if hasattr(st, "session_state") and st.session_state.get("selected_model"):
@@ -28,7 +28,7 @@ def get_openai_model():
         pass
     env_model = os.getenv("OPENAI_MODEL", default_model)
     # Fallback if env/model invalid at runtime
-    fallback_order = [env_model, default_model, "gpt-4o-mini", "gpt-4o"]
+    fallback_order = [env_model, default_model, "gpt-4o-mini", "gpt-4o", "gpt-5-nano"]
     for m in fallback_order:
         if m:
             return m
@@ -37,36 +37,33 @@ def get_openai_model():
 # Initialize LLM and embeddings as None - will be created when needed
 llm = None
 embeddings = None
+current_model_name = None
+
+def reset_llm():
+    global llm
+    llm = None
+
 
 def get_llm():
     """Get LLM, creating it if needed"""
-    global llm
+    global llm, current_model_name
+    desired_model = get_openai_model()
+    # Recreate LLM if model changed
+    if llm is not None and current_model_name != desired_model:
+        llm = None
     if llm is None:
         try:
             api_key = get_openai_key()
-            model = get_openai_model()
+            model = desired_model
             if api_key and model:
-                try:
-                    # Preferred: low temperature for factual consistency
-                    llm = ChatOpenAI(
-                        openai_api_key=api_key,
-                        model=model,
-                        temperature=0.1,
-                    )
-                except Exception as e:
-                    # Some models (e.g., lightweight variants) only allow default temperature (1)
-                    if "temperature" in str(e).lower():
-                        print("⚠️ Model does not support custom temperature; retrying with default (1)")
-                        record_event("llm.temperature_unsupported", {"model": model})
-                        llm = ChatOpenAI(
-                            openai_api_key=api_key,
-                            model=model,
-                            # omit temperature to use provider default
-                        )
-                    else:
-                        raise
+                # Omit temperature to maximize compatibility across models
+                llm = ChatOpenAI(
+                    openai_api_key=api_key,
+                    model=model,
+                )
                 print("✅ LLM created successfully")
                 record_event("llm.created", {"model": model})
+                current_model_name = model
             else:
                 print("⚠️ No OpenAI API key or model available for LLM")
                 llm = None
