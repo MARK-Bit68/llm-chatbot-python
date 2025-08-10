@@ -56,11 +56,35 @@ def get_llm():
             api_key = get_openai_key()
             model = desired_model
             if api_key and model:
-                # Omit temperature to maximize compatibility across models
-                llm = ChatOpenAI(
-                    openai_api_key=api_key,
-                    model=model,
-                )
+                # Prefer low temperature and ample output tokens for models that allow it
+                created = False
+                last_err = None
+                # Attempt with low temperature and larger output tokens first
+                for attempt in (
+                    {"temperature": 0.2, "max_tokens": 2048},
+                    {"temperature": 0.2},
+                    {"max_tokens": 2048},
+                    {},
+                ):
+                    try:
+                        llm = ChatOpenAI(
+                            openai_api_key=api_key,
+                            model=model,
+                            **attempt,
+                        )
+                        created = True
+                        # Emit signal if we had to drop params
+                        if attempt.get("temperature") is None:
+                            record_event("llm.temperature_omitted", {"model": model})
+                        if attempt.get("max_tokens") is None and "max_tokens" in attempt:
+                            record_event("llm.max_tokens_omitted", {"model": model})
+                        break
+                    except Exception as e:
+                        last_err = e
+                        # Retry with a simpler parameter set
+                        continue
+                if not created:
+                    raise last_err or RuntimeError("Failed to create LLM")
                 print("✅ LLM created successfully")
                 record_event("llm.created", {"model": model})
                 current_model_name = model
