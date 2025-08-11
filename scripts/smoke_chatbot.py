@@ -18,13 +18,52 @@ import re
 import sys
 from typing import List, Tuple
 
+# Ensure project root is on sys.path when running from scripts/
+import pathlib
+ROOT = str(pathlib.Path(__file__).resolve().parents[1])
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+
 
 def load_secrets_if_any() -> bool:
+    """Load secrets from .streamlit/secrets.toml into environment.
+
+    This function is intentionally forgiving because the secrets file in this
+    repo may not be strict TOML. We attempt, in order:
+      1) Use evaluate_quality._load_secrets_into_env if available
+      2) Fallback to a simple key=value parser for .streamlit/secrets.toml
+    """
+    # If already set, we're done
+    if os.getenv("OPENAI_API_KEY") and os.getenv("NEO4J_URI"):
+        return True
+
+    # First attempt: helper (handles TOML and forgiving parsing)
     try:
         from evaluate_quality import _load_secrets_into_env
         _load_secrets_into_env()
     except Exception:
         pass
+
+    # If still missing, parse as key=value lines (non-strict TOML)
+    if not (os.getenv("OPENAI_API_KEY") and os.getenv("NEO4J_URI")):
+        try:
+            import pathlib
+            p = pathlib.Path('.streamlit/secrets.toml')
+            if p.exists():
+                with p.open('r', encoding='utf-8') as f:
+                    for line in f:
+                        s = line.strip()
+                        if not s or s.startswith('#') or '=' not in s:
+                            continue
+                        key, value = s.split('=', 1)
+                        key = key.strip()
+                        value = value.strip().strip('"').strip("'")
+                        if key and value and not os.getenv(key):
+                            os.environ[key] = value
+        except Exception:
+            # Best-effort only; the test will skip if still missing
+            pass
+
     # Minimal required secrets to run end-to-end
     return bool(os.getenv("OPENAI_API_KEY") and os.getenv("NEO4J_URI"))
 

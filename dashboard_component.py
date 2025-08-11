@@ -157,6 +157,23 @@ def get_dashboard_data():
                                 except:
                                     pass
             
+            # Normalize month keys to use underscores consistently and coerce to numeric
+            def _normalize_month_dict(month_dict):
+                if not isinstance(month_dict, dict):
+                    return {}
+                normalized = {}
+                for mk, mv in month_dict.items():
+                    key_str = str(mk).replace('-', '_').lower()
+                    try:
+                        normalized[key_str] = float(mv) if mv not in [None, "", "Unknown"] else 0.0
+                    except (ValueError, TypeError):
+                        normalized[key_str] = 0.0
+                return normalized
+
+            demand_data = _normalize_month_dict(demand_data)
+            supply_data = _normalize_month_dict(supply_data)
+            inventory_data = _normalize_month_dict(inventory_data)
+
             sku_data.append({
                 'sku_id': sku_id,
                 'name': name,
@@ -703,7 +720,7 @@ I'm fetching your real FMCG S&OP data from the Neo4j graph database to generate 
     
     try:
         # Get real data with user feedback
-        monthly_df, category_summary, financial_summary = get_dashboard_data()
+        monthly_df, category_summary, financial_summary, _ = get_dashboard_data()
         
         if monthly_df is None or monthly_df.empty:
             return """
