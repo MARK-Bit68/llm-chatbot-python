@@ -113,49 +113,45 @@ def get_dashboard_data():
             except Exception as e:
                 print(f"Warning: Could not parse dedicated data for {sku_id}: {e}")
             
-            # If no data found in dedicated fields, try to extract from plot data
-            if not demand_data and not supply_data and not inventory_data:
-                plot_data = row.get('plot_data', '')
-                if plot_data:
-                    # Parse the plot data format: "jan_2024: 724 | Supply Plan: 664 | Inventory Plan: 911"
-                    for line in plot_data.split(' | '):
-                        if ':' in line:
-                            key, value = line.split(':', 1)
-                            key = key.strip()
-                            value = value.strip()
-                            
-                            # Check if this is a monthly data point
-                            if any(month in key for month in ['jan_', 'feb_', 'mar_', 'apr_', 'may_', 'jun_', 'jul_', 'aug_', 'sep_', 'oct_', 'nov_', 'dec_']):
-                                # This is demand data (direct monthly key)
-                                try:
-                                    demand_data[key] = float(value)
-                                except:
-                                    pass
-                            elif key == 'Supply Plan':
-                                # This is supply data - we need to find the corresponding month
-                                try:
-                                    # Find the month from the previous demand entry
-                                    if demand_data:
-                                        last_month = list(demand_data.keys())[-1]
-                                        supply_data[last_month] = float(value)
-                                except:
-                                    pass
-                            elif key == 'Inventory Plan':
-                                # This is inventory data - we need to find the corresponding month
-                                try:
-                                    # Find the month from the previous demand entry
-                                    if demand_data:
-                                        last_month = list(demand_data.keys())[-1]
-                                        inventory_data[last_month] = float(value)
-                                except:
-                                    pass
-                            
-                            # Extract financial data
-                            elif key in ['total_volume', 'total_revenue', 'total_cogs', 'gross_profit', 'gross_margin', 'unit_price', 'unit_cost']:
-                                try:
-                                    data_dict[key] = float(value)
-                                except:
-                                    pass
+            # Extract from plot data when needed
+            plot_data = row.get('plot_data', '')
+            if plot_data:
+                # Parse the plot data format: "jan_2024: 724 | Supply Plan: 664 | Inventory Plan: 911 | total_revenue: 123.45"
+                for line in plot_data.split(' | '):
+                    if ':' not in line:
+                        continue
+                    key, value = line.split(':', 1)
+                    key = key.strip()
+                    value = value.strip()
+
+                    # Monthly demand entries present as jan_2024, feb_2024 etc.; only add if dicts are empty (dedicated nodes preferred)
+                    if not demand_data and any(m in key for m in ['jan_', 'feb_', 'mar_', 'apr_', 'may_', 'jun_', 'jul_', 'aug_', 'sep_', 'oct_', 'nov_', 'dec_']):
+                        try:
+                            demand_data[key] = float(value)
+                        except Exception:
+                            pass
+                    elif key == 'Supply Plan' and not supply_data:
+                        try:
+                            if demand_data:
+                                last_month = list(demand_data.keys())[-1]
+                                supply_data[last_month] = float(value)
+                        except Exception:
+                            pass
+                    elif key == 'Inventory Plan' and not inventory_data:
+                        try:
+                            if demand_data:
+                                last_month = list(demand_data.keys())[-1]
+                                inventory_data[last_month] = float(value)
+                        except Exception:
+                            pass
+
+                    # ALWAYS extract financial metrics regardless of monthly data source
+                    if key in ['total_volume', 'total_revenue', 'total_cogs', 'gross_profit', 'gross_margin', 'unit_price', 'unit_cost']:
+                        try:
+                            data_dict[key] = float(value)
+                        except Exception:
+                            # Leave as-is only if already parsed elsewhere
+                            data_dict.setdefault(key, 0.0)
             
             # Normalize month keys to use underscores consistently and coerce to numeric
             def _normalize_month_dict(month_dict):
