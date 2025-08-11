@@ -14,6 +14,57 @@ def execute_query(query: str, params: dict | None = None):
     with timeit("neo4j.query", {"query_preview": query[:140]}):
         return graph.query(query, params or {})
 
+def extract_analytical_intent(question: str) -> dict:
+    """Map analytical English questions to supported analytical intents.
+
+    Returns dict with keys: intent and optional parameters.
+    This uses the LLM but constrains to a small set we can handle with our schema.
+    """
+    try:
+        llm = get_llm()
+        prompt = f"""
+Return STRICT JSON selecting the best analytical intent for this question.
+Allowed intents:
+  - EXCESS_INVENTORY_FOR_PROMOTIONS
+  - REGIONAL_DEMAND_VARIATIONS
+  - MANUFACTURING_CONSTRAINTS_PROXY      // threshold optional (default 25 days)
+  - LEAD_TIME_PLANNING_DATA
+  - SKUS_TO_TRIM_PROXY                   // sort by low gross_profit then low revenue
+  - CUSTOMER_ORDER_PRIORITIZATION        // requires order/customer schema (unsupported)
+  - PRIORITIZE_LIMITED_SUPPLY_ACROSS_ORDERS  // unsupported
+  - PLANT_UTILIZATION                    // unsupported
+  - AVAILABLE_CAPACITY                   // unsupported
+  - EXCEED_PRODUCTION_CAPACITY           // unsupported
+  - CUSTOMER_PRIORITIZATION_MATRIX       // unsupported
+  - CUSTOMER_RELATIONSHIP_IMPACT         // unsupported
+  - REGIONAL_SERVICE_LEVELS              // unsupported
+  - INVENTORY_BALANCING_LOCATIONS        // unsupported
+
+Question: "{question}"
+
+Rules:
+- Choose the single best intent name.
+- If the question is clearly about orders, customers, plants, or capacity, pick the matching unsupported intent.
+- If the question is about promotions/excess inventory, pick EXCESS_INVENTORY_FOR_PROMOTIONS.
+- If about demand differences across countries/regions, pick REGIONAL_DEMAND_VARIATIONS.
+- If about long lead times or constraints, pick MANUFACTURING_CONSTRAINTS_PROXY.
+- If about which SKUs to cut/trim, pick SKUS_TO_TRIM_PROXY.
+"""
+        res = llm.invoke(prompt)
+        txt = res.content if hasattr(res, 'content') else str(res)
+        s = txt.find('{'); e = txt.rfind('}')
+        if s != -1 and e != -1 and e > s:
+            import json as _json
+            try:
+                data = _json.loads(txt[s:e+1])
+                if isinstance(data, dict) and data.get('intent'):
+                    return data
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return {"intent": "UNKNOWN"}
+
 def extract_structured_data_intent(question: str) -> dict:
     """Use LLM to extract a structured data intent and parameters.
 
@@ -552,8 +603,83 @@ def generate_dynamic_cypher_query(question, available_data=None):
         return q
     
     elif query_classification == "ANALYTICAL":
-        print(f"🔍 DEBUG: Analytical query detected, falling back to LLM")
-        record_event("cypher.query.analytical", {"note": "handled by LLM"})
+        # Try to map analytical intents to concrete, data-backed queries
+        print(f"🔍 DEBUG: Analytical query detected; mapping to analytical intent")
+        record_event("cypher.query.analytical", {"note": "attempt_mapping"})
+
+        ai = extract_analytical_intent(question)
+        intent = (ai.get("intent") or "").upper()
+
+        # Intents we can answer directly from SKU.plot fields
+        if intent == "EXCESS_INVENTORY_FOR_PROMOTIONS":
+            return (
+                "MATCH (s:SKU) "
+                "WITH s, "
+                "toFloat(split(split(s.plot, 'initial_inventory: ')[1], ' | ')[0]) AS inv, "
+                "toFloat(split(split(s.plot, 'safety_stock: ')[1], ' | ')[0]) AS ss, "
+                "toFloat(split(split(s.plot, 'unit_price: ')[1], ' | ')[0]) AS price, "
+                "toFloat(split(split(s.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv "
+                "WITH s, inv, ss, price, fv, (inv - ss) AS excess "
+                "WHERE inv IS NOT NULL AND ss IS NOT NULL AND excess > 0 "
+                "RETURN s.sku_id AS sku_id, s.name AS name, excess, inv, ss, price, fv "
+                "ORDER BY excess DESC LIMIT 20"
+            )
+        if intent == "REGIONAL_DEMAND_VARIATIONS":
+            return (
+                "MATCH (s:SKU) "
+                "WITH split(split(s.plot, 'country: ')[1], ' | ')[0] AS country, "
+                "toFloat(split(split(s.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv "
+                "RETURN country, sum(fv) AS total_volume ORDER BY total_volume DESC"
+            )
+        if intent == "MANUFACTURING_CONSTRAINTS_PROXY":
+            threshold = float(ai.get("threshold", 25))
+            return (
+                "MATCH (s:SKU) "
+                "WITH s, toFloat(split(split(s.plot, 'lead_time_days: ')[1], ' | ')[0]) AS lt, "
+                "toFloat(split(split(s.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv "
+                f"WHERE lt IS NOT NULL AND lt > {threshold} "
+                "RETURN s.sku_id AS sku_id, s.name AS name, lt AS lead_time_days, fv AS forecasted_volume "
+                "ORDER BY lead_time_days DESC, forecasted_volume DESC LIMIT 20"
+            )
+        if intent == "LEAD_TIME_PLANNING_DATA":
+            return (
+                "MATCH (s:SKU) "
+                "WITH split(split(s.plot, 'category: ')[1], ' | ')[0] AS category, "
+                "toFloat(split(split(s.plot, 'lead_time_days: ')[1], ' | ')[0]) AS lt "
+                "RETURN category, avg(lt) AS avg_lead_time, max(lt) AS max_lead_time, min(lt) AS min_lead_time "
+                "ORDER BY avg_lead_time DESC"
+            )
+        if intent == "SKUS_TO_TRIM_PROXY":
+            return (
+                "MATCH (s:SKU) "
+                "WITH s, toFloat(split(split(s.plot, 'gross_profit: ')[1], ' | ')[0]) AS gp, "
+                "toFloat(split(split(s.plot, 'total_revenue: ')[1], ' | ')[0]) AS rev "
+                "WITH s, coalesce(gp,0) AS gp, coalesce(rev,0) AS rev "
+                "RETURN s.sku_id AS sku_id, s.name AS name, gp AS gross_profit, rev AS revenue "
+                "ORDER BY gp ASC, revenue ASC LIMIT 20"
+            )
+
+        # Intents that require data not in the graph schema -> explicit message
+        unsupported = {
+            "CUSTOMER_ORDER_PRIORITIZATION",
+            "PRIORITIZE_LIMITED_SUPPLY_ACROSS_ORDERS",
+            "PLANT_UTILIZATION",
+            "AVAILABLE_CAPACITY",
+            "EXCEED_PRODUCTION_CAPACITY",
+            "CUSTOMER_PRIORITIZATION_MATRIX",
+            "CUSTOMER_RELATIONSHIP_IMPACT",
+            "REGIONAL_SERVICE_LEVELS",
+            "INVENTORY_BALANCING_LOCATIONS",
+        }
+        if intent in unsupported:
+            return (
+                "MESSAGE:This analysis requires order/customer/plant/capacity entities which are not present in the current graph. "
+                "I can provide grounded proxies using SKU-level fields (lead_time_days, safety_stock, initial_inventory, forecasted_volume). "
+                "Ask for 'Show me safety stock and reorder analysis', 'Which SKUs have manufacturing constraints?', or 'Analyze regional demand variations'."
+            )
+
+        # If we could not map, fall back to generic LLM handling for now
+        print("🔍 DEBUG: Analytical mapping unknown; falling back to LLM")
         return None
     
     else:
