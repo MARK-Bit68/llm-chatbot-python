@@ -107,7 +107,7 @@ CRITICAL RULES FOR TOOL USAGE:
 6. NEVER loop or repeat the same action multiple times
 7. If a tool fails, try a different approach or provide a helpful response
 8. For supply chain analysis, manufacturing constraints, customer prioritization, regional analysis, promotional impact, or SKU-specific queries, ALWAYS use the Enhanced Database Query tool
-9. For general data requests like "show me all SKUs" or "list products", use the Enhanced Database Query tool
+ 9. For general data requests like "show me all SKUs", "list products", or "list categories", you MUST use the Enhanced Database Query tool (do NOT use the Entity Information Search)
 10. For analytical queries like "capacity constraints", "customer prioritization", "regional demand", "promotional impact", use the Enhanced Database Query tool
 
 S&OP ANALYSIS REQUIREMENTS:
@@ -293,6 +293,110 @@ def generate_response(user_input):
 
     # ROBUST OUTER EDGE ERROR HANDLING SYSTEM WITH SUPERVISOR
     try:
+        # Pre-dispatch for known general-data intents to enforce Cypher tool and avoid vector loops
+        try:
+            from solutions.tools.cypher import (
+                classify_data_query_intent,
+                enhanced_cypher_qa,
+                build_sku_field_query,
+                execute_query,
+                classify_query_with_llm,
+                extract_structured_data_intent,
+            )
+            intent = classify_data_query_intent(user_input)
+            if intent in {"ALL_SKUS_LIST", "DISTINCT_CATEGORIES", "EXCESS_INVENTORY_LIST", "NEGATIVE_GROSS_PROFIT_LIST", "TOP_REVENUE_SKU"}:
+                with timeit("predispatch.cypher", {"intent": intent}):
+                    out = enhanced_cypher_qa(user_input)
+                record_event("predispatch.handled", {"intent": intent})
+                return out
+            # Route structured aggregate intents directly to Cypher
+            try:
+                sd = extract_structured_data_intent(user_input)
+                agg_intents = {
+                    "DISTINCT_CATEGORIES_COUNT",
+                    "TOTAL_SKUS_IN_CATEGORY",
+                    "COUNT_NEGATIVE_GROSS_PROFIT",
+                    "TOP_GP_PER_UNIT_SKU",
+                    "TOP_REVENUE_SKUS_N",
+                    "AVG_LEAD_TIME_CATEGORY",
+                    "AVG_UNIT_PRICE_CATEGORY",
+                    "COUNTRY_WITH_MOST_SKUS",
+                    "SKUS_WITH_LEAD_TIME_OVER",
+                }
+                if (sd.get("intent") or "").upper() in agg_intents:
+                    with timeit("predispatch.cypher", {"intent": sd.get("intent")}):
+                        out = enhanced_cypher_qa(user_input)
+                    record_event("predispatch.handled", {"intent": sd.get("intent")})
+                    return out
+            except Exception:
+                pass
+            # Data-first routing for LLM-classified DATA queries: attempt Cypher path before agent
+            try:
+                qclass_for_data = classify_query_with_llm(user_input)
+                if qclass_for_data in {"DATA_QUERY", "ALL_SKUS", "SKU_SPECIFIC"}:
+                    with timeit("predispatch.cypher", {"intent": qclass_for_data}):
+                        out = enhanced_cypher_qa(user_input)
+                    record_event("predispatch.handled", {"intent": qclass_for_data})
+                    return out
+            except Exception:
+                pass
+            # Route SKU-specific queries directly to Cypher using LLM classification to avoid tool-mixing noise
+            try:
+                qclass = classify_query_with_llm(user_input)
+                if qclass == "SKU_SPECIFIC":
+                    with timeit("predispatch.cypher", {"intent": "SKU_SPECIFIC"}):
+                        out = enhanced_cypher_qa(user_input)
+                    record_event("predispatch.handled", {"intent": "SKU_SPECIFIC"})
+                    return out
+            except Exception:
+                pass
+            # Fast path: specific SKU fields (price/cost/lead time/category/country)
+            import re as _re
+            m = _re.search(r"\b(SKU\d{3,})\b", user_input, _re.IGNORECASE)
+            if m and any(k in user_input.lower() for k in ["unit price", "unit cost", "lead time", "category", "country"]):
+                sku_id = m.group(1)
+                fields = []
+                if "unit price" in user_input.lower():
+                    fields.append("unit_price")
+                if "unit cost" in user_input.lower():
+                    fields.append("unit_cost")
+                if "lead time" in user_input.lower():
+                    fields.append("lead_time_days")
+                if "category" in user_input.lower():
+                    fields.append("category")
+                if "country" in user_input.lower():
+                    fields.append("country")
+                query = build_sku_field_query(sku_id, fields)
+                with timeit("predispatch.execute_query", {"fields": ",".join(fields)}):
+                    rows = execute_query(query)
+                if rows:
+                    row = rows[0]
+                    sid = (row.get("sku_id") or sku_id).upper()
+                    lower_q = user_input.lower()
+                    # Single-field specialized formats
+                    if fields == ["category"] or ("category" in lower_q and len(fields) == 1):
+                        val = row.get("category")
+                        if val is not None:
+                            return f"From database: Category of {sid}: {val}"
+                    if fields == ["country"] or ("country" in lower_q and len(fields) == 1):
+                        val = row.get("country")
+                        if val is not None:
+                            return f"From database: Country of {sid}: {val}"
+                    if fields == ["lead_time_days"] or ("lead time" in lower_q and len(fields) == 1):
+                        val = row.get("lead_time_days")
+                        if val is not None:
+                            return f"From database: Lead time for {sid}: {val} days"
+                    # Multi-field compact line
+                    pieces = []
+                    for k in ["category", "country", "unit_price", "unit_cost", "lead_time_days"]:
+                        if k in row and row[k] is not None:
+                            v = row[k]
+                            pieces.append(f"{k}: {v}")
+                    if pieces:
+                        return f"From database: SKU {sid}: " + ", ".join(pieces)
+        except Exception:
+            pass
+
         # STEP 1: Pre-process the input to detect query type
         query_type = analyze_query_type(user_input)
         print(f"🔍 DEBUG: Detected query type: {query_type}")

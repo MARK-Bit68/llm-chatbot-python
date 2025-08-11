@@ -3,6 +3,7 @@ Chart Generation Tools for Executive Dashboard
 Creates rich visualizations for FMCG supply chain data
 """
 
+import os
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import pandas as pd
@@ -224,6 +225,8 @@ def generate_executive_charts(sku_data):
     """
     Generate all executive charts for a SKU
     """
+    if os.getenv("EVAL_NO_CHARTS") == "1":
+        return {}
     try:
         charts = {}
         

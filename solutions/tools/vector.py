@@ -49,12 +49,12 @@ def get_neo4j_vector():
             # Try to get existing index, create if it doesn't exist
             try:
                 neo4jvector = Neo4jVector.from_existing_index(
-                    embeddings_instance,                      # <1>
-                    graph=graph_instance,                             # <2>
-                    index_name="skuPlots",                   # <3>
-                    node_label="SKU",                        # <4>
-                    text_node_property="plot",               # <5>
-                    embedding_node_property="plotEmbedding", # <6>
+                    embeddings_instance,
+                    graph=graph_instance,
+                    index_name="skuPlots",
+                    node_label="SKU",
+                    text_node_property="plot",
+                    embedding_node_property="plotEmbedding",
                     retrieval_query="""
 RETURN
     node.plot AS text,
@@ -71,31 +71,9 @@ RETURN
                 record_event("vector.index.ready", {"status": "existing"})
             except ValueError as e:
                 if "does not exist" in str(e):
-                    print("⚠️ DEBUG: Vector index does not exist, creating new one...")
+                    print("⚠️ DEBUG: Vector index does not exist")
                     record_event("vector.index.missing", {})
-                    # Create new index
-                    neo4jvector = Neo4jVector.from_texts(
-                        texts=["placeholder"],  # Will be replaced by actual data
-                        embedding=embeddings_instance,
-                        graph=graph_instance,
-                        index_name="skuPlots",
-                        node_label="SKU",
-                        text_node_property="plot",
-                        embedding_node_property="plotEmbedding",
-                        retrieval_query="""
-RETURN
-    node.plot AS text,
-    score,
-    {
-        title: node.name,
-        sku_id: node.sku_id,
-        tmdbId: node.sku_id,
-        data_type: node.data_type
-    } AS metadata
-"""
-                    )
-                    print("🔍 DEBUG: Created new vector index")
-                    record_event("vector.index.created", {})
+                    return None
                 else:
                     raise e
             print("🔍 DEBUG: Neo4jVector created successfully")

@@ -1,0 +1,27 @@
+[
+  {"question": "Tell me about SKU001", "ground_truth_source": {"type": "sku_plot", "sku_id": "SKU001"}},
+  {"question": "What is the category of SKU001?", "ground_truth_source": {"type": "sku_field", "sku_id": "SKU001", "field": "category"}},
+  {"question": "What country is SKU001 from?", "ground_truth_source": {"type": "sku_field", "sku_id": "SKU001", "field": "country"}},
+  {"question": "Provide the unit price and unit cost for SKU001", "ground_truth_source": {"type": "sku_fields", "sku_id": "SKU001", "fields": ["unit_price", "unit_cost"]}},
+
+  {"question": "Which SKUs have excess inventory that we can promote next month?", "ground_truth_source": {"type": "excess_inventory_skus"}},
+  {"question": "Which SKUs have negative gross profit?", "ground_truth_source": {"type": "negative_gross_profit_skus"}},
+  {"question": "Which SKU has the highest total revenue?", "ground_truth_source": {"type": "top_revenue_sku"}},
+  {"question": "List the distinct product categories", "ground_truth_source": {"type": "distinct_categories"}},
+  {"question": "What is the lead time in days for SKU002?", "ground_truth_source": {"type": "sku_fields", "sku_id": "SKU002", "fields": ["lead_time_days"]}},
+  {"question": "Show me all SKUs", "ground_truth_source": {"type": "all_skus_count"}},
+
+  {"question": "What is the average lead time for the Nuts category?", "ground_truth_source": {"type": "avg_lead_time_category", "category": "Nuts"}},
+  {"question": "Which category has the highest average lead time?", "ground_truth_source": {"type": "category_highest_avg_lead_time"}},
+  {"question": "Give me the top 3 SKUs by total revenue", "ground_truth_source": {"type": "top_revenue_skus_n", "n": 3}},
+  {"question": "What is the average unit price for the Spices category?", "ground_truth_source": {"type": "avg_unit_price_category", "category": "Spices"}},
+  {"question": "Which country has the most SKUs?", "ground_truth_source": {"type": "country_with_most_skus"}},
+  {"question": "How many SKUs are in the Grains category?", "ground_truth_source": {"type": "total_skus_in_category", "category": "Grains"}},
+  {"question": "How many SKUs have negative gross profit?", "ground_truth_source": {"type": "count_negative_gross_profit"}},
+  {"question": "Which SKU has the highest gross profit per unit?", "ground_truth_source": {"type": "top_gp_per_unit_sku"}},
+  {"question": "Within the Nuts category, which SKU has the highest total revenue?", "ground_truth_source": {"type": "top_revenue_sku_in_category", "category": "Nuts"}},
+  {"question": "List up to 5 SKUs with lead time over 25 days", "ground_truth_source": {"type": "skus_with_lead_time_over", "threshold": 25, "n": 5}},
+  {"question": "Which categories contain at least one SKU with negative gross profit?", "ground_truth_source": {"type": "categories_with_negative_gp"}},
+  {"question": "How many distinct categories are there?", "ground_truth_source": {"type": "distinct_categories_count"}}
+]
+
