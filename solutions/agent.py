@@ -293,6 +293,21 @@ def generate_response(user_input):
 
     # ROBUST OUTER EDGE ERROR HANDLING SYSTEM WITH SUPERVISOR
     try:
+        # CANNED QUERY PRE-DISPATCH: Check for left nav questions first
+        try:
+            from solutions.tools.canned_queries import match_canned_query, execute_canned_query
+            canned_match = match_canned_query(user_input)
+            if canned_match:
+                query_key, canned_query, params = canned_match
+                print(f"🔍 DEBUG: Using canned query for: {query_key}")
+                record_event("canned_query.matched", {"query_key": query_key})
+                with timeit("canned_query.execution", {"query_key": query_key}):
+                    response = execute_canned_query(canned_query, params)
+                return response
+        except Exception as e:
+            print(f"🔍 DEBUG: Canned query pre-dispatch failed: {e}")
+            # Continue to fallback methods
+        
         # Pre-dispatch for known general-data intents to enforce Cypher tool and avoid vector loops
         try:
             from solutions.tools.cypher import (

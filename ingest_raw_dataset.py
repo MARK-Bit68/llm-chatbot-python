@@ -30,7 +30,7 @@ from __future__ import annotations
 import os
 import json
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import pandas as pd
 
@@ -82,7 +82,7 @@ def _excel_sheet(df_or_xl: pd.ExcelFile | str, name: str) -> pd.DataFrame:
     return pd.read_excel(xl, sheet_name=name)
 
 
-def read_nodes(excel_path: str | None = None) -> pd.DataFrame:
+def read_nodes(excel_path: Optional[str] = None) -> pd.DataFrame:
     csv_path = _csv(os.path.join("Nodes", "Nodes.csv"))
     if os.path.exists(csv_path):
         return pd.read_csv(csv_path)
@@ -91,7 +91,7 @@ def read_nodes(excel_path: str | None = None) -> pd.DataFrame:
     return _excel_sheet(excel_path, "Raw - Nodes")
 
 
-def read_node_types(excel_path: str | None = None) -> pd.DataFrame:
+def read_node_types(excel_path: Optional[str] = None) -> pd.DataFrame:
     csv_path = _csv(os.path.join("Nodes", "Node Types (Product Group and Subgroup).csv"))
     if os.path.exists(csv_path):
         return pd.read_csv(csv_path)
@@ -99,7 +99,7 @@ def read_node_types(excel_path: str | None = None) -> pd.DataFrame:
     return _excel_sheet(excel_path, "Raw - Node Types")
 
 
-def read_edges_product_group(excel_path: str | None = None) -> pd.DataFrame:
+def read_edges_product_group(excel_path: Optional[str] = None) -> pd.DataFrame:
     csv_path = _csv(os.path.join("Edges", "Edges (Product Group).csv"))
     if os.path.exists(csv_path):
         return pd.read_csv(csv_path)
@@ -107,7 +107,7 @@ def read_edges_product_group(excel_path: str | None = None) -> pd.DataFrame:
     return _excel_sheet(excel_path, "Raw - Edges Group")
 
 
-def read_edges_product_subgroup(excel_path: str | None = None) -> pd.DataFrame:
+def read_edges_product_subgroup(excel_path: Optional[str] = None) -> pd.DataFrame:
     csv_path = _csv(os.path.join("Edges", "Edges (Product Sub-Group).csv"))
     if os.path.exists(csv_path):
         return pd.read_csv(csv_path)
@@ -115,7 +115,7 @@ def read_edges_product_subgroup(excel_path: str | None = None) -> pd.DataFrame:
     return _excel_sheet(excel_path, "Raw - Edges SubGroup")
 
 
-def read_edges_plant(excel_path: str | None = None) -> pd.DataFrame:
+def read_edges_plant(excel_path: Optional[str] = None) -> pd.DataFrame:
     csv_path = _csv(os.path.join("Edges", "Edges (Plant).csv"))
     if os.path.exists(csv_path):
         return pd.read_csv(csv_path)
@@ -123,7 +123,7 @@ def read_edges_plant(excel_path: str | None = None) -> pd.DataFrame:
     return _excel_sheet(excel_path, "Raw - Edges Plant")
 
 
-def read_edges_storage_location(excel_path: str | None = None) -> pd.DataFrame:
+def read_edges_storage_location(excel_path: Optional[str] = None) -> pd.DataFrame:
     csv_path = _csv(os.path.join("Edges", "Edges (Storage Location).csv"))
     if os.path.exists(csv_path):
         return pd.read_csv(csv_path)
@@ -132,7 +132,7 @@ def read_edges_storage_location(excel_path: str | None = None) -> pd.DataFrame:
     return _excel_sheet(excel_path, "Raw - Edges Storage")
 
 
-def _read_temporal(process: str, measure: str, excel_path: str | None = None) -> pd.DataFrame | None:
+def _read_temporal(process: str, measure: str, excel_path: Optional[str] = None) -> Optional[pd.DataFrame]:
     """Read a temporal dataframe for given process/measure from CSV if present, else from Excel."""
     # CSV location first
     csv_rel = None
@@ -170,7 +170,7 @@ def _read_temporal(process: str, measure: str, excel_path: str | None = None) ->
     return pd.read_excel(xl, sheet_name=name)
 
 
-def _read_temporal_tables(excel_path: str | None = None) -> List[Tuple[str, str, pd.DataFrame]]:
+def _read_temporal_tables(excel_path: Optional[str] = None) -> List[Tuple[str, str, pd.DataFrame]]:
     """Return list of (process, measure, df), trying CSV first then Excel 'Raw - ' sheets."""
     combos = [(p, m) for p in ("DeliveryToDistributor", "FactoryIssue", "Production", "SalesOrder") for m in ("Unit", "Weight")]
     out: List[Tuple[str, str, pd.DataFrame]] = []
@@ -356,7 +356,7 @@ def ingest_storage_edges_and_membership(graph, df: pd.DataFrame) -> None:
         graph.query(q_pair, {"rows": rows})
 
 
-def ingest_temporal_series(graph, excel_path: str | None = None) -> None:
+def ingest_temporal_series(graph, excel_path: Optional[str] = None) -> None:
     q = """
     UNWIND $rows AS row
     MATCH (p:Product {code: row.code})
@@ -403,7 +403,7 @@ def ingest_temporal_series(graph, excel_path: str | None = None) -> None:
         graph.query(q, {"rows": rows})
 
 
-def ingest_all(excel_path: str | None = None, prefer_excel: bool = False) -> Dict[str, int]:
+def ingest_all(excel_path: Optional[str] = None, prefer_excel: bool = False) -> Dict[str, int]:
     graph = get_graph()
     create_indexes(graph)
 

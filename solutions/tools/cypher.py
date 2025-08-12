@@ -1,12 +1,13 @@
 import streamlit as st
 import os
+from typing import Dict, List, Optional, Any
 from llm import get_llm
 from monitoring import record_event, timeit
 from solutions.graph import get_graph
 from langchain_core.prompts import ChatPromptTemplate
 import re
 
-def execute_query(query: str, params: dict | None = None):
+def execute_query(query: str, params: Optional[Dict[str, Any]] = None):
     """Execute a raw Cypher query and return results list."""
     graph = get_graph()
     if graph is None:
@@ -127,7 +128,7 @@ Rules:
         pass
     return {"intent": "UNKNOWN"}
 
-def refine_structured_intent(question: str, sd: dict, coarse_intent: str | None = None) -> dict:
+def refine_structured_intent(question: str, sd: dict, coarse_intent: Optional[str] = None) -> dict:
     """Use LLM to reconcile/repair the structured intent when ambiguous.
 
     Inputs include the original question, initial structured parse, and a coarse class intent.
@@ -270,7 +271,7 @@ def resolve_structured_intent(question: str) -> dict:
     except Exception:
         return {"intent": "UNKNOWN"}
 
-def _extract_sku_id_from_row(row: dict) -> str | None:
+def _extract_sku_id_from_row(row: dict) -> Optional[str]:
     """Best-effort SKU id extraction from a Neo4j row dict."""
     if not isinstance(row, dict):
         return None
@@ -287,7 +288,7 @@ def _extract_sku_id_from_row(row: dict) -> str | None:
                 return m.group(0).upper()
     return None
 
-def _infer_category_from_question(question: str) -> str | None:
+def _infer_category_from_question(question: str) -> Optional[str]:
     q = (question or "").lower()
     import re as _re
     m = _re.search(r"for the ([a-zA-Z\s]+) category", q)

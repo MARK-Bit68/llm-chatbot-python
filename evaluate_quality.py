@@ -18,14 +18,14 @@ import json
 import os
 import sys
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from llm import get_llm
 from monitoring import enable_monitoring, clear_trace, get_trace
 from solutions.graph import get_graph
 
 
-def load_cases(path: str | None) -> List[Dict[str, Any]]:
+def load_cases(path: Optional[str]) -> List[Dict[str, Any]]:
     if not path:
         # Default minimal set; expand in your repo-specific dataset as needed
         return [
@@ -76,7 +76,7 @@ def _load_secrets_into_env() -> None:
             os.environ[k] = str(v)
 
 
-def _extract_plot_field(plot: str, key: str) -> str | None:
+def _extract_plot_field(plot: str, key: str) -> Optional[str]:
     try:
         # plot format: "category: X | country: Y | unit_price: 10.9 | ..."
         token = key + ": "
