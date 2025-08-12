@@ -116,6 +116,63 @@ def run_cases() -> Tuple[int, int, List[Tuple[str, bool, str]]]:
     return passed, len(cases), results
 
 
+def run_dashboard_sanity() -> Tuple[bool, str]:
+    """Lightweight dashboard checks without streamlit runtime.
+
+    - Ensures secrets are loaded and DB reachable
+    - Validates monthly_df shape and demand coverage
+    - Accepts partial supply/inventory/financials but flags if both supply and inventory are zero
+    - Confirms response generator returns the dashboard header
+    """
+    try:
+        from dashboard_component import get_dashboard_data, generate_dashboard_response
+    except Exception as e:
+        return False, f"import failed: {e}"
+
+    monthly_df, category_summary, financial_summary, sku_df = get_dashboard_data()
+    if monthly_df is None or monthly_df.empty:
+        return False, "monthly_df empty"
+    # Demand must exist
+    try:
+        if float(monthly_df['demand'].sum()) <= 0:
+            return False, "no demand data"
+    except Exception:
+        return False, "demand column missing"
+
+    # At least one of supply/inventory should be present at non-zero
+    supply_ok = False
+    inventory_ok = False
+    try:
+        supply_ok = float(monthly_df.get('supply', 0).sum()) > 0
+    except Exception:
+        pass
+    try:
+        inventory_ok = float(monthly_df.get('inventory', 0).sum()) > 0
+    except Exception:
+        pass
+    if not (supply_ok or inventory_ok):
+        return False, "no supply or inventory coverage"
+
+    # Minimum months coverage (>= 12 months)
+    try:
+        if len(set(monthly_df['month'].unique())) < 12:
+            return False, "insufficient month coverage"
+    except Exception:
+        return False, "month column missing"
+
+    # Response generator should produce the dashboard heading and not hard error
+    try:
+        text = generate_dashboard_response()
+        if "FMCG S&OP Dashboard" not in text:
+            return False, "response missing dashboard heading"
+        if "Analysis Encountered Issues" in text:
+            return False, "response indicates analysis issues"
+    except Exception as e:
+        return False, f"response generation failed: {e}"
+
+    return True, "ok"
+
+
 def main() -> int:
     # Skip cleanly if secrets unavailable (do not block commits)
     if not load_secrets_if_any():
@@ -123,6 +180,12 @@ def main() -> int:
         return 0
 
     passed, total, results = run_cases()
+    # Dashboard sanity (does not require streamlit run)
+    d_ok, d_msg = run_dashboard_sanity()
+    total += 1
+    if d_ok:
+        passed += 1
+    results.append(("Dashboard sanity", d_ok, d_msg))
     print({"passed": passed, "total": total})
     for q, ok, msg in results:
         status = "OK" if ok else "FAIL"

@@ -625,11 +625,18 @@ def generate_dynamic_cypher_query(question, available_data=None):
                 "ORDER BY excess DESC LIMIT 20"
             )
         if intent == "REGIONAL_DEMAND_VARIATIONS":
+            # Use forecasted_volume if present; otherwise approximate by counting SKUs per country
             return (
-                "MATCH (s:SKU) "
-                "WITH split(split(s.plot, 'country: ')[1], ' | ')[0] AS country, "
-                "toFloat(split(split(s.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv "
-                "RETURN country, sum(fv) AS total_volume ORDER BY total_volume DESC"
+                "CALL { "
+                "  WITH 1 as x "
+                "  MATCH (s:SKU) "
+                "  WITH split(split(s.plot, 'country: ')[1], ' | ')[0] AS country, "
+                "       toFloat(split(split(s.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv "
+                "  WHERE country IS NOT NULL "
+                "  RETURN country, sum(fv) AS total_volume, count(*) AS c "
+                "} "
+                "RETURN country, (CASE WHEN total_volume IS NULL OR total_volume = 0 THEN c*1.0 ELSE total_volume END) AS total_volume "
+                "ORDER BY total_volume DESC"
             )
         if intent == "MANUFACTURING_CONSTRAINTS_PROXY":
             threshold = float(ai.get("threshold", 25))
@@ -982,7 +989,33 @@ def analyze_and_format_results(question, results, count):
     # Check if this is a non-SKU query (like country, category, etc.)
     if results and isinstance(results[0], dict):
         first_row = results[0]
-        # If the query doesn't return SKU fields, handle it specially
+        # Regional demand variations: country + total volume → render ranked table
+        if 'country' in first_row and any(k in first_row for k in ('total_volume', 'total', 'sum')):
+            # Normalize keys
+            rows = []
+            for r in results:
+                if not isinstance(r, dict):
+                    continue
+                country = r.get('country')
+                total = r.get('total_volume')
+                if total is None:
+                    total = r.get('total') if r.get('total') is not None else r.get('sum')
+                try:
+                    total = float(total or 0)
+                except Exception:
+                    total = 0.0
+                if country is not None:
+                    rows.append((country, total))
+            rows.sort(key=lambda x: x[1], reverse=True)
+            grand = sum(v for _, v in rows) or 1.0
+            lines = ["# 📊 Regional Demand by Country\n",
+                     "| Country | Forecasted Volume | Share |\n",
+                     "|---------|--------------------|-------|\n"]
+            for country, total in rows:
+                share = total / grand * 100.0
+                lines.append(f"| {country} | {total:,.0f} | {share:.1f}% |\n")
+            return "".join(lines)
+        # If the query doesn't return SKU fields and doesn't match a richer formatter, use simple list
         if 'sku.sku_id' not in first_row and 'sku_id' not in first_row:
             return generate_simple_list_response(question, results)
 
