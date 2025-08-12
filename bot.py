@@ -117,48 +117,27 @@ with st.sidebar:
         st.success("Agent reset successfully!")
         st.rerun()  # Force a complete page reload to clear all caches
     
-    # Example queries
+    # Example queries (verified basics + robust analytical intents we support today)
     st.header("💡 Example Queries")
     st.markdown("""
-    Try these example queries:
+    These prompts are verified by our sanity tests and grounded analytical intents:
     
-    **S&OP Supply Chain Analysis:**
-    - "Which customer orders can be delayed without hurting key relationships?"
-    - "How should we prioritize limited supply across orders?"
-    - "Which SKUs can we trim to fit within capacity limits?"
-    - "What is the promotional impact on production capacity?"
+    **Verified data-backed basics:**
+    - "List the distinct product categories"
+    - "What is the category of SKU001?"
+    - "Tell me about SKU001"
+    - "Which SKU has the highest gross profit per unit?"
+    - "How many distinct categories are there?"
+    - "Which country has the most SKUs?"
+    
+    **Analytical intents (SKU-level proxies):**
     - "Show me excess inventory for promotions"
     - "Analyze regional demand variations"
-    
-    **Manufacturing & Capacity:**
     - "Which SKUs have manufacturing constraints?"
-    - "Show me plants with high utilization rates"
-    - "What is our available manufacturing capacity?"
-    - "Which SKUs exceed production capacity?"
-    
-    **Customer & Regional Analysis:**
-    - "Show me customer prioritization matrix"
-    - "Which regions have highest demand growth?"
-    - "Analyze customer relationship impact"
-    - "Show me regional service level requirements"
-    
-    **Inventory & Planning:**
-    - "Show me safety stock and reorder analysis"
-    - "Which SKUs have excess inventory?"
-    - "Analyze inventory balancing across locations"
     - "Show me lead time planning data"
+    - "Which SKUs can we trim to fit within capacity limits?"
     
-    **Dashboard & Analytics:**
-    - "Show me a dashboard"
-    - "Generate a report"
-    - "Create charts and graphs"
-    - "Display analytics"
-    - "Show me KPIs"
-    
-    **SKU Information:**
-    - "Tell me about SKU001"
-    - "What SKUs are in the Master Data?"
-    - "Show me all SKUs"
+    Note: Customer orders, plant utilization, and capacity across plants require extending the graph schema and are not listed here yet.
     """)
 
 # Main chat interface
