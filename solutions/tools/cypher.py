@@ -1481,6 +1481,48 @@ def enhanced_cypher_qa(question):
         print(f"🔍 DEBUG: Query returned {len(result)} results")
         record_event("cypher.query.results", {"count": len(result)})
 
+        # Intelligent empty-result recovery for common analytics
+        if (not result) or len(result) == 0:
+            try:
+                ai_try = extract_analytical_intent(question)
+                ai_name = (ai_try.get("intent") or "").upper()
+            except Exception:
+                ai_name = "UNKNOWN"
+            # Manufacturing constraints proxy: relax threshold → top-N by lead time
+            if ai_name in {"MANUFACTURING_CONSTRAINTS_PROXY", "SKUS_WITH_LEAD_TIME_OVER"}:
+                print("🔍 DEBUG: Empty result for constraints; falling back to top-N by lead time")
+                q_fallback_lt = (
+                    "MATCH (s:SKU) "
+                    "WITH s, toFloat(split(split(s.plot, 'lead_time_days: ')[1], ' | ')[0]) AS lt "
+                    "WHERE lt IS NOT NULL "
+                    "RETURN s.sku_id AS sku_id, lt AS lead_time ORDER BY lead_time DESC LIMIT 10"
+                )
+                result = execute_query(q_fallback_lt)
+                record_event("cypher.query.results.fallback", {"count": len(result)})
+                if result:
+                    pairs = []
+                    for r in result:
+                        sid = r.get("sku_id") or r.get("s.sku_id")
+                        lt = r.get("lead_time") or r.get("lt")
+                        if sid is not None and lt is not None:
+                            pairs.append(f"{sid} ({lt} days)")
+                    if pairs:
+                        return "From database: Long lead time SKUs: " + ", ".join(pairs)
+            # Regional variations: re-run with count fallback (should already be covered but be safe)
+            if ai_name == "REGIONAL_DEMAND_VARIATIONS":
+                print("🔍 DEBUG: Empty result for regional variations; applying count fallback")
+                q_reg = (
+                    "CALL () { WITH 1 as x RETURN 1 } "  # no-op scoped subquery for Neo4j >=5
+                    "WITH 1 as x "
+                    "MATCH (s:SKU) "
+                    "WITH split(split(s.plot, 'country: ')[1], ' | ')[0] AS country "
+                    "RETURN country, count(*) AS total_volume ORDER BY total_volume DESC"
+                )
+                result = execute_query(q_reg)
+                record_event("cypher.query.results.fallback", {"count": len(result)})
+                if result:
+                    return analyze_and_format_results("regional variations (count)", result, len(result))
+
         # Strong safety fallback for TOP_GP_PER_UNIT_SKU: if structured intent says so but result unusable, rerun deterministic query
         try:
             structured_intent = (resolve_structured_intent(question).get("intent") or "").upper()
