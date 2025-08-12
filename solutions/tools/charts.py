@@ -68,8 +68,19 @@ def create_monthly_demand_chart(sku_data):
     
     # Bottom chart: Inventory Levels
     ax2.bar(dates, inventory_data, alpha=0.7, color='#C73E1D', label='Inventory Plan')
-    ax2.axhline(y=sku_data.get('safety_stock', 0), color='red', linestyle='--', linewidth=2, label='Safety Stock')
-    ax2.axhline(y=sku_data.get('initial_inventory', 0), color='green', linestyle='--', linewidth=2, label='Initial Inventory')
+    # Guard against NaN for horizontal lines
+    ss = sku_data.get('safety_stock', 0) or 0
+    ii = sku_data.get('initial_inventory', 0) or 0
+    try:
+        ss = float(ss)
+    except Exception:
+        ss = 0.0
+    try:
+        ii = float(ii)
+    except Exception:
+        ii = 0.0
+    ax2.axhline(y=ss, color='red', linestyle='--', linewidth=2, label='Safety Stock')
+    ax2.axhline(y=ii, color='green', linestyle='--', linewidth=2, label='Initial Inventory')
     ax2.set_title('Inventory Levels and Safety Stock', fontsize=14, fontweight='bold')
     ax2.set_ylabel('Units', fontsize=12)
     ax2.legend(fontsize=10)
@@ -95,22 +106,31 @@ def create_financial_metrics_chart(sku_data):
     """
     Create a financial performance dashboard chart
     """
-    # Extract financial data
-    unit_price = sku_data.get('unit_price', 0)
-    unit_cost = sku_data.get('unit_cost', 0)
-    revenue = sku_data.get('revenue', 0)
-    cogs = sku_data.get('cogs', 0)
-    gross_profit = sku_data.get('gross_profit', 0)
-    distribution_cost = sku_data.get('distribution_cost', 0)
+    # Extract financial data with robust coercion
+    def _num(val, default=0.0):
+        try:
+            return float(val if val is not None else default)
+        except Exception:
+            return float(default)
+    unit_price = _num(sku_data.get('unit_price', 0))
+    unit_cost = _num(sku_data.get('unit_cost', 0))
+    # Prefer total_revenue/total_cogs if present
+    revenue = _num(sku_data.get('total_revenue', sku_data.get('revenue', 0)))
+    cogs = _num(sku_data.get('total_cogs', sku_data.get('cogs', 0)))
+    gross_profit = _num(sku_data.get('gross_profit', revenue - cogs))
+    distribution_cost = _num(sku_data.get('distribution_cost', 0))
     
     # Create the chart
     fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
     
-    # Top left: Cost Structure Pie Chart
+    # Top left: Cost Structure Pie Chart (skip if all zeros/NaN)
     cost_breakdown = [unit_cost, distribution_cost]
     cost_labels = ['Unit Cost', 'Distribution Cost']
     colors = ['#FF6B6B', '#4ECDC4']
-    ax1.pie(cost_breakdown, labels=cost_labels, autopct='%1.1f%%', colors=colors, startangle=90)
+    if np.isfinite(sum(cost_breakdown)) and sum(cost_breakdown) > 0:
+        ax1.pie(cost_breakdown, labels=cost_labels, autopct='%1.1f%%', colors=colors, startangle=90)
+    else:
+        ax1.text(0.5, 0.5, 'No cost data', ha='center', va='center')
     ax1.set_title('Cost Structure Breakdown', fontsize=12, fontweight='bold')
     
     # Top right: Revenue vs Cost Bar Chart
@@ -124,12 +144,16 @@ def create_financial_metrics_chart(sku_data):
     # Add value labels on bars
     for bar, value in zip(bars, values):
         height = bar.get_height()
-        ax2.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                f'${value:,.0f}', ha='center', va='bottom', fontsize=9)
+        if not np.isfinite(height):
+            continue
+        ax2.text(bar.get_x() + bar.get_width()/2., height + max(1.0, abs(height))*0.01,
+                 f'${(0.0 if not np.isfinite(value) else value):,.0f}', ha='center', va='bottom', fontsize=9)
     
     # Bottom left: Profit Margin Gauge
     margin = ((unit_price - unit_cost) / unit_price * 100) if unit_price > 0 else 0
-    ax3.pie([margin, 100-margin], labels=[f'{margin:.1f}%', ''], colors=['#4ECDC4', '#F7F7F7'], startangle=90)
+    if not np.isfinite(margin):
+        margin = 0.0
+    ax3.pie([margin, max(0.0, 100-margin)], labels=[f'{margin:.1f}%', ''], colors=['#4ECDC4', '#F7F7F7'], startangle=90)
     ax3.set_title('Gross Profit Margin', fontsize=12, fontweight='bold')
     
     # Bottom right: Unit Economics
@@ -143,8 +167,11 @@ def create_financial_metrics_chart(sku_data):
     # Add value labels on bars
     for bar, value in zip(bars, values):
         height = bar.get_height()
-        ax4.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                f'${value:.2f}', ha='center', va='bottom', fontsize=9)
+        if not np.isfinite(height):
+            continue
+        v = 0.0 if not np.isfinite(value) else value
+        ax4.text(bar.get_x() + bar.get_width()/2., height + max(1.0, abs(height))*0.01,
+                 f'${v:.2f}', ha='center', va='bottom', fontsize=9)
     
     plt.tight_layout()
     
@@ -162,16 +189,28 @@ def create_inventory_analysis_chart(sku_data):
     Create inventory analysis and forecasting chart
     """
     # Extract inventory data
-    initial_inventory = sku_data.get('initial_inventory', 0)
-    safety_stock = sku_data.get('safety_stock', 0)
-    forecasted_volume = sku_data.get('forecasted_volume', 0)
-    lead_time_days = sku_data.get('lead_time_days', 0)
+    def _num(val, default=0.0):
+        try:
+            return float(val if val is not None else default)
+        except Exception:
+            return float(default)
+    initial_inventory = _num(sku_data.get('initial_inventory', 0))
+    safety_stock = _num(sku_data.get('safety_stock', 0))
+    forecasted_volume = _num(sku_data.get('forecasted_volume', 0))
+    lead_time_days = _num(sku_data.get('lead_time_days', 0))
     
     # Calculate average monthly demand
     months = ['jan_2024', 'feb_2024', 'mar_2024', 'apr_2024', 'may_2024', 'jun_2024',
               'jul_2024', 'aug_2024', 'sep_2024', 'oct_2024', 'nov_2024', 'dec_2024',
               'jan_2025', 'feb_2025', 'mar_2025', 'apr_2025', 'may_2025', 'jun_2025']
-    avg_monthly_demand = sum(sku_data.get(f'demand_{month}', 0) for month in months) / len(months)
+    avg_monthly_demand = 0.0
+    try:
+        vals = []
+        for month in months:
+            vals.append(_num(sku_data.get(f'demand_{month}', 0)))
+        avg_monthly_demand = sum(vals) / len(vals) if vals else 0.0
+    except Exception:
+        avg_monthly_demand = 0.0
     
     # Create the chart
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
@@ -187,12 +226,16 @@ def create_inventory_analysis_chart(sku_data):
     # Add value labels on bars
     for bar, value in zip(bars, values):
         height = bar.get_height()
-        ax1.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                f'{value:,.0f}', ha='center', va='bottom', fontsize=10)
+        if not np.isfinite(height):
+            continue
+        v = 0.0 if not np.isfinite(value) else value
+        ax1.text(bar.get_x() + bar.get_width()/2., height + max(1.0, abs(height))*0.01,
+                 f'{v:,.0f}', ha='center', va='bottom', fontsize=10)
     
     # Right: Supply Chain Metrics
     metrics = ['Lead Time (Days)', 'Forecasted Volume', 'Safety Stock Ratio']
-    values = [lead_time_days, forecasted_volume/1000, safety_stock/avg_monthly_demand if avg_monthly_demand > 0 else 0]
+    ratio = (safety_stock/avg_monthly_demand) if avg_monthly_demand and avg_monthly_demand > 0 else 0.0
+    values = [lead_time_days, forecasted_volume/1000.0, ratio]
     colors = ['#4ECDC4', '#FF6B6B', '#95E1D3']
     bars = ax2.bar(metrics, values, color=colors, alpha=0.7)
     ax2.set_title('Supply Chain Performance Metrics', fontsize=14, fontweight='bold')
@@ -201,14 +244,17 @@ def create_inventory_analysis_chart(sku_data):
     # Add value labels on bars
     for bar, value in zip(bars, values):
         height = bar.get_height()
+        if not np.isfinite(height):
+            continue
+        label_val = value if np.isfinite(value) else 0.0
         if metrics[list(bars).index(bar)] == 'Forecasted Volume':
-            label = f'{value:.1f}K'
+            label = f'{label_val:.1f}K'
         elif metrics[list(bars).index(bar)] == 'Safety Stock Ratio':
-            label = f'{value:.2f}'
+            label = f'{label_val:.2f}'
         else:
-            label = f'{value:.0f}'
-        ax2.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                label, ha='center', va='bottom', fontsize=10)
+            label = f'{label_val:.0f}'
+        ax2.text(bar.get_x() + bar.get_width()/2., height + max(1.0, abs(height))*0.01,
+                 label, ha='center', va='bottom', fontsize=10)
     
     plt.tight_layout()
     

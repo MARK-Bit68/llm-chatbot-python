@@ -109,6 +109,7 @@ Rules:
  - "Which SKU has the highest gross profit per unit?" -> {"intent":"TOP_GP_PER_UNIT_SKU"}
  - "Give me the top 3 SKUs by total revenue" -> {"intent":"TOP_REVENUE_SKUS_N","n":3}
  - "How many SKUs are in the Grains category?" -> {"intent":"TOTAL_SKUS_IN_CATEGORY","category":"Grains"}
+  - "top skus" or "top products" (metric unspecified) -> {"intent":"TOP_REVENUE_SKUS_N","n":5}
         """
         res = llm.invoke(prompt)
         text = res.content if hasattr(res, 'content') else str(res)
@@ -149,6 +150,7 @@ Guidance:
 - If it asks "how many SKUs in <category>", choose TOTAL_SKUS_IN_CATEGORY with category
 - If it asks for "country with most SKUs", choose COUNTRY_WITH_MOST_SKUS
 - If it asks for top-k by revenue, choose TOP_REVENUE_SKUS_N with n
+- If user says "top skus" or "top products" without metric, default to TOP_REVENUE_SKUS_N with n=5
 
 User question: "{question}"
 Initial structured intent: {sd}
@@ -452,8 +454,12 @@ def generate_dynamic_cypher_query(question, available_data=None):
             except Exception:
                 n = 3
             return (
-                "MATCH (s:SKU) WITH s, toFloat(coalesce(split(split(s.plot, 'total_revenue: ')[1], ' | ')[0], "
-                "split(split(s.plot, 'revenue: ')[1], ' | ')[0])) AS rev "
+                "MATCH (s:SKU) "
+                "WITH s, "
+                "toFloat(coalesce(split(split(s.plot, 'total_revenue: ')[1], ' | ')[0], split(split(s.plot, 'revenue: ')[1], ' | ')[0])) AS rev_raw, "
+                "toFloat(split(split(s.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv, "
+                "toFloat(split(split(s.plot, 'unit_price: ')[1], ' | ')[0]) AS up "
+                "WITH s, coalesce(rev_raw, fv*up) AS rev "
                 f"RETURN s.sku_id AS sku_id, rev AS revenue ORDER BY rev DESC LIMIT {n}"
             )
         if intent == "AVG_LEAD_TIME_CATEGORY":
@@ -550,8 +556,12 @@ def generate_dynamic_cypher_query(question, available_data=None):
             except Exception:
                 n = 3
             return (
-                "MATCH (s:SKU) WITH s, toFloat(coalesce(split(split(s.plot, 'total_revenue: ')[1], ' | ')[0], "
-                "split(split(s.plot, 'revenue: ')[1], ' | ')[0])) AS rev "
+                "MATCH (s:SKU) "
+                "WITH s, "
+                "toFloat(coalesce(split(split(s.plot, 'total_revenue: ')[1], ' | ')[0], split(split(s.plot, 'revenue: ')[1], ' | ')[0])) AS rev_raw, "
+                "toFloat(split(split(s.plot, 'forecasted_volume: ')[1], ' | ')[0]) AS fv, "
+                "toFloat(split(split(s.plot, 'unit_price: ')[1], ' | ')[0]) AS up "
+                "WITH s, coalesce(rev_raw, fv*up) AS rev "
                 f"RETURN s.sku_id AS sku_id, rev AS revenue ORDER BY rev DESC LIMIT {n}"
             )
         if intent == "AVG_LEAD_TIME_CATEGORY":
@@ -1216,10 +1226,15 @@ def generate_executive_multi_sku_response(question, sku_data_list):
     # Filter out corrupted records and use correct field names
     valid_skus = [sku for sku in sku_data_list if sku.get('sku_id') and sku.get('sku_id') != 'None']
     
-    # Summary Statistics
-    total_revenue = sum(float(sku.get('total_revenue', sku.get('revenue', 0)) or 0) for sku in valid_skus)
-    total_profit = sum(float(sku.get('gross_profit', 0) or 0) for sku in valid_skus)
-    total_volume = sum(float(sku.get('forecasted_volume', 0) or 0) for sku in valid_skus)
+    # Summary Statistics with safe coercion
+    def _num(v):
+        try:
+            return float(v or 0)
+        except Exception:
+            return 0.0
+    total_revenue = sum(_num(sku.get('total_revenue', sku.get('revenue', 0))) for sku in valid_skus)
+    total_profit = sum(_num(sku.get('gross_profit', 0)) for sku in valid_skus)
+    total_volume = sum(_num(sku.get('forecasted_volume', 0)) for sku in valid_skus)
     
     response += f"## 📈 Portfolio Overview\n"
     response += f"- **Total Revenue:** ${total_revenue:,.2f}\n"
@@ -1234,9 +1249,9 @@ def generate_executive_multi_sku_response(question, sku_data_list):
         category = sku.get('category', 'Unknown')
         if category not in categories:
             categories[category] = {'revenue': 0, 'profit': 0, 'volume': 0, 'count': 0}
-        categories[category]['revenue'] += float(sku.get('total_revenue', sku.get('revenue', 0)) or 0)
-        categories[category]['profit'] += float(sku.get('gross_profit', 0) or 0)
-        categories[category]['volume'] += float(sku.get('forecasted_volume', 0) or 0)
+        categories[category]['revenue'] += _num(sku.get('total_revenue', sku.get('revenue', 0)))
+        categories[category]['profit'] += _num(sku.get('gross_profit', 0))
+        categories[category]['volume'] += _num(sku.get('forecasted_volume', 0))
         categories[category]['count'] += 1
     
     response += f"## 🏷️ Category Performance\n"
@@ -1251,14 +1266,14 @@ def generate_executive_multi_sku_response(question, sku_data_list):
     
     # Top Performers
     response += f"## 🏆 Top Performers\n"
-    sorted_by_revenue = sorted(valid_skus, key=lambda x: float(x.get('total_revenue', x.get('revenue', 0)) or 0), reverse=True)
+    sorted_by_revenue = sorted(valid_skus, key=lambda x: _num(x.get('total_revenue', x.get('revenue', 0))), reverse=True)
     
     response += "| Rank | SKU | Revenue | Profit | Margin | Category |\n"
     response += "|------|-----|---------|--------|--------|----------|\n"
     
     for i, sku in enumerate(sorted_by_revenue[:5], 1):
-        revenue = float(sku.get('total_revenue', sku.get('revenue', 0)) or 0)
-        profit = float(sku.get('gross_profit', 0) or 0)
+        revenue = _num(sku.get('total_revenue', sku.get('revenue', 0)))
+        profit = _num(sku.get('gross_profit', 0))
         margin = (profit / revenue * 100) if revenue > 0 else 0
         response += f"| {i} | {sku.get('sku_id', 'N/A')} | ${revenue:,.0f} | ${profit:,.0f} | {margin:.1f}% | {sku.get('category', 'N/A')} |\n"
     
