@@ -124,34 +124,73 @@ def get_dashboard_data():
                     key = key.strip()
                     value = value.strip()
 
+                    # Robust numeric parsing (strip $/%/,)
+                    def _parse_num(s):
+                        try:
+                            s2 = str(s).replace(',', '').replace('$', '').replace('%', '').strip()
+                            return float(s2)
+                        except Exception:
+                            return None
+
+                    # Normalize financial key variants from Excel headers (e.g., total_revenue_$, gross_margin_%)
+                    import re as _re
+                    norm = _re.sub(r"[^a-z0-9]+", "_", key.lower()).strip('_')
+                    # Collapse common suffixes
+                    for suff in ("_$", "_usd", "_percent", "_pct", "_%"):
+                        if norm.endswith(suff):
+                            norm = norm[: -len(suff)]
+                    # Map synonyms
+                    aliases = {
+                        'revenue': 'total_revenue',
+                        'total_revenue': 'total_revenue',
+                        'total_revenue_$': 'total_revenue',
+                        'cogs': 'total_cogs',
+                        'total_cogs': 'total_cogs',
+                        'gross_profit': 'gross_profit',
+                        'gross_profit_$': 'gross_profit',
+                        'gross_margin': 'gross_margin',
+                        'gross_margin_%': 'gross_margin',
+                        'unit_price': 'unit_price',
+                        'unit_cost': 'unit_cost',
+                        'total_volume': 'forecasted_volume',
+                        'forecasted_volume': 'forecasted_volume',
+                    }
+
                     # Monthly demand entries present as jan_2024, feb_2024 etc.; only add if dicts are empty (dedicated nodes preferred)
                     if not demand_data and any(m in key for m in ['jan_', 'feb_', 'mar_', 'apr_', 'may_', 'jun_', 'jul_', 'aug_', 'sep_', 'oct_', 'nov_', 'dec_']):
                         try:
-                            demand_data[key] = float(value)
+                            num = _parse_num(value)
+                            if num is not None:
+                                demand_data[key] = num
                         except Exception:
                             pass
                     elif key == 'Supply Plan' and not supply_data:
                         try:
                             if demand_data:
                                 last_month = list(demand_data.keys())[-1]
-                                supply_data[last_month] = float(value)
+                                num = _parse_num(value)
+                                if num is not None:
+                                    supply_data[last_month] = num
                         except Exception:
                             pass
                     elif key == 'Inventory Plan' and not inventory_data:
                         try:
                             if demand_data:
                                 last_month = list(demand_data.keys())[-1]
-                                inventory_data[last_month] = float(value)
+                                num = _parse_num(value)
+                                if num is not None:
+                                    inventory_data[last_month] = num
                         except Exception:
                             pass
 
                     # ALWAYS extract financial metrics regardless of monthly data source
-                    if key in ['total_volume', 'total_revenue', 'total_cogs', 'gross_profit', 'gross_margin', 'unit_price', 'unit_cost']:
-                        try:
-                            data_dict[key] = float(value)
-                        except Exception:
-                            # Leave as-is only if already parsed elsewhere
-                            data_dict.setdefault(key, 0.0)
+                    canonical = aliases.get(norm, norm)
+                    if canonical in ['forecasted_volume', 'total_revenue', 'total_cogs', 'gross_profit', 'gross_margin', 'unit_price', 'unit_cost']:
+                        num = _parse_num(value)
+                        if num is not None:
+                            data_dict[canonical] = num
+                        else:
+                            data_dict.setdefault(canonical, 0.0)
             
             # Normalize month keys to use underscores consistently and coerce to numeric
             def _normalize_month_dict(month_dict):
@@ -169,6 +208,29 @@ def get_dashboard_data():
             demand_data = _normalize_month_dict(demand_data)
             supply_data = _normalize_month_dict(supply_data)
             inventory_data = _normalize_month_dict(inventory_data)
+
+            # Compute fallbacks if core financials missing
+            if 'forecasted_volume' not in data_dict or not data_dict.get('forecasted_volume'):
+                # Sum monthly demand as a proxy
+                try:
+                    data_dict['forecasted_volume'] = sum(float(v or 0) for v in demand_data.values())
+                except Exception:
+                    data_dict['forecasted_volume'] = 0.0
+            if ('total_revenue' not in data_dict or not data_dict.get('total_revenue')) and data_dict.get('unit_price'):
+                try:
+                    data_dict['total_revenue'] = float(data_dict.get('unit_price', 0)) * float(data_dict.get('forecasted_volume', 0))
+                except Exception:
+                    pass
+            if ('total_cogs' not in data_dict or not data_dict.get('total_cogs')) and data_dict.get('unit_cost'):
+                try:
+                    data_dict['total_cogs'] = float(data_dict.get('unit_cost', 0)) * float(data_dict.get('forecasted_volume', 0))
+                except Exception:
+                    pass
+            if ('gross_profit' not in data_dict or not data_dict.get('gross_profit')):
+                try:
+                    data_dict['gross_profit'] = float(data_dict.get('total_revenue', 0)) - float(data_dict.get('total_cogs', 0))
+                except Exception:
+                    pass
 
             sku_data.append({
                 'sku_id': sku_id,
@@ -251,6 +313,11 @@ def get_dashboard_data():
         
         if agg_columns:
             category_summary = df.groupby('category').agg(agg_columns).reset_index()
+            # Create friendly aliases expected by charts
+            if 'total_revenue' in category_summary.columns and 'revenue' not in category_summary.columns:
+                category_summary['revenue'] = category_summary['total_revenue']
+            if 'total_cogs' in category_summary.columns and 'cogs' not in category_summary.columns:
+                category_summary['cogs'] = category_summary['total_cogs']
         else:
             # Create empty summary if no financial columns available
             category_summary = pd.DataFrame({'category': df['category'].unique()})
