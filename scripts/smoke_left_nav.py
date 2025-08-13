@@ -13,6 +13,30 @@ import time
 # Add the current directory to Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+def _load_env_from_secrets():
+    """Load env vars from .streamlit/secrets.toml or streamlit/secret.toml (line-based key=value)."""
+    possible_paths = [
+        os.path.join(".streamlit", "secrets.toml"),
+        os.path.join("streamlit", "secret.toml"),
+    ]
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                with open(path, "r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#') or '=' not in line:
+                            continue
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip().strip("'\"")
+                        if key and value:
+                            os.environ[key] = value
+                break
+        except Exception:
+            # Non-fatal
+            pass
+
 def quick_smoke_test():
     """Run a quick smoke test of left nav questions"""
     
@@ -125,6 +149,8 @@ def test_canned_query_system():
 
 def main():
     """Run smoke tests"""
+    # Load secrets first
+    _load_env_from_secrets()
     
     # Test canned query system
     canned_success = test_canned_query_system()

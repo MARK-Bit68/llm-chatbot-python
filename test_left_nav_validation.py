@@ -19,7 +19,7 @@ def setup_test_environment():
     """Setup the test environment similar to Streamlit"""
     print("🔧 Setting up test environment...")
     
-    # Try to read secrets from .streamlit/secrets.toml
+    # Try to read secrets from .streamlit/secrets.toml or streamlit/secret.toml
     api_key = None
     
     # First try environment variable
@@ -27,31 +27,32 @@ def setup_test_environment():
     if api_key:
         print("✅ OpenAI API key found in environment variables")
     else:
-        # Try reading from secrets.toml
+        # Try reading from secrets-like files (line-based key=value)
         try:
-            secrets_path = os.path.join(".streamlit", "secrets.toml")
-            if os.path.exists(secrets_path):
+            for secrets_path in [os.path.join(".streamlit", "secrets.toml"), os.path.join("streamlit", "secret.toml")]:
+                if not os.path.exists(secrets_path):
+                    continue
                 with open(secrets_path, "r") as f:
-                    content = f.read()
-                    # Parse the key=value format manually and set all environment variables
-                    for line in content.split('\n'):
-                        if line.strip() and '=' in line:
-                            key, value = line.split('=', 1)
-                            key = key.strip()
-                            value = value.strip()
-                            # Set as environment variable for the test
-                            os.environ[key] = value
-                            if key == "OPENAI_API_KEY":
-                                api_key = value
-                                print("✅ OpenAI API key found in secrets.toml")
-                            elif key.startswith("NEO4J_"):
-                                print(f"✅ {key} found in secrets.toml")
-                    if not api_key:
-                        print("❌ OPENAI_API_KEY not found in secrets.toml")
-            else:
-                print("❌ secrets.toml file not found")
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#') or '=' not in line:
+                            continue
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip().strip('\"\'')
+                        os.environ[key] = value
+                        if key == "OPENAI_API_KEY":
+                            api_key = value
+                            print("✅ OpenAI API key found in secrets file")
+                        elif key.startswith("NEO4J_"):
+                            print(f"✅ {key} found in secrets file")
+                # If we loaded at least API key, stop
+                if api_key:
+                    break
+            if not api_key:
+                print("❌ OPENAI_API_KEY not found in secrets files")
         except Exception as e:
-            print(f"❌ Error reading secrets.toml: {e}")
+            print(f"❌ Error reading secrets files: {e}")
     
     if not api_key:
         print("❌ OpenAI API key not found in secrets or environment variables")
