@@ -1,4 +1,5 @@
 import streamlit as st
+from ui_theme import apply_global_theme
 
 # Page Config - MUST be called first
 st.set_page_config(
@@ -6,6 +7,9 @@ st.set_page_config(
     page_icon="📊",
     layout="wide"
 )
+
+# Apply global theme early
+apply_global_theme()
 
 from solutions.agent import generate_response, reset_agent
 from solutions.graph import get_graph

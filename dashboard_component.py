@@ -727,7 +727,11 @@ def render_dashboard():
             yaxis_title="Volume",
             height=400,
             showlegend=True,
-            hovermode='x unified'
+            hovermode='x unified',
+            template="plotly_dark",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#E6E6F0")
         )
         
         st.plotly_chart(fig, use_container_width=True)
@@ -754,7 +758,7 @@ def render_dashboard():
                     names='category',
                     title="Revenue by Category (No Data)"
                 )
-                fig_pie.update_layout(height=300)
+                fig_pie.update_layout(height=300, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#E6E6F0"))
                 st.plotly_chart(fig_pie, use_container_width=True)
             else:
                 fig_pie = px.pie(
@@ -763,7 +767,7 @@ def render_dashboard():
                     names='category',
                     title="Revenue by Category"
                 )
-                fig_pie.update_layout(height=300)
+                fig_pie.update_layout(height=300, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#E6E6F0"))
                 st.plotly_chart(fig_pie, use_container_width=True)
         else:
             st.info("Revenue data not available for pie chart")
@@ -856,7 +860,7 @@ def render_dashboard():
                 barmode='group',
                 color_discrete_map={'demand': '#1f77b4', 'supply': '#ff7f0e'}
             )
-            fig_sku.update_layout(height=400, xaxis_tickangle=-45)
+            fig_sku.update_layout(height=400, xaxis_tickangle=-45, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#E6E6F0"))
             st.plotly_chart(fig_sku, use_container_width=True)
             
             # Add insights about supply gaps
@@ -888,7 +892,7 @@ def render_dashboard():
                 barmode='group',
                 color_discrete_map={'demand': '#1f77b4', 'supply': '#ff7f0e'}
             )
-            fig_country.update_layout(height=400)
+            fig_country.update_layout(height=400, template="plotly_dark", paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font=dict(color="#E6E6F0"))
             st.plotly_chart(fig_country, use_container_width=True)
             
             # Add geographic insights
