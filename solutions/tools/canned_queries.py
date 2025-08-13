@@ -87,10 +87,11 @@ def get_canned_queries() -> Dict[str, CannedQuery]:
         
         "sku_details": CannedQuery(
             question_patterns=[
-                "tell me about",
-                "what is",
-                "show me details for",
-                "give me information about"
+                "tell me about sku",
+                "what is sku",
+                "show me details for sku",
+                "give me information about sku",
+                "sku details"
             ],
             cypher_query="""
             MATCH (sku:SKU {sku_id: $sku_id})
@@ -131,7 +132,6 @@ This SKU generates ${gross_profit:.2f} in gross profit per unit with a {lead_tim
                 "list the distinct product categories",
                 "what categories are there",
                 "show me all categories",
-                "how many categories",
                 "distinct categories"
             ],
             cypher_query="""
@@ -158,7 +158,8 @@ Each category represents a different product line in your FMCG portfolio.
             question_patterns=[
                 "how many distinct categories are there",
                 "count of categories",
-                "number of categories"
+                "number of categories",
+                "total categories"
             ],
             cypher_query="""
             MATCH (sku:SKU)
@@ -205,7 +206,9 @@ Here are the SKUs in your portfolio:
                 "how many skus",
                 "total number of skus",
                 "count of skus",
-                "how many products"
+                "how many products",
+                "sku count",
+                "total skus"
             ],
             cypher_query="""
             MATCH (sku:SKU)
@@ -254,7 +257,10 @@ These SKUs may need pricing adjustments, cost optimization, or discontinuation c
             question_patterns=[
                 "how many skus have negative gross profit",
                 "count negative profit",
-                "number of losing skus"
+                "number of losing skus",
+                "count losing skus",
+                "negative profit count",
+                "negative gross profit count"
             ],
             cypher_query="""
             MATCH (sku:SKU)
@@ -344,7 +350,9 @@ This SKU has the best unit profitability.
             question_patterns=[
                 "which country has the most skus",
                 "country with most products",
-                "highest sku count by country"
+                "highest sku count by country",
+                "most skus by country",
+                "country most skus"
             ],
             cypher_query="""
             MATCH (sku:SKU)
@@ -369,7 +377,10 @@ This represents the largest product portfolio by country in your FMCG operations
             question_patterns=[
                 "how many skus are in the",
                 "sku count in",
-                "number of skus in category"
+                "number of skus in category",
+                "skus in category",
+                "category sku count",
+                "skus in the category"
             ],
             cypher_query="""
             MATCH (sku:SKU)
@@ -384,8 +395,8 @@ This represents the largest product portfolio by country in your FMCG operations
         "avg_lead_time_category": CannedQuery(
             question_patterns=[
                 "what is the average lead time for the",
-                "average lead time",
-                "mean lead time"
+                "average lead time for",
+                "mean lead time for"
             ],
             cypher_query="""
             MATCH (sku:SKU)
@@ -401,8 +412,8 @@ This represents the largest product portfolio by country in your FMCG operations
         "avg_unit_price_category": CannedQuery(
             question_patterns=[
                 "what is the average unit price for the",
-                "average unit price",
-                "mean unit price"
+                "average unit price for",
+                "mean unit price for"
             ],
             cypher_query="""
             MATCH (sku:SKU)
@@ -420,7 +431,8 @@ This represents the largest product portfolio by country in your FMCG operations
             question_patterns=[
                 "give me the top",
                 "top skus by price",
-                "highest price skus"
+                "highest price skus",
+                "top n skus"
             ],
             cypher_query="""
             MATCH (sku:SKU)
@@ -478,7 +490,7 @@ These SKUs may require special planning and inventory management.
         "category_highest_avg_lead_time": CannedQuery(
             question_patterns=[
                 "which category has the highest average lead time",
-                "highest average lead time",
+                "highest average lead time category",
                 "longest lead time category"
             ],
             cypher_query="""
@@ -572,7 +584,6 @@ These SKUs are candidates for promotional activities to reduce excess inventory.
             question_patterns=[
                 "which skus have manufacturing constraints",
                 "manufacturing constraints",
-                "long lead times",
                 "supply constraints"
             ],
             cypher_query="""
