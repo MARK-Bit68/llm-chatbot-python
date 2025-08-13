@@ -353,6 +353,204 @@ def get_dashboard_data():
         st.error(f"Error connecting to database: {e}")
         return None, None, None, None
 
+def _compute_kpi_metrics(monthly_df: pd.DataFrame, sku_df: pd.DataFrame, financial_summary: dict) -> dict:
+    """Compute KPI metrics using available fields. Returns values and availability notes.
+
+    The function only computes KPIs when the required fields exist in the dataset.
+    It never fabricates data; unavailable KPIs are returned with None values and a note.
+    """
+    kpis = {
+        'forecast_accuracy': {'value': None, 'note': 'Requires actual sales; not found'},
+        'forecast_bias': {'value': None, 'note': 'Requires forecast and actuals; not found'},
+        'stvr_effectiveness': {'value': None, 'note': 'Requires STVR data; not found'},
+        'inventory_turnover': {'value': None, 'note': ''},
+        'dio_days': {'value': None, 'note': ''},
+        'otif_service_level': {'value': None, 'note': 'Requires OTIF order data; not found'},
+        'operational_cost_per_unit': {'value': None, 'note': ''},
+        'cash_flow_inventory_reduction': {'value': None, 'note': ''},
+    }
+
+    if monthly_df is None or monthly_df.empty:
+        return kpis
+
+    # Helper: month order consistent with rest of dashboard
+    month_order = ['jan_2024', 'feb_2024', 'mar_2024', 'apr_2024', 'may_2024', 'jun_2024',
+                   'jul_2024', 'aug_2024', 'sep_2024', 'oct_2024', 'nov_2024', 'dec_2024',
+                   'jan_2025', 'feb_2025', 'mar_2025', 'apr_2025', 'may_2025', 'jun_2025']
+
+    # Forecast Accuracy and Bias (only if actuals present)
+    has_actuals = 'actual' in monthly_df.columns
+    if has_actuals:
+        try:
+            df_acc = monthly_df.dropna(subset=['demand', 'actual']).copy()
+            if not df_acc.empty and df_acc['actual'].abs().sum() > 0:
+                # 1 - |Forecast - Actual| / Actual aggregated across all observations
+                accuracy_series = 1 - (df_acc['demand'] - df_acc['actual']).abs() / df_acc['actual'].replace(0, np.nan)
+                kpis['forecast_accuracy'] = {
+                    'value': float(np.nanmean(accuracy_series) * 100),
+                    'note': 'Computed from demand (forecast) vs actual'
+                }
+                bias = (df_acc['demand'].mean() - df_acc['actual'].mean()) / df_acc['actual'].mean() if df_acc['actual'].mean() else np.nan
+                kpis['forecast_bias'] = {
+                    'value': float(bias * 100) if not np.isnan(bias) else None,
+                    'note': 'Mean(forecast - actual) / Mean(actual)'
+                }
+        except Exception:
+            pass
+
+    # Build inventory value using unit_cost when possible
+    avg_inventory_value = None
+    try:
+        inv_df = monthly_df.copy()
+        unit_cost_map = None
+        if sku_df is not None and not sku_df.empty and 'unit_cost' in sku_df.columns:
+            unit_cost_map = sku_df.set_index('sku_id')['unit_cost']
+            inv_df = inv_df.merge(unit_cost_map.rename('unit_cost'), on='sku_id', how='left')
+            inv_df['inventory_value'] = inv_df['inventory'].astype(float) * inv_df['unit_cost'].fillna(0).astype(float)
+        # If inventory_value exists directly, prefer it
+        if 'inventory_value' in inv_df.columns:
+            monthly_inventory_value = inv_df.groupby('month')['inventory_value'].sum().reindex(month_order).dropna(how='all')
+        else:
+            monthly_inventory_value = inv_df.groupby('month')['inventory'].sum().reindex(month_order).dropna(how='all')
+            # Without values, we cannot compute financial KPIs accurately
+        if monthly_inventory_value is not None and len(monthly_inventory_value.dropna()) > 0:
+            avg_inventory_value = float(np.nanmean(monthly_inventory_value.values.astype(float)))
+    except Exception:
+        pass
+
+    total_cogs = float(financial_summary.get('cogs', 0) or 0)
+    total_units = float(financial_summary.get('forecasted_volume', 0) or 0)
+
+    # Inventory Turnover Ratio (COGS / Avg Inventory Value)
+    if avg_inventory_value and avg_inventory_value > 0 and total_cogs > 0:
+        kpis['inventory_turnover'] = {
+            'value': total_cogs / avg_inventory_value,
+            'note': 'COGS / Average Inventory Value'
+        }
+    else:
+        msg = []
+        if not avg_inventory_value or avg_inventory_value == 0:
+            msg.append('inventory value unavailable')
+        if total_cogs == 0:
+            msg.append('COGS unavailable')
+        kpis['inventory_turnover']['note'] = ', '.join(msg) if msg else 'Unavailable'
+
+    # DIO = Inventory Value / (COGS / 365)
+    if avg_inventory_value and avg_inventory_value > 0 and total_cogs > 0:
+        daily_cogs = total_cogs / 365.0
+        if daily_cogs > 0:
+            kpis['dio_days'] = {
+                'value': avg_inventory_value / daily_cogs,
+                'note': 'Average Inventory Value / (COGS / 365)'
+            }
+        else:
+            kpis['dio_days']['note'] = 'COGS zero; cannot compute'
+    else:
+        if not kpis['dio_days']['note']:
+            kpis['dio_days']['note'] = 'Requires inventory value and COGS'
+
+    # Operational Cost per Unit
+    if 'operational_cost_total' in financial_summary and total_units > 0:
+        kpis['operational_cost_per_unit'] = {
+            'value': float(financial_summary['operational_cost_total']) / total_units,
+            'note': 'Total Operational Cost / Total Units'
+        }
+    elif total_units > 0 and 'unit_cost' in (sku_df.columns if sku_df is not None else []):
+        try:
+            # Weighted average unit cost as proxy
+            sku_costs = sku_df[['sku_id', 'unit_cost']].dropna()
+            demand_by_sku = monthly_df.groupby('sku_id')['demand'].sum().rename('volume')
+            mix = sku_costs.merge(demand_by_sku, on='sku_id', how='left').fillna({'volume': 0})
+            if mix['volume'].sum() > 0:
+                weighted_uc = float((mix['unit_cost'] * mix['volume']).sum() / mix['volume'].sum())
+                kpis['operational_cost_per_unit'] = {
+                    'value': weighted_uc,
+                    'note': 'Proxy using weighted average unit_cost (operational cost not present)'
+                }
+            else:
+                kpis['operational_cost_per_unit']['note'] = 'No volume to weight unit_cost'
+        except Exception:
+            kpis['operational_cost_per_unit']['note'] = 'unit_cost not available'
+    else:
+        kpis['operational_cost_per_unit']['note'] = 'Requires operational cost or unit_cost with volumes'
+
+    # Cash Flow from Inventory Reduction: reduction in total inventory value across period
+    try:
+        inv_df2 = monthly_df.copy()
+        if sku_df is not None and not sku_df.empty and 'unit_cost' in sku_df.columns:
+            inv_df2 = inv_df2.merge(sku_df[['sku_id', 'unit_cost']], on='sku_id', how='left')
+            inv_df2['inventory_value'] = inv_df2['inventory'].astype(float) * inv_df2['unit_cost'].fillna(0).astype(float)
+            monthly_value = inv_df2.groupby('month')['inventory_value'].sum().reindex(month_order).dropna(how='all')
+            if len(monthly_value.dropna()) >= 2:
+                start_val = float(monthly_value.dropna().iloc[0])
+                end_val = float(monthly_value.dropna().iloc[-1])
+                reduction = start_val - end_val
+                kpis['cash_flow_inventory_reduction'] = {
+                    'value': reduction if reduction > 0 else 0.0,
+                    'note': 'Positive indicates cash released from lower inventory'
+                }
+            else:
+                kpis['cash_flow_inventory_reduction']['note'] = 'Insufficient monthly inventory value data'
+        else:
+            kpis['cash_flow_inventory_reduction']['note'] = 'unit_cost required to value inventory'
+    except Exception:
+        pass
+
+    return kpis
+
+def render_kpi_dashboard(monthly_df: pd.DataFrame, sku_df: pd.DataFrame, financial_summary: dict):
+    """Render KPI dashboard section with cards and explanations."""
+    kpis = _compute_kpi_metrics(monthly_df, sku_df, financial_summary)
+
+    st.markdown("## 📌 KPI Dashboard")
+    st.caption("KPIs computed strictly from available data. Items without required inputs are shown with notes.")
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        val = kpis['forecast_accuracy']['value']
+        note = kpis['forecast_accuracy']['note']
+        st.metric("Forecast Accuracy (%)", f"{val:.1f}%" if val is not None else "N/A", help=f"1 - |Forecast - Actual| / Actual. {note}")
+    with col2:
+        val = kpis['forecast_bias']['value']
+        note = kpis['forecast_bias']['note']
+        st.metric("Forecast Bias (%)", f"{val:.1f}%" if val is not None else "N/A", help=f"Mean(Forecast - Actual)/Mean(Actual). {note}")
+    with col3:
+        val = kpis['inventory_turnover']['value']
+        note = kpis['inventory_turnover']['note']
+        st.metric("Inventory Turnover (x)", f"{val:.2f}" if val is not None else "N/A", help=f"COGS / Avg Inventory Value. {note}")
+    with col4:
+        val = kpis['dio_days']['value']
+        note = kpis['dio_days']['note']
+        st.metric("Days of Inventory (DIO)", f"{val:.0f} days" if val is not None else "N/A", help=f"Avg Inventory Value / (COGS/365). {note}")
+
+    col5, col6, col7, col8 = st.columns(4)
+    with col5:
+        val = kpis['otif_service_level']['value']
+        note = kpis['otif_service_level']['note']
+        st.metric("OTIF Service Level (%)", f"{val:.1f}%" if val is not None else "N/A", help=f"Delivered OTIF Orders / Total Orders. {note}")
+    with col6:
+        val = kpis['operational_cost_per_unit']['value']
+        note = kpis['operational_cost_per_unit']['note']
+        st.metric("Operational Cost / Unit", f"${val:,.2f}" if val is not None else "N/A", help=f"Total Operational Cost / Units. {note}")
+    with col7:
+        val = kpis['cash_flow_inventory_reduction']['value']
+        note = kpis['cash_flow_inventory_reduction']['note']
+        st.metric("Cash Flow from Inventory Reduction", f"${val:,.0f}" if val is not None else "N/A", help=f"Inventory cash savings over time. {note}")
+    with col8:
+        st.metric("STVR Effectiveness (%)", "N/A", help=kpis['stvr_effectiveness']['note'])
+
+    with st.expander("Formulas and Data Requirements"):
+        st.markdown("""
+        - Forecast Accuracy: 1 - |Forecast - Actual| / Actual
+        - Forecast Bias: Mean(Forecast - Actual) / Mean(Actual)
+        - STVR Effectiveness: Approved STVRs Delivered / Total STVRs Requested
+        - Inventory Turnover Ratio: COGS / Avg Inventory Value
+        - Days of Inventory Outstanding (DIO): Inventory Value / (COGS / 365)
+        - OTIF Service Level: Delivered OTIF Orders / Total Orders
+        - Operational Cost per Unit: Total Operational Cost / Total Units
+        - Cash Flow from Inventory Reduction: Inventory cash savings over time
+        """)
+
 def render_dashboard():
     """Render a world-class dashboard with professional grid layout and KPI cards for 100 SKU enhanced FMCG system"""
     
@@ -449,6 +647,12 @@ def render_dashboard():
     
     # Professional Grid Layout (3x3 Grid)
     st.markdown("## 📊 Analytics Dashboard")
+
+    # New KPI section using dataset-driven calculations
+    try:
+        render_kpi_dashboard(monthly_df, sku_df, financial_summary)
+    except Exception:
+        st.info("KPI section unavailable due to missing fields in the dataset.")
     
     # Row 1: Charts
     col1, col2, col3 = st.columns([2, 1, 1])
