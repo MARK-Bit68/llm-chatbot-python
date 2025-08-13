@@ -683,7 +683,7 @@ def extract_query_parameters(question: str, query_key: str) -> Dict[str, Any]:
     threshold_match = re.search(r'over (\d+)', question)
     if threshold_match:
         params['threshold'] = int(threshold_match.group(1))
-    elif 'lead time' in question and 'threshold' not in params:
+    elif ('lead time' in question or 'manufacturing constraints' in question) and 'threshold' not in params:
         params['threshold'] = 25  # Default threshold
     
     return params
