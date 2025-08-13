@@ -1,9 +1,11 @@
 import streamlit as st
+from ui_theme import apply_global_theme
 
 st.set_page_config(
     page_title="Hello",
     page_icon="👋",
 )
+apply_global_theme()
 
 st.write("# Welcome to Streamlit! 👋")
 

@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 from ui_theme import apply_global_theme
 
 # Page Config - MUST be called first
@@ -10,6 +11,13 @@ st.set_page_config(
 
 # Apply global theme early
 apply_global_theme()
+
+# Debug: log theme and config path in server logs (helps verify in Railway)
+try:
+    print(f"🎨 DEBUG: STREAMLIT_CONFIG={os.getenv('STREAMLIT_CONFIG')}")
+    print(f"🎨 DEBUG: theme.base={st.get_option('theme.base')}")
+except Exception as _e:
+    print(f"🎨 DEBUG: Could not read theme options: {_e}")
 
 from solutions.agent import generate_response, reset_agent
 from solutions.graph import get_graph
@@ -53,6 +61,7 @@ promotional impact, and cross-functional planning between Sales, Demand, and Sup
 # Sidebar for controls
 with st.sidebar:
     st.header("🔧 Controls")
+    st.caption("UI theme v2025.08.13-1")
     
     # Check Neo4j availability
     print("🔍 DEBUG: Checking Neo4j availability...")
