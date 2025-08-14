@@ -22,7 +22,7 @@ const Header = ({ onMenuClick }) => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-muted" />
             <input
               type="text"
-              placeholder="Search SKUs, analytics..."
+              placeholder="Search products, analytics..."
               className="input-field pl-10 w-64"
             />
           </div>

@@ -7,7 +7,7 @@ import AdvancedDashboard from './pages/AdvancedDashboard'
 import Chat from './pages/Chat'
 import AdvancedChat from './pages/AdvancedChat'
 import Analytics from './pages/Analytics'
-import SKUExplorer from './pages/SKUExplorer'
+import ProductExplorer from './pages/ProductExplorer'
 import Settings from './pages/Settings'
 
 function App() {
@@ -25,7 +25,8 @@ function App() {
             <Route path="/chat" element={<AdvancedChat />} />
             <Route path="/chat/basic" element={<Chat />} />
             <Route path="/analytics" element={<Analytics />} />
-            <Route path="/skus" element={<SKUExplorer />} />
+            <Route path="/products" element={<ProductExplorer />} />
+            <Route path="/skus" element={<ProductExplorer />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </motion.div>

@@ -23,13 +23,13 @@ import {
 } from '../services/advanced-api'
 
 const advancedQueries = [
-  "Analyze SKU clustering patterns using machine learning",
+  "Analyze product clustering patterns using machine learning",
   "Show me inventory risk analysis with recommendations", 
   "Generate profitability insights for all categories",
   "Detect regional performance patterns",
   "What are the key supply chain optimization opportunities?",
   "Run advanced graph analytics on my portfolio",
-  "Identify SKUs with manufacturing constraints using AI",
+  "Identify products with manufacturing constraints using AI",
   "Show me cross-functional planning recommendations"
 ]
 

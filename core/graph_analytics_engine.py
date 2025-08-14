@@ -248,10 +248,10 @@ class AdvancedGraphAnalyticsEngine:
             RETURN 
                 id(n) as source_id,
                 labels(n) as source_labels,
-                n.sku_id as source_sku,
+                n.code as source_product,
                 id(m) as target_id,
                 labels(m) as target_labels,
-                m.sku_id as target_sku,
+                m.code as target_product,
                 type(r) as relationship_type,
                 properties(r) as rel_props
             LIMIT 10000
@@ -263,8 +263,8 @@ class AdvancedGraphAnalyticsEngine:
             G = nx.DiGraph()
             
             for record in results:
-                source = record['source_sku'] or record['source_id']
-                target = record['target_sku'] or record['target_id']
+                source = record['source_product'] or f"{record['source_labels'][0] if record['source_labels'] else 'Node'}_{record['source_id']}"
+                target = record['target_product'] or f"{record['target_labels'][0] if record['target_labels'] else 'Node'}_{record['target_id']}"
                 
                 # Add nodes with attributes
                 G.add_node(source, 
@@ -291,8 +291,8 @@ class AdvancedGraphAnalyticsEngine:
         insights = []
         
         try:
-            # SKU clustering analysis
-            clustering_insight = await self._analyze_sku_clusters()
+            # Product clustering analysis
+            clustering_insight = await self._analyze_product_clusters()
             if clustering_insight:
                 insights.append(clustering_insight)
             
@@ -328,8 +328,8 @@ class AdvancedGraphAnalyticsEngine:
         
         return insights
     
-    async def _analyze_sku_clusters(self) -> Optional[GraphInsight]:
-        """Analyze SKU clusters using machine learning"""
+    async def _analyze_product_clusters(self) -> Optional[GraphInsight]:
+        """Analyze Product clusters using machine learning"""
         try:
             # Get SKU data for clustering
             query = """

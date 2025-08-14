@@ -222,7 +222,7 @@ async def graph_overview_endpoint():
 async def supply_chain_insights_endpoint(background_tasks: BackgroundTasks):
     """
     Generate advanced supply chain insights using machine learning:
-    - SKU performance clustering
+    - Product performance clustering
     - Inventory risk analysis
     - Profitability pattern detection
     - Regional performance analysis
@@ -260,7 +260,7 @@ async def custom_analytics_endpoint(request: AnalyticsRequest):
     Execute custom analytics based on analysis type:
     - overview: Complete graph overview
     - patterns: Pattern detection analysis
-    - clusters: SKU clustering analysis
+    - clusters: Product clustering analysis
     - risks: Inventory risk assessment
     - profitability: Profit pattern analysis
     - regional: Regional performance analysis
@@ -328,7 +328,10 @@ async def dashboard_endpoint():
         insights = await analytics_engine.detect_supply_chain_patterns()
         
         # Aggregate key metrics
-        total_skus = overview.get("node_statistics", {}).get("node_types", {}).get("SKU", 0)
+        total_products = overview.get("node_statistics", {}).get("node_types", {}).get("Product", 0)
+        total_groups = overview.get("node_statistics", {}).get("node_types", {}).get("Group", 0)
+        total_plants = overview.get("node_statistics", {}).get("node_types", {}).get("Plant", 0)
+        total_storage = overview.get("node_statistics", {}).get("node_types", {}).get("StorageLocation", 0)
         
         # Extract key recommendations
         all_recommendations = []
@@ -348,7 +351,10 @@ async def dashboard_endpoint():
             performance_score = min(95.0, performance_score + (avg_confidence * 10))
         
         dashboard_data = {
-            "totalSKUs": total_skus,
+            "totalProducts": total_products,
+            "totalGroups": total_groups,
+            "totalPlants": total_plants,
+            "totalStorageLocations": total_storage,
             "totalCategories": len(overview.get("node_statistics", {}).get("node_types", {})),
             "performanceScore": f"{performance_score:.1f}%",
             "insights_generated": len(insights),

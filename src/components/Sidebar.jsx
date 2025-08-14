@@ -18,7 +18,7 @@ const navigation = [
   { name: 'Advanced Dashboard', href: '/', icon: Brain, badge: 'AI' },
   { name: 'Advanced Chat', href: '/chat', icon: Sparkles, badge: 'ML' },
   { name: 'Analytics', href: '/analytics', icon: TrendingUp },
-  { name: 'SKU Explorer', href: '/skus', icon: Package },
+  { name: 'Product Explorer', href: '/products', icon: Package },
   { name: 'Basic Dashboard', href: '/dashboard', icon: BarChart3 },
   { name: 'Basic Chat', href: '/chat/basic', icon: MessageCircle },
   { name: 'Settings', href: '/settings', icon: Settings },

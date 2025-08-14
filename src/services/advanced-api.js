@@ -55,6 +55,76 @@ export const checkAPIHealth = async () => {
   }
 }
 
+// Products API for SupplyGraph
+export const fetchProducts = async ({ page = 1, limit = 20, search = '', group = '' } = {}) => {
+  try {
+    // For now, return mock SupplyGraph data until backend endpoint is ready
+    await new Promise(resolve => setTimeout(resolve, 500)) // Simulate API delay
+    
+    const products = generateMockProducts(page, limit, search, group)
+    
+    return {
+      products,
+      total: 40, // Total products in SupplyGraph
+      page,
+      limit,
+      totalPages: Math.ceil(40 / limit)
+    }
+  } catch (error) {
+    console.error('Error fetching products:', error)
+    throw new Error('Failed to fetch products')
+  }
+}
+
+function generateMockProducts(page, limit, search, group) {
+  const groups = ['S', 'P', 'A', 'M', 'E']
+  const subgroups = ['SOS', 'POV', 'POP', 'AT', 'MAR', 'EMM', 'EMS', 'EMR']
+  const products = []
+  
+  // Sample SupplyGraph product codes
+  const sampleCodes = [
+    'SOS008L02P', 'POV005L04P', 'POP003L01P', 'AT012L03P', 'MAR007L02P',
+    'SOS015L01P', 'POV012L03P', 'POP008L02P', 'AT005L01P', 'MAR011L04P',
+    'EMM003L02P', 'EMS009L01P', 'EMR006L03P', 'SOS022L04P', 'POV018L02P'
+  ]
+  
+  for (let i = 0; i < limit; i++) {
+    const index = (page - 1) * limit + i
+    if (index >= 40) break // SupplyGraph has 40 products
+    
+    const productGroup = groups[index % groups.length]
+    const productSubgroup = subgroups[index % subgroups.length]
+    const productCode = sampleCodes[index % sampleCodes.length] || `${productSubgroup}${String(index + 1).padStart(3, '0')}L${String((index % 4) + 1).padStart(2, '0')}P`
+    
+    // Apply filters
+    if (search && !productCode.toLowerCase().includes(search.toLowerCase())) {
+      continue
+    }
+    if (group && productGroup !== group) {
+      continue
+    }
+    
+    const product = {
+      code: productCode,
+      group: productGroup,
+      subgroup: productSubgroup,
+      plants: Array.from({length: Math.floor(Math.random() * 3) + 1}, (_, i) => `${1900 + Math.floor(Math.random() * 300)}`),
+      storage_locations: Array.from({length: Math.floor(Math.random() * 2) + 1}, (_, i) => `${1100 + Math.floor(Math.random() * 1000)}.0`),
+      time_series: Array.from({length: Math.floor(Math.random() * 4)}, (_, i) => {
+        const types = ['Production', 'SalesOrder', 'FactoryIssue', 'DeliveryToDistributor']
+        return {
+          type: types[i % types.length],
+          measurement_type: Math.random() > 0.5 ? 'Unit' : 'Weight'
+        }
+      })
+    }
+    
+    products.push(product)
+  }
+  
+  return products
+}
+
 // Chat API with Advanced Features
 export const sendAdvancedChatMessage = async ({ message, sessionId = 'default' }) => {
   try {

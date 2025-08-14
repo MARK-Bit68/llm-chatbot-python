@@ -249,7 +249,10 @@ const AdvancedDashboard = () => {
 
   // Fallback data when API is not available
   const fallbackData = {
-    totalSKUs: '247',
+    totalProducts: '40',
+    totalGroups: '5',
+    totalPlants: '25',
+    totalStorageLocations: '13',
     totalCategories: '4',
     performanceScore: '94.2%',
     insights_generated: '0',
@@ -305,8 +308,8 @@ const AdvancedDashboard = () => {
       {/* Advanced Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <AdvancedStatCard
-          title="Total SKUs"
-          value={displayData?.totalSKUs || fallbackData.totalSKUs}
+          title="Total Products"
+          value={displayData?.totalProducts || fallbackData.totalProducts}
           change={apiAvailable ? "+12 this month" : "Estimated"}
           changeType="positive"
           icon={Package}

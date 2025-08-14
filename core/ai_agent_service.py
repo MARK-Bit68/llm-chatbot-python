@@ -21,7 +21,7 @@ from langchain import hub
 from llm import get_llm
 from solutions.graph import get_graph
 from solutions.tools.vector import get_sku_data
-from solutions.tools.cypher import enhanced_cypher_qa
+from solutions.tools.cypher_supplygraph import enhanced_cypher_qa, get_dashboard_data, search_products, get_product_details
 from solutions.tools.data_parser import parse_sku_data
 from monitoring import record_event, timeit
 
@@ -49,15 +49,15 @@ class AdvancedAIAgentService:
     def _initialize_ai_services(self):
         """Initialize AI services with your existing configuration"""
         try:
-            # Domain configuration (from your agent.py)
+            # Domain configuration for SupplyGraph dataset
             self.domain_config = {
-                "domain_name": "S&OP (Sales & Operations Planning) supply chain",
-                "entity_type": "SKU",
-                "entity_label": "SKU", 
-                "entity_id_field": "sku_id",
-                "domain_expertise": "supply chain planning, manufacturing capacity, inventory management, demand forecasting, customer prioritization, regional analysis, promotional impact, and cross-functional collaboration",
-                "entity_plural": "SKUs",
-                "entity_singular": "SKU"
+                "domain_name": "SupplyGraph benchmark dataset for supply chain planning",
+                "entity_type": "Product",
+                "entity_label": "Product", 
+                "entity_id_field": "code",
+                "domain_expertise": "supply chain planning, manufacturing capacity, inventory management, demand forecasting, production analysis, plant utilization, storage optimization, and supply chain network analysis",
+                "entity_plural": "Products",
+                "entity_singular": "Product"
             }
             
             # Initialize tools (from your existing code)
@@ -77,19 +77,30 @@ class AdvancedAIAgentService:
         
         tools = [
             Tool(
-                name="Enhanced Database Query",
+                name="SupplyGraph Database Query",
                 func=enhanced_cypher_qa,
-                description="""Use this tool for ANY S&OP supply chain analysis, including manufacturing capacity constraints, customer prioritization, regional demand variations, promotional impact, inventory balancing, and cross-functional planning scenarios. 
+                description="""Use this tool for ANY SupplyGraph supply chain analysis, including product analysis, plant utilization, storage optimization, time series analysis, and supply chain network analysis. 
                 
-                Input: the question (e.g., 'Which customer orders can be delayed without hurting key relationships?', 'How should we prioritize limited supply across orders?', 'Which SKUs can we trim to fit within capacity limits?', 'What is the promotional impact on production capacity?', 'Show me excess inventory for promotions', 'Analyze regional demand variations', 'Which SKUs have manufacturing constraints?', 'Show me customer prioritization matrix'). 
+                Input: the question (e.g., 'How many products are in Group S?', 'Which plant produces the most products?', 'Show me production data for SOS008L02P', 'What are the storage locations for products in subgroup POV?', 'Analyze sales patterns across different groups', 'Find products with similar production characteristics', 'Show me plant utilization statistics', 'Analyze inventory distribution across storage locations'). 
                 
-                This tool queries the database and returns comprehensive S&OP-level information with detailed analysis of trade-offs and business impact. 
+                This tool queries the SupplyGraph database and returns comprehensive analysis with detailed insights for supply chain planning and optimization.
                 
-                CRITICAL: When you receive this data, you MUST present the ENTIRE executive dashboard EXACTLY as provided, including ALL sections: Product Overview, Financial Performance, Inventory Management, Monthly Analysis, Strategic Insights, and Executive Recommendations. NEVER summarize, condense, or rephrase this data - present the COMPLETE dashboard with all tables, metrics, and insights exactly as received. 
-                
-                IMPORTANT: If you see '# 📊 Executive Dashboard:' or '# 📊 Executive Summary:' in the response, return that EXACT data without any changes. 
-                
-                CRITICAL: DO NOT SUMMARIZE EXECUTIVE DASHBOARD DATA - RETURN IT EXACTLY AS RECEIVED."""
+                CRITICAL: When you receive this data, you MUST present the ENTIRE response EXACTLY as provided, including ALL sections and analysis. NEVER summarize, condense, or rephrase this data - present the COMPLETE analysis with all tables, metrics, and insights exactly as received."""
+            ),
+            Tool(
+                name="Product Search",
+                func=search_products,
+                description="Search for products by code (partial match). Input: search term (e.g., 'SOS', 'POV', 'AT'). Returns matching products with their group and subgroup information."
+            ),
+            Tool(
+                name="Product Details",
+                func=get_product_details,
+                description="Get detailed information about a specific product including its group, subgroup, plants, storage locations, and available time series data. Input: product code (e.g., 'SOS008L02P')."
+            ),
+            Tool(
+                name="SupplyGraph Dashboard",
+                func=get_dashboard_data,
+                description="Get comprehensive dashboard data including product overview, group/subgroup statistics, plant/storage statistics, and time series summary."
             ),
             Tool(
                 name="Entity Information Search",
@@ -108,8 +119,8 @@ class AdvancedAIAgentService:
             ),
             Tool(
                 name="General Chat",
-                func=lambda x: f"I can help you with {self.domain_config['domain_name']} questions. Please ask about specific {self.domain_config['entity_plural']}, manufacturing capacity, customer prioritization, regional demand, promotional impact, or supply chain operations.",
-                description=f"General conversation about {self.domain_config['domain_name']} topics. Input: general questions. NEVER use for SKU queries."
+                func=lambda x: f"I can help you with {self.domain_config['domain_name']} questions. Please ask about specific {self.domain_config['entity_plural']}, plant utilization, storage optimization, time series analysis, or supply chain network analysis.",
+                description=f"General conversation about {self.domain_config['domain_name']} topics. Input: general questions about SupplyGraph dataset or supply chain concepts."
             )
         ]
         
