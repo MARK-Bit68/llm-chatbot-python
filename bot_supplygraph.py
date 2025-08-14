@@ -192,17 +192,26 @@ def display_sidebar():
         
         # Get basic statistics
         try:
+            print("🔍 DEBUG: SupplyGraph bot - checking data availability...")
             product_count = len(get_product_overview())
             group_stats = get_group_statistics()
             plant_stats = get_plant_statistics()
             storage_stats = get_storage_statistics()
+            
+            print(f"🔍 DEBUG: SupplyGraph bot - Found {product_count} products, {len(group_stats)} groups, {len(plant_stats)} plants, {len(storage_stats)} storage locations")
             
             st.metric("Products", product_count)
             st.metric("Groups", len(group_stats))
             st.metric("Plants", len(plant_stats))
             st.metric("Storage Locations", len(storage_stats))
             
+            if product_count > 0:
+                st.success(f"✅ SupplyGraph dataset loaded successfully!")
+            else:
+                st.warning("⚠️ No SupplyGraph data found in database")
+            
         except Exception as e:
+            print(f"❌ DEBUG: SupplyGraph bot - Error loading statistics: {e}")
             st.error(f"Error loading statistics: {e}")
         
         st.markdown("---")
