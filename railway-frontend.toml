@@ -2,13 +2,14 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python main.py"
-healthcheckPath = "/health"
+startCommand = "npm run build && npm run preview -- --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
 
 [environments.production]
 variables = { 
   NODE_ENV = "production",
-  VITE_API_URL = "https://${{RAILWAY_STATIC_URL}}/api"
-} 
+  VITE_API_URL = "${{RAILWAY_STATIC_URL}}",
+  PORT = "3000"
+}
