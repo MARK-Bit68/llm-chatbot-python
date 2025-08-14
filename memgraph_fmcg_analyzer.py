@@ -25,16 +25,10 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from gqlalchemy import Memgraph
-    from gqlalchemy.query_builders.memgraph_query_builder import (
-        Create, Match, Where, Return, With, Unwind, Optional, Merge
-    )
 except ImportError:
     print("❌ gqlalchemy not found. Installing...")
     subprocess.check_call([sys.executable, "-m", "pip", "install", "gqlalchemy"])
     from gqlalchemy import Memgraph
-    from gqlalchemy.query_builders.memgraph_query_builder import (
-        Create, Match, Where, Return, With, Unwind, Optional, Merge
-    )
 
 class FMCGGraphLoader:
     """Loads Enhanced FMCG SOP dataset into Memgraph graph database"""
@@ -47,7 +41,7 @@ class FMCGGraphLoader:
     def connect_to_memgraph(self) -> bool:
         """Connect to Memgraph database"""
         try:
-            self.memgraph = Memgraph("localhost", 7687)
+            self.memgraph = Memgraph("localhost", 7687, username="", password="")
             # Test connection
             result = self.memgraph.execute("RETURN 1 AS test")
             print("✅ Connected to Memgraph successfully")
