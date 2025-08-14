@@ -1,0 +1,368 @@
+#!/usr/bin/env python3
+"""
+Cypher queries for SupplyGraph dataset.
+
+This module provides Cypher queries specifically designed for the SupplyGraph
+benchmark dataset schema, which includes:
+- Products (nodes with codes like SOS008L02P, POV005L04P, etc.)
+- Product Groups (S, P, A, M, E) and SubGroups (SOS, POV, POP, AT, MAR, etc.)
+- Plants (1911, 1916, 1917, 1919, 1920, 1921, 2111, 2114, 2116, 2117, 2119, 2120, 2121)
+- Storage Locations (1130.0, 1430.0, 1630.0, 1730.0, 1930.0, 2030.0, 2130.0)
+- Temporal data (Production, Sales Order, Factory Issue, Delivery to Distributor)
+- Both Unit and Weight measurements
+"""
+
+import streamlit as st
+import os
+from typing import Dict, List, Optional, Any
+from llm import get_llm
+from monitoring import record_event, timeit
+from solutions.graph import get_graph
+from langchain_core.prompts import ChatPromptTemplate
+import re
+
+def execute_query(query: str, params: Optional[Dict[str, Any]] = None):
+    """Execute a raw Cypher query and return results list."""
+    graph = get_graph()
+    if graph is None:
+        return []
+    with timeit("neo4j.query", {"query_preview": query[:140]}):
+        return graph.query(query, params or {})
+
+def get_product_overview():
+    """Get overview of all products with their groups and subgroups"""
+    query = """
+    MATCH (p:Product)-[:IN_GROUP]->(g:Group)
+    MATCH (p)-[:IN_SUBGROUP]->(sg:SubGroup)
+    RETURN p.code as product_code, g.code as group, sg.code as subgroup
+    ORDER BY p.code
+    """
+    return execute_query(query)
+
+def get_products_by_group(group_code: str):
+    """Get all products in a specific group"""
+    query = """
+    MATCH (p:Product)-[:IN_GROUP]->(g:Group {code: $group_code})
+    MATCH (p)-[:IN_SUBGROUP]->(sg:SubGroup)
+    RETURN p.code as product_code, sg.code as subgroup
+    ORDER BY p.code
+    """
+    return execute_query(query, {"group_code": group_code})
+
+def get_products_by_subgroup(subgroup_code: str):
+    """Get all products in a specific subgroup"""
+    query = """
+    MATCH (p:Product)-[:IN_SUBGROUP]->(sg:SubGroup {code: $subgroup_code})
+    MATCH (p)-[:IN_GROUP]->(g:Group)
+    RETURN p.code as product_code, g.code as group
+    ORDER BY p.code
+    """
+    return execute_query(query, {"subgroup_code": subgroup_code})
+
+def get_products_by_plant(plant_id: str):
+    """Get all products produced at a specific plant"""
+    query = """
+    MATCH (p:Product)-[:PRODUCED_AT]->(pl:Plant {id: $plant_id})
+    MATCH (p)-[:IN_GROUP]->(g:Group)
+    MATCH (p)-[:IN_SUBGROUP]->(sg:SubGroup)
+    RETURN p.code as product_code, g.code as group, sg.code as subgroup
+    ORDER BY p.code
+    """
+    return execute_query(query, {"plant_id": plant_id})
+
+def get_products_by_storage(storage_id: float):
+    """Get all products stored at a specific storage location"""
+    query = """
+    MATCH (p:Product)-[:STORED_AT]->(sl:StorageLocation {id: $storage_id})
+    MATCH (p)-[:IN_GROUP]->(g:Group)
+    MATCH (p)-[:IN_SUBGROUP]->(sg:SubGroup)
+    RETURN p.code as product_code, g.code as group, sg.code as subgroup
+    ORDER BY p.code
+    """
+    return execute_query(query, {"storage_id": storage_id})
+
+def get_product_details(product_code: str):
+    """Get detailed information about a specific product"""
+    query = """
+    MATCH (p:Product {code: $product_code})
+    OPTIONAL MATCH (p)-[:IN_GROUP]->(g:Group)
+    OPTIONAL MATCH (p)-[:IN_SUBGROUP]->(sg:SubGroup)
+    OPTIONAL MATCH (p)-[:PRODUCED_AT]->(pl:Plant)
+    OPTIONAL MATCH (p)-[:STORED_AT]->(sl:StorageLocation)
+    OPTIONAL MATCH (p)-[:HAS_TIME_SERIES]->(ts:TimeSeries)
+    RETURN p.code as product_code,
+           g.code as group,
+           sg.code as subgroup,
+           collect(DISTINCT pl.id) as plants,
+           collect(DISTINCT sl.id) as storage_locations,
+           collect(DISTINCT {type: ts.type, measurement: ts.measurement_type}) as time_series
+    """
+    return execute_query(query, {"product_code": product_code})
+
+def get_production_data(product_code: str, limit: int = 10):
+    """Get production time series data for a product"""
+    query = """
+    MATCH (p:Product {code: $product_code})-[:HAS_TIME_SERIES]->(ts:TimeSeries {type: 'Production'})
+    RETURN ts.measurement_type as measurement_type,
+           ts.date as date,
+           ts.value as value
+    ORDER BY ts.date DESC
+    LIMIT $limit
+    """
+    return execute_query(query, {"product_code": product_code, "limit": limit})
+
+def get_sales_data(product_code: str, limit: int = 10):
+    """Get sales order time series data for a product"""
+    query = """
+    MATCH (p:Product {code: $product_code})-[:HAS_TIME_SERIES]->(ts:TimeSeries {type: 'SalesOrder'})
+    RETURN ts.measurement_type as measurement_type,
+           ts.date as date,
+           ts.value as value
+    ORDER BY ts.date DESC
+    LIMIT $limit
+    """
+    return execute_query(query, {"product_code": product_code, "limit": limit})
+
+def get_group_statistics():
+    """Get statistics for each product group"""
+    query = """
+    MATCH (p:Product)-[:IN_GROUP]->(g:Group)
+    WITH g.code as group_code, count(p) as product_count
+    MATCH (p:Product)-[:IN_GROUP]->(g:Group {code: group_code})
+    MATCH (p)-[:IN_SUBGROUP]->(sg:SubGroup)
+    WITH group_code, product_count, collect(DISTINCT sg.code) as subgroups
+    RETURN group_code, product_count, size(subgroups) as subgroup_count, subgroups
+    ORDER BY product_count DESC
+    """
+    return execute_query(query)
+
+def get_subgroup_statistics():
+    """Get statistics for each product subgroup"""
+    query = """
+    MATCH (p:Product)-[:IN_SUBGROUP]->(sg:SubGroup)
+    WITH sg.code as subgroup_code, count(p) as product_count
+    MATCH (p:Product)-[:IN_SUBGROUP]->(sg:SubGroup {code: subgroup_code})
+    MATCH (p)-[:IN_GROUP]->(g:Group)
+    WITH subgroup_code, product_count, collect(DISTINCT g.code) as groups
+    RETURN subgroup_code, product_count, groups
+    ORDER BY product_count DESC
+    """
+    return execute_query(query)
+
+def get_plant_statistics():
+    """Get statistics for each plant"""
+    query = """
+    MATCH (p:Product)-[:PRODUCED_AT]->(pl:Plant)
+    WITH pl.id as plant_id, count(p) as product_count
+    MATCH (p:Product)-[:PRODUCED_AT]->(pl:Plant {id: plant_id})
+    MATCH (p)-[:IN_GROUP]->(g:Group)
+    WITH plant_id, product_count, collect(DISTINCT g.code) as groups
+    RETURN plant_id, product_count, groups
+    ORDER BY product_count DESC
+    """
+    return execute_query(query)
+
+def get_storage_statistics():
+    """Get statistics for each storage location"""
+    query = """
+    MATCH (p:Product)-[:STORED_AT]->(sl:StorageLocation)
+    WITH sl.id as storage_id, count(p) as product_count
+    MATCH (p:Product)-[:STORED_AT]->(sl:StorageLocation {id: storage_id})
+    MATCH (p)-[:IN_GROUP]->(g:Group)
+    WITH storage_id, product_count, collect(DISTINCT g.code) as groups
+    RETURN storage_id, product_count, groups
+    ORDER BY product_count DESC
+    """
+    return execute_query(query)
+
+def get_related_products(product_code: str):
+    """Get products that are related through groups, subgroups, plants, or storage"""
+    query = """
+    MATCH (p:Product {code: $product_code})
+    OPTIONAL MATCH (p)-[:IN_GROUP]->(g:Group)<-[:IN_GROUP]-(related:Product)
+    WHERE related.code <> $product_code
+    WITH collect(DISTINCT {product: related.code, relationship: 'Same Group', group: g.code}) as group_related
+    
+    OPTIONAL MATCH (p)-[:IN_SUBGROUP]->(sg:SubGroup)<-[:IN_SUBGROUP]-(related:Product)
+    WHERE related.code <> $product_code
+    WITH group_related + collect(DISTINCT {product: related.code, relationship: 'Same Subgroup', subgroup: sg.code}) as subgroup_related
+    
+    OPTIONAL MATCH (p)-[:PRODUCED_AT]->(pl:Plant)<-[:PRODUCED_AT]-(related:Product)
+    WHERE related.code <> $product_code
+    WITH subgroup_related + collect(DISTINCT {product: related.code, relationship: 'Same Plant', plant: pl.id}) as plant_related
+    
+    OPTIONAL MATCH (p)-[:STORED_AT]->(sl:StorageLocation)<-[:STORED_AT]-(related:Product)
+    WHERE related.code <> $product_code
+    WITH plant_related + collect(DISTINCT {product: related.code, relationship: 'Same Storage', storage: sl.id}) as all_related
+    
+    RETURN all_related
+    """
+    return execute_query(query, {"product_code": product_code})
+
+def get_time_series_summary():
+    """Get summary of available time series data"""
+    query = """
+    MATCH (ts:TimeSeries)
+    RETURN ts.type as type,
+           ts.measurement_type as measurement_type,
+           count(ts) as count
+    ORDER BY ts.type, ts.measurement_type
+    """
+    return execute_query(query)
+
+def search_products(search_term: str):
+    """Search for products by code (partial match)"""
+    query = """
+    MATCH (p:Product)
+    WHERE p.code CONTAINS $search_term
+    MATCH (p)-[:IN_GROUP]->(g:Group)
+    MATCH (p)-[:IN_SUBGROUP]->(sg:SubGroup)
+    RETURN p.code as product_code, g.code as group, sg.code as subgroup
+    ORDER BY p.code
+    LIMIT 20
+    """
+    return execute_query(query, {"search_term": search_term.upper()})
+
+def get_dashboard_data():
+    """Get comprehensive dashboard data"""
+    dashboard_data = {
+        "product_overview": get_product_overview(),
+        "group_statistics": get_group_statistics(),
+        "subgroup_statistics": get_subgroup_statistics(),
+        "plant_statistics": get_plant_statistics(),
+        "storage_statistics": get_storage_statistics(),
+        "time_series_summary": get_time_series_summary()
+    }
+    return dashboard_data
+
+def enhanced_cypher_qa(question: str) -> str:
+    """Enhanced Cypher Q&A for SupplyGraph dataset"""
+    try:
+        llm = get_llm()
+        
+        # Create a comprehensive prompt for SupplyGraph queries
+        prompt = f"""
+You are a SupplyGraph data analyst. Based on the user's question, determine the best Cypher query to answer it.
+
+Available data schema:
+- Products: nodes with codes like SOS008L02P, POV005L04P, etc.
+- Groups: S, P, A, M, E
+- SubGroups: SOS, POV, POP, AT, MAR, etc.
+- Plants: 1911, 1916, 1917, 1919, 1920, 1921, 2111, 2114, 2116, 2117, 2119, 2120, 2121
+- Storage Locations: 1130.0, 1430.0, 1630.0, 1730.0, 1930.0, 2030.0, 2130.0
+- TimeSeries: Production, SalesOrder, FactoryIssue, DeliveryToDistributor (Unit/Weight)
+
+Relationships:
+- (Product)-[:IN_GROUP]->(Group)
+- (Product)-[:IN_SUBGROUP]->(SubGroup)
+- (Product)-[:PRODUCED_AT]->(Plant)
+- (Product)-[:STORED_AT]->(StorageLocation)
+- (Product)-[:HAS_TIME_SERIES]->(TimeSeries)
+
+Question: "{question}"
+
+Return a JSON object with:
+1. "query": The Cypher query to execute
+2. "explanation": Brief explanation of what the query does
+3. "expected_result": What type of result to expect
+
+Focus on:
+- Product analysis and categorization
+- Plant and storage location analysis
+- Time series data (production, sales, etc.)
+- Group and subgroup relationships
+- Supply chain network analysis
+"""
+
+        response = llm.invoke(prompt)
+        response_text = response.content if hasattr(response, 'content') else str(response)
+        
+        # Extract JSON from response
+        import json
+        import re
+        
+        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+        if json_match:
+            query_data = json.loads(json_match.group())
+            cypher_query = query_data.get("query", "")
+            explanation = query_data.get("explanation", "")
+            
+            if cypher_query:
+                # Execute the query
+                results = execute_query(cypher_query)
+                
+                # Format the response
+                if results:
+                    result_summary = f"Found {len(results)} results"
+                    if len(results) <= 10:
+                        result_details = "\n".join([str(r) for r in results])
+                    else:
+                        result_details = "\n".join([str(r) for r in results[:10]]) + f"\n... and {len(results) - 10} more"
+                    
+                    return f"""
+# 📊 SupplyGraph Analysis Results
+
+**Query**: {explanation}
+
+**Results**: {result_summary}
+
+**Data**:
+```
+{result_details}
+```
+"""
+                else:
+                    return f"""
+# 📊 SupplyGraph Analysis Results
+
+**Query**: {explanation}
+
+**Results**: No data found for this query.
+
+**Note**: The query executed successfully but returned no results. This might indicate:
+- The requested data doesn't exist
+- The query parameters need adjustment
+- The data relationships are different than expected
+"""
+            else:
+                return f"""
+# 📊 SupplyGraph Analysis
+
+**Status**: Could not generate a valid Cypher query
+
+**Response**: {response_text}
+
+**Note**: Please try rephrasing your question to be more specific about what you want to analyze in the SupplyGraph dataset.
+"""
+        else:
+            return f"""
+# 📊 SupplyGraph Analysis
+
+**Status**: Could not parse response
+
+**Response**: {response_text}
+
+**Note**: Please try rephrasing your question to be more specific about what you want to analyze in the SupplyGraph dataset.
+"""
+            
+    except Exception as e:
+        return f"""
+# ❌ Error in SupplyGraph Analysis
+
+**Error**: {str(e)}
+
+**Note**: There was an error processing your request. Please try:
+1. Rephrasing your question
+2. Being more specific about what you want to analyze
+3. Using simpler terms
+"""
+
+# Common query patterns for specific types of questions
+QUERY_PATTERNS = {
+    "product_count": "MATCH (p:Product) RETURN count(p) as total_products",
+    "group_products": "MATCH (p:Product)-[:IN_GROUP]->(g:Group) RETURN g.code as group, count(p) as product_count ORDER BY product_count DESC",
+    "subgroup_products": "MATCH (p:Product)-[:IN_SUBGROUP]->(sg:SubGroup) RETURN sg.code as subgroup, count(p) as product_count ORDER BY product_count DESC",
+    "plant_products": "MATCH (p:Product)-[:PRODUCED_AT]->(pl:Plant) RETURN pl.id as plant, count(p) as product_count ORDER BY product_count DESC",
+    "storage_products": "MATCH (p:Product)-[:STORED_AT]->(sl:StorageLocation) RETURN sl.id as storage, count(p) as product_count ORDER BY product_count DESC",
+    "time_series_types": "MATCH (ts:TimeSeries) RETURN ts.type as type, ts.measurement_type as measurement, count(ts) as count ORDER BY type, measurement"
+}
