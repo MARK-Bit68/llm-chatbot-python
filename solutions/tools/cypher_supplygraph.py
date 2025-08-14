@@ -261,10 +261,12 @@ Relationships:
 
 Question: "{question}"
 
-Return a JSON object with:
-1. "query": The Cypher query to execute
-2. "explanation": Brief explanation of what the query does
-3. "expected_result": What type of result to expect
+IMPORTANT: Respond with ONLY a valid JSON object in this exact format:
+{{
+    "query": "MATCH (p:Product)-[:IN_GROUP]->(g:Group) WHERE g.code = 'S' RETURN count(p) as productCount",
+    "explanation": "This query finds all Product nodes that are connected to the Group node with name 'S' via the IN_GROUP relationship and counts them.",
+    "expected_result": "A count of products in Group S"
+}}
 
 Focus on:
 - Product analysis and categorization
@@ -272,20 +274,36 @@ Focus on:
 - Time series data (production, sales, etc.)
 - Group and subgroup relationships
 - Supply chain network analysis
+
+DO NOT include any text before or after the JSON object.
 """
 
         response = llm.invoke(prompt)
         response_text = response.content if hasattr(response, 'content') else str(response)
         
-        # Extract JSON from response
+        # Extract JSON from response with better error handling
         import json
         import re
         
+        # Clean the response text to remove control characters
+        response_text = response_text.replace('\n', ' ').replace('\r', ' ').replace('\t', ' ')
+        response_text = re.sub(r'[^\x20-\x7E]', '', response_text)  # Remove non-printable characters
+        
         json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
         if json_match:
-            query_data = json.loads(json_match.group())
-            cypher_query = query_data.get("query", "")
-            explanation = query_data.get("explanation", "")
+            try:
+                query_data = json.loads(json_match.group())
+                cypher_query = query_data.get("query", "")
+                explanation = query_data.get("explanation", "")
+            except json.JSONDecodeError as e:
+                # Fallback: try to extract query directly
+                cypher_match = re.search(r'MATCH.*RETURN', response_text, re.IGNORECASE | re.DOTALL)
+                if cypher_match:
+                    cypher_query = cypher_match.group()
+                    explanation = "Query extracted from LLM response"
+                else:
+                    cypher_query = ""
+                    explanation = "Could not parse query from response"
             
             if cypher_query:
                 # Execute the query
