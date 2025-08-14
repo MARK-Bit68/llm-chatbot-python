@@ -104,26 +104,34 @@ def display_quick_actions():
     
     with col1:
         if st.button("📊 Dashboard", use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": "Create a comprehensive supply chain dashboard"})
-            st.session_state.messages.append({"role": "assistant", "content": "I'll generate a comprehensive dashboard for you..."})
+            query = "Create a comprehensive supply chain dashboard"
+            st.session_state.messages.append({"role": "user", "content": query})
+            response = process_user_message(query)
+            st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
     
     with col2:
         if st.button("🏭 Plant Analysis", use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": "Analyze plant utilization and production capacity"})
-            st.session_state.messages.append({"role": "assistant", "content": "I'll analyze plant utilization for you..."})
+            query = "Analyze plant utilization and production capacity"
+            st.session_state.messages.append({"role": "user", "content": query})
+            response = process_user_message(query)
+            st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
     
     with col3:
         if st.button("📦 Product Overview", use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": "Show me an overview of all products and their categorization"})
-            st.session_state.messages.append({"role": "assistant", "content": "I'll provide a product overview..."})
+            query = "Show me an overview of all products and their categorization"
+            st.session_state.messages.append({"role": "user", "content": query})
+            response = process_user_message(query)
+            st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
     
     with col4:
         if st.button("📈 Time Series", use_container_width=True):
-            st.session_state.messages.append({"role": "user", "content": "Analyze time series data for production and sales patterns"})
-            st.session_state.messages.append({"role": "assistant", "content": "I'll analyze time series patterns..."})
+            query = "Analyze time series data for production and sales patterns"
+            st.session_state.messages.append({"role": "user", "content": query})
+            response = process_user_message(query)
+            st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
 
 def display_sample_queries():
@@ -146,6 +154,8 @@ def display_sample_queries():
         col = cols[i % 2]
         if col.button(query, key=f"sample_{i}", use_container_width=True):
             st.session_state.messages.append({"role": "user", "content": query})
+            response = process_user_message(query)
+            st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
 
 def process_user_message(message: str) -> str:
