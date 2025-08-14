@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
 """
-Main Server - Modern React UI + FastAPI Backend
-Serves pre-built React app with integrated API
+Simple Main Server - Just React UI + Basic API
+No complex dependencies - should deploy easily to Railway
 """
 
 import os
-import sys
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
-# Create the main FastAPI app first
+# Create the main FastAPI app
 app = FastAPI(
     title="SupplyGraph Analytics Platform",
-    description="Modern React UI with Advanced Graph Analytics API",
-    version="2.0.0"
+    description="Modern React UI with Basic API",
+    version="2.0.1"
 )
 
 # Add CORS middleware
@@ -28,47 +27,67 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Health check endpoint for Railway (must be available immediately)
+# Health check endpoint (Railway requirement)
 @app.get("/health")
 async def health_check():
     return {
         "status": "healthy",
-        "services": ["react_ui", "api"],
-        "version": "2.0.0"
+        "services": ["react_ui", "basic_api"],
+        "version": "2.0.1",
+        "mode": "simple"
     }
 
-# Try to import and mount the advanced API
-try:
-    from advanced_api_server import app as advanced_api_app
-    app.mount("/api", advanced_api_app)
-    print("✅ Advanced API mounted at /api")
-except ImportError as e:
-    print(f"⚠️ Could not import advanced API: {e}")
-    
-    # Create a simple fallback API
-    @app.get("/api/health")
-    async def api_fallback():
-        return {"status": "fallback", "message": "Advanced API not available"}
+# Basic API endpoints
+@app.get("/api/health")
+async def api_health():
+    return {"status": "healthy", "api": "basic"}
+
+@app.get("/api/status")
+async def api_status():
+    return {
+        "status": "operational",
+        "features": ["react_ui", "basic_api"],
+        "complex_ai": "disabled_for_deployment"
+    }
+
+# Mock endpoints for the React UI to work
+@app.get("/api/graph/overview")
+async def mock_graph_overview():
+    return {
+        "node_statistics": {"total": 100, "products": 50, "categories": 5},
+        "relationship_statistics": {"total": 200},
+        "status": "mock_data"
+    }
+
+@app.post("/api/chat")
+async def mock_chat(data: dict):
+    return {
+        "response": "This is a mock response. Full AI features will be available once dependencies are resolved.",
+        "status": "mock",
+        "timestamp": "2025-08-14"
+    }
 
 # Serve React app if dist folder exists
 if os.path.exists("dist"):
-    # Serve static files
-    app.mount("/static", StaticFiles(directory="dist/assets"), name="static")
+    print("✅ Found dist folder - configuring React app serving")
     
-    # Serve React app for all other routes
+    # Mount static assets
+    app.mount("/assets", StaticFiles(directory="dist/assets"), name="assets")
+    
+    # Handle all other routes for React SPA
     @app.get("/{full_path:path}")
     async def serve_react(full_path: str):
-        # Check if it's an API route
-        if full_path.startswith("api/") or full_path.startswith("health"):
-            # Let FastAPI handle it
-            return {"error": "Route not found"}
+        # API routes should not serve React
+        if full_path.startswith("api/") or full_path == "health":
+            return {"error": "API route not found"}
         
-        # Serve React app
-        if os.path.exists(f"dist/{full_path}") and not os.path.isdir(f"dist/{full_path}"):
-            return FileResponse(f"dist/{full_path}")
-        else:
-            # Always serve index.html for SPA routing
-            return FileResponse("dist/index.html")
+        # Check if specific file exists
+        file_path = f"dist/{full_path}"
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            return FileResponse(file_path)
+        
+        # Default to index.html for SPA routing
+        return FileResponse("dist/index.html")
     
     print("✅ React app configured to serve from /dist")
 else:
@@ -78,7 +97,7 @@ else:
     async def fallback_home():
         return {
             "message": "SupplyGraph Analytics API",
-            "react_build": "not_found",
+            "status": "no_react_build",
             "api_docs": "/docs",
             "api_health": "/health"
         }
@@ -86,10 +105,11 @@ else:
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     
-    print("🚀 Starting SupplyGraph Analytics Platform")
+    print("🚀 Starting SupplyGraph Analytics Platform (Simple Mode)")
     print(f"🌐 Port: {port}")
     print(f"📁 Working directory: {os.getcwd()}")
     print(f"📦 Dist folder exists: {os.path.exists('dist')}")
+    print("🔧 Mode: Simple (no AI dependencies)")
     
     # Start the server
     uvicorn.run(
