@@ -5,6 +5,7 @@ Clean deployment for Railway
 """
 
 import os
+import sys
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -106,5 +107,14 @@ else:
         }
 
 if __name__ == "__main__":
+    print("=" * 50)
+    print("🚀 RAILWAY STARTUP DEBUG")
+    print("=" * 50)
+    print(f"📁 Current directory: {os.getcwd()}")
+    print(f"🐍 Python executable: {sys.executable}")
+    print(f"🌐 PORT environment: {os.environ.get('PORT', 'NOT SET')}")
+    print(f"📦 FastAPI available: {'✅' if 'fastapi' in str(__import__('fastapi')) else '❌'}")
+    print(f"🦄 Uvicorn available: {'✅' if 'uvicorn' in str(__import__('uvicorn')) else '❌'}")
+    print("=" * 50)
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run(app, host="0.0.0.0", port=port)
