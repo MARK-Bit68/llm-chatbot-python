@@ -22,7 +22,8 @@ from solutions.tools.cypher_supplygraph import (
     get_products_by_group, get_products_by_subgroup, get_products_by_plant,
     get_products_by_storage, get_production_data, get_sales_data,
     get_group_statistics, get_subgroup_statistics, get_plant_statistics,
-    get_storage_statistics, get_related_products, search_products
+    get_storage_statistics, get_related_products, search_products,
+    get_product_overview
 )
 
 # Page configuration
