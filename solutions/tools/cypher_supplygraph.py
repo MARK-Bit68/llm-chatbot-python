@@ -235,9 +235,136 @@ def get_dashboard_data():
     }
     return dashboard_data
 
+def format_result(result):
+    """Format a single result for better readability"""
+    if isinstance(result, dict):
+        # Format dictionary results
+        formatted_parts = []
+        for key, value in result.items():
+            if value is not None:
+                formatted_parts.append(f"{key}: {value}")
+        return ", ".join(formatted_parts)
+    else:
+        return str(result)
+
+def create_summary_statistics(results):
+    """Create summary statistics for large result sets"""
+    if not results:
+        return "No data available"
+    
+    if isinstance(results[0], dict):
+        # Analyze dictionary results
+        keys = list(results[0].keys())
+        summary = f"**Summary of {len(results)} records**:\n\n"
+        
+        for key in keys:
+            values = [r.get(key) for r in results if r.get(key) is not None]
+            if values:
+                if isinstance(values[0], (int, float)):
+                    # Numeric summary
+                    summary += f"- **{key}**: {len(values)} values, avg: {sum(values)/len(values):.2f}\n"
+                else:
+                    # Categorical summary
+                    unique_values = list(set(values))
+                    summary += f"- **{key}**: {len(unique_values)} unique values\n"
+        
+        return summary
+    else:
+        return f"**Summary**: {len(results)} total results"
+
+def create_supply_chain_dashboard():
+    """Create a comprehensive supply chain dashboard with formatted results"""
+    try:
+        # Get all dashboard data
+        dashboard_data = get_dashboard_data()
+        
+        # Format the dashboard response
+        dashboard_text = """
+# 📊 SupplyChain Dashboard - SupplyGraph Analysis
+
+## 📈 Key Metrics
+"""
+        
+        # Product Overview
+        products = dashboard_data["product_overview"]
+        dashboard_text += f"""
+**Total Products**: {len(products)} products across the supply chain
+
+**Product Distribution by Group**:
+"""
+        
+        # Group Statistics
+        groups = dashboard_data["group_statistics"]
+        for group in groups:
+            dashboard_text += f"- **Group {group['group_code']}**: {group['product_count']} products ({len(group['subgroups'])} subgroups)\n"
+        
+        dashboard_text += "\n## 🏭 Plant Analysis\n"
+        
+        # Plant Statistics
+        plants = dashboard_data["plant_statistics"]
+        dashboard_text += f"**Total Plants**: {len(plants)} production facilities\n\n"
+        
+        # Top plants by product count
+        top_plants = sorted(plants, key=lambda x: x.get('product_count', 0), reverse=True)[:5]
+        dashboard_text += "**Top 5 Plants by Product Count**:\n"
+        for plant in top_plants:
+            dashboard_text += f"- Plant {plant['plant_id']}: {plant.get('product_count', 0)} products\n"
+        
+        dashboard_text += "\n## 📦 Storage Analysis\n"
+        
+        # Storage Statistics
+        storage = dashboard_data["storage_statistics"]
+        dashboard_text += f"**Total Storage Locations**: {len(storage)} facilities\n\n"
+        
+        # Top storage by product count
+        top_storage = sorted(storage, key=lambda x: x.get('product_count', 0), reverse=True)[:5]
+        dashboard_text += "**Top 5 Storage Locations by Product Count**:\n"
+        for loc in top_storage:
+            dashboard_text += f"- Location {loc['storage_id']}: {loc.get('product_count', 0)} products\n"
+        
+        dashboard_text += "\n## 📊 Subgroup Analysis\n"
+        
+        # Subgroup Statistics
+        subgroups = dashboard_data["subgroup_statistics"]
+        dashboard_text += f"**Total Subgroups**: {len(subgroups)} product categories\n\n"
+        
+        # Top subgroups by product count
+        top_subgroups = sorted(subgroups, key=lambda x: x.get('product_count', 0), reverse=True)[:5]
+        dashboard_text += "**Top 5 Subgroups by Product Count**:\n"
+        for sg in top_subgroups:
+            dashboard_text += f"- {sg['subgroup_code']}: {sg.get('product_count', 0)} products\n"
+        
+        dashboard_text += "\n## ⏰ Time Series Data\n"
+        
+        # Time Series Summary
+        time_series = dashboard_data["time_series_summary"]
+        if time_series:
+            dashboard_text += "**Available Time Series Data**:\n"
+            for ts in time_series:
+                dashboard_text += f"- {ts.get('type', 'Unknown')} ({ts.get('measurement_type', 'Unknown')}): {ts.get('count', 0)} records\n"
+        else:
+            dashboard_text += "No time series data available\n"
+        
+        dashboard_text += "\n---\n*Dashboard generated from SupplyGraph dataset analysis*"
+        
+        return dashboard_text
+        
+    except Exception as e:
+        return f"""
+# 📊 SupplyChain Dashboard
+
+**Error**: Unable to generate dashboard due to: {str(e)}
+
+**Note**: Please check the database connection and data availability.
+"""
+
 def enhanced_cypher_qa(question: str) -> str:
     """Enhanced Cypher Q&A for SupplyGraph dataset"""
     try:
+        # Special handling for dashboard requests
+        if "dashboard" in question.lower() or "comprehensive" in question.lower():
+            return create_supply_chain_dashboard()
+        
         llm = get_llm()
         
         # Create a comprehensive prompt for SupplyGraph queries
@@ -312,10 +439,19 @@ DO NOT include any text before or after the JSON object.
                 # Format the response
                 if results:
                     result_summary = f"Found {len(results)} results"
-                    if len(results) <= 10:
-                        result_details = "\n".join([str(r) for r in results])
+                    
+                    # Format results in a more readable way
+                    if len(results) <= 5:
+                        # For small results, show all data in a table format
+                        result_details = "\n".join([f"- {format_result(r)}" for r in results])
+                    elif len(results) <= 20:
+                        # For medium results, show first 10 in table format
+                        result_details = "\n".join([f"- {format_result(r)}" for r in results[:10]])
+                        if len(results) > 10:
+                            result_details += f"\n... and {len(results) - 10} more results"
                     else:
-                        result_details = "\n".join([str(r) for r in results[:10]]) + f"\n... and {len(results) - 10} more"
+                        # For large results, show summary statistics
+                        result_details = create_summary_statistics(results)
                     
                     return f"""
 # 📊 SupplyGraph Analysis Results
@@ -324,10 +460,8 @@ DO NOT include any text before or after the JSON object.
 
 **Results**: {result_summary}
 
-**Data**:
-```
+**Analysis**:
 {result_details}
-```
 """
                 else:
                     return f"""
