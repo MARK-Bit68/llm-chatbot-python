@@ -2,13 +2,8 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"
+startCommand = "uvicorn main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
-
-[environments.production]
-variables = { 
-  NODE_ENV = "production",
-  VITE_API_URL = "https://${{RAILWAY_STATIC_URL}}/api"
-} 
+restartPolicyMaxRetries = 10
