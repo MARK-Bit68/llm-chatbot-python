@@ -304,8 +304,7 @@ Question: {input}
                 verbose=True,
                 handle_parsing_errors=True,
                 max_iterations=15,  # Increased for complex analyses
-                return_intermediate_steps=True,
-                early_stopping_method="generate"
+                return_intermediate_steps=True
             )
             
             logger.info("✅ AI Agent created successfully")
