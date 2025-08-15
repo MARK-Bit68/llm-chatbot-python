@@ -1,7 +1,7 @@
 // Advanced API Service for Enhanced Graph Analytics
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE_URL = import.meta.env.VITE_API_URL || ''
 
 // Create axios instance with enhanced configuration
 const advancedAPI = axios.create({
