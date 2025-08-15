@@ -79,12 +79,12 @@ class AdvancedAIAgentService:
             Tool(
                 name="Simple Database Query",
                 func=self._simple_database_query,
-                description="Simple database queries for basic supply chain questions. Input: simple questions like 'How many products are there?' or 'Show me product groups'"
+                description="Use this tool for basic questions about products, groups, and counts. Examples: 'How many products are there?', 'Show me product groups', 'What products are in Group S?'"
             ),
             Tool(
                 name="Dashboard Data",
                 func=self._safe_dashboard_data,
-                description="Get comprehensive dashboard data including product overview and statistics."
+                description="Use this tool for dashboard overview requests. Examples: 'Show me dashboard data', 'Give me an overview', 'What are the key metrics?'"
             )
         ]
         
@@ -207,20 +207,19 @@ You are a helpful supply chain AI assistant. You have access to the following to
 {tools}
 
 RULES:
-1. For simple data questions like "How many products are there?" or "Show me product groups", use the "Simple Database Query" tool
-2. For comprehensive dashboard data or overview requests, use the "Dashboard Data" tool
-3. For greetings or simple questions, respond directly with "Final Answer:"
-4. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
+1. For questions about products, groups, counts, use "Simple Database Query"
+2. For dashboard overview requests, use "Dashboard Data"
+3. For greetings, respond directly with "Final Answer:"
+4. Use ReAct format: "Action:" then tool name, then "Action Input:" then your query
 5. For direct responses: "Final Answer:" then your response
 6. Don't loop or repeat actions
-7. If a tool fails, provide a helpful response
 
 Question: {input}
 {agent_scratchpad}
 """)
             
-            # Use the standard LangChain hub prompt with enhancements
-            prompt = hub.pull("hwchase17/react")
+            # Use our custom prompt instead of the hub prompt
+            prompt = agent_prompt
             
             # Create agent
             self.agent = create_react_agent(llm, self.tools, prompt)
