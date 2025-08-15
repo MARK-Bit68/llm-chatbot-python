@@ -410,19 +410,14 @@ async def graph_visualization_endpoint():
         if not graph:
             raise HTTPException(status_code=500, detail="Graph database connection unavailable")
         
-        # Query nodes with revenue and profit data
+        # Query nodes with basic information
         nodes_query = """
         MATCH (n)
-        OPTIONAL MATCH (n)-[:HAS_REVENUE]->(r:Revenue)
-        OPTIONAL MATCH (n)-[:HAS_PROFIT]->(p:Profit)
-        RETURN n, 
-               labels(n) as labels,
-               r.amount as revenue,
-               p.amount as profit,
+        RETURN n.code as code,
                n.name as name,
-               n.code as code,
                n.group as group,
-               n.subgroup as subgroup
+               n.subgroup as subgroup,
+               labels(n) as labels
         """
         
         nodes_result = graph.query(nodes_query)
@@ -430,10 +425,11 @@ async def graph_visualization_endpoint():
         # Query relationships
         edges_query = """
         MATCH (a)-[r]->(b)
+        WHERE a.code IS NOT NULL AND b.code IS NOT NULL
         RETURN a.code as source,
                b.code as target,
-               type(r) as type,
-               r.weight as weight
+               type(r) as type
+        LIMIT 100
         """
         
         edges_result = graph.query(edges_query)
@@ -443,8 +439,8 @@ async def graph_visualization_endpoint():
         node_types = {}
         
         for record in nodes_result:
-            node = record['n']
-            labels = record['labels']
+            node = record.get('n', {})
+            labels = record.get('labels', [])
             node_type = labels[0] if labels else 'Unknown'
             
             # Count node types
@@ -454,20 +450,14 @@ async def graph_visualization_endpoint():
             
             # Create node object
             node_obj = {
-                'id': node.get('code') or node.get('name') or str(node.identity),
+                'id': record.get('code') or record.get('name') or str(hash(str(record))),
                 'type': node_type,
-                'name': record.get('name') or node.get('name') or node.get('code'),
+                'name': record.get('name') or record.get('code'),
                 'code': record.get('code'),
                 'group': record.get('group'),
                 'subgroup': record.get('subgroup'),
-                'properties': dict(node)
+                'properties': record
             }
-            
-            # Add revenue and profit data if available
-            if record.get('revenue'):
-                node_obj['revenue'] = float(record['revenue'])
-            if record.get('profit'):
-                node_obj['profit'] = float(record['profit'])
             
             nodes.append(node_obj)
         
@@ -477,8 +467,7 @@ async def graph_visualization_endpoint():
             edge_obj = {
                 'source': record['source'],
                 'target': record['target'],
-                'type': record['type'],
-                'weight': record.get('weight', 1)
+                'type': record['type']
             }
             edges.append(edge_obj)
         
@@ -493,21 +482,7 @@ async def graph_visualization_endpoint():
             'categories': node_types.get('Category', 0)
         }
         
-        # Add revenue and profit statistics
-        revenue_nodes = [n for n in nodes if 'revenue' in n]
-        profit_nodes = [n for n in nodes if 'profit' in n]
-        
-        if revenue_nodes:
-            total_revenue = sum(n['revenue'] for n in revenue_nodes)
-            avg_revenue = total_revenue / len(revenue_nodes)
-            stats['totalRevenue'] = total_revenue
-            stats['avgRevenue'] = avg_revenue
-        
-        if profit_nodes:
-            total_profit = sum(n['profit'] for n in profit_nodes)
-            avg_profit = total_profit / len(profit_nodes)
-            stats['totalProfit'] = total_profit
-            stats['avgProfit'] = avg_profit
+
         
         visualization_data = {
             'nodes': nodes,
