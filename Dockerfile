@@ -36,5 +36,5 @@ EXPOSE 8000
 ENV PORT=8000
 ENV PYTHONPATH=/app
 
-# Start the application
+# Start the application (updated)
 CMD ["python3", "advanced_api_server.py"]
