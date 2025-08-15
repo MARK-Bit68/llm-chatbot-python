@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import ForceGraph3D from 'react-force-graph-3d'
 import { 
   Network, 
   TrendingUp, 
@@ -30,9 +31,26 @@ const GraphVisualizer = () => {
   const [selectedNode, setSelectedNode] = useState(null)
   const [viewMode, setViewMode] = useState('3D') // 3D, 2D, Force
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [windowDimensions, setWindowDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight
+  })
+  const graphRef = useRef()
 
   useEffect(() => {
     fetchGraphData()
+  }, [])
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight
+      })
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   const fetchGraphData = async () => {
@@ -283,30 +301,59 @@ const GraphVisualizer = () => {
         {/* Graph Visualization Area */}
         <div className="flex-1 relative">
           <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
-            {/* Placeholder for 3D Graph Visualization */}
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <div className="w-32 h-32 bg-gradient-to-r from-brand-500/20 to-brand-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Network className="w-16 h-16 text-brand-500" />
-                </div>
-                <h3 className="text-2xl font-bold text-white mb-4">3D Graph Visualization</h3>
-                <p className="text-dark-muted mb-6 max-w-md">
-                  Interactive 3D visualization of your supply chain network with revenue and profit data exploration.
-                </p>
-                <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
-                  <div className="bg-surface-2 rounded-lg p-4">
-                    <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-sm text-white font-medium">Revenue Analysis</p>
-                    <p className="text-xs text-dark-muted">Explore revenue patterns</p>
+            {graphData && graphData.nodes && graphData.nodes.length > 0 ? (
+              <ForceGraph3D
+                ref={graphRef}
+                graphData={graphData}
+                nodeLabel="name"
+                nodeColor={(node) => {
+                  switch (node.type) {
+                    case 'Product': return '#10B981' // Green
+                    case 'Plant': return '#3B82F6'   // Blue
+                    case 'StorageLocation': return '#F59E0B' // Yellow
+                    case 'Group': return '#8B5CF6'   // Purple
+                    case 'Category': return '#EF4444' // Red
+                    default: return '#6B7280' // Gray
+                  }
+                }}
+                nodeRelSize={6}
+                linkColor={() => '#4B5563'}
+                linkWidth={1}
+                linkOpacity={0.6}
+                backgroundColor="#0F172A"
+                showNavInfo={true}
+                onNodeClick={handleNodeClick}
+                onBackgroundClick={clearSelection}
+                enableNodeDrag={true}
+                enableNavigationControls={true}
+                width={windowDimensions.width - 320} // Account for sidebar width
+                height={windowDimensions.height - 120} // Account for header height
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="w-32 h-32 bg-gradient-to-r from-brand-500/20 to-brand-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <Network className="w-16 h-16 text-brand-500" />
                   </div>
-                  <div className="bg-surface-2 rounded-lg p-4">
-                    <DollarSign className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                    <p className="text-sm text-white font-medium">Profit Insights</p>
-                    <p className="text-xs text-dark-muted">Analyze profitability</p>
+                  <h3 className="text-2xl font-bold text-white mb-4">3D Graph Visualization</h3>
+                  <p className="text-dark-muted mb-6 max-w-md">
+                    Interactive 3D visualization of your supply chain network with revenue and profit data exploration.
+                  </p>
+                  <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
+                    <div className="bg-surface-2 rounded-lg p-4">
+                      <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                      <p className="text-sm text-white font-medium">Revenue Analysis</p>
+                      <p className="text-xs text-dark-muted">Explore revenue patterns</p>
+                    </div>
+                    <div className="bg-surface-2 rounded-lg p-4">
+                      <DollarSign className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                      <p className="text-sm text-white font-medium">Profit Insights</p>
+                      <p className="text-xs text-dark-muted">Analyze profitability</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
