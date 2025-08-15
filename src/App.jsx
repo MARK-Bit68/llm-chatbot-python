@@ -8,6 +8,7 @@ import Chat from './pages/Chat'
 import AdvancedChat from './pages/AdvancedChat'
 import Analytics from './pages/Analytics'
 import ProductExplorer from './pages/ProductExplorer'
+import GraphVisualizer from './pages/GraphVisualizer'
 import Settings from './pages/Settings'
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
             <Route path="/chat" element={<AdvancedChat />} />
             <Route path="/chat/basic" element={<Chat />} />
             <Route path="/analytics" element={<Analytics />} />
+            <Route path="/graph" element={<GraphVisualizer />} />
             <Route path="/products" element={<ProductExplorer />} />
             <Route path="/skus" element={<ProductExplorer />} />
             <Route path="/settings" element={<Settings />} />

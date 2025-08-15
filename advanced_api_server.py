@@ -389,6 +389,140 @@ async def dashboard_endpoint():
         logger.error(f"Dashboard endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Graph Visualization endpoint
+@app.get("/api/graph/visualization", summary="Graph Visualization Data")
+async def graph_visualization_endpoint():
+    """
+    Get graph data for 3D visualization including:
+    - Nodes (products, plants, storage locations)
+    - Edges (relationships between nodes)
+    - Revenue and profit data
+    - Node properties and metadata
+    """
+    try:
+        # Get graph overview for statistics
+        overview = await analytics_engine.get_graph_overview()
+        
+        # Get detailed graph data from Neo4j
+        from solutions.graph import get_graph
+        graph = get_graph()
+        
+        if not graph:
+            raise HTTPException(status_code=500, detail="Graph database connection unavailable")
+        
+        # Query nodes with revenue and profit data
+        nodes_query = """
+        MATCH (n)
+        OPTIONAL MATCH (n)-[:HAS_REVENUE]->(r:Revenue)
+        OPTIONAL MATCH (n)-[:HAS_PROFIT]->(p:Profit)
+        RETURN n, 
+               labels(n) as labels,
+               r.amount as revenue,
+               p.amount as profit,
+               n.name as name,
+               n.code as code,
+               n.group as group,
+               n.subgroup as subgroup
+        """
+        
+        nodes_result = graph.run(nodes_query).data()
+        
+        # Query relationships
+        edges_query = """
+        MATCH (a)-[r]->(b)
+        RETURN a.code as source,
+               b.code as target,
+               type(r) as type,
+               r.weight as weight
+        """
+        
+        edges_result = graph.run(edges_query).data()
+        
+        # Process nodes
+        nodes = []
+        node_types = {}
+        
+        for record in nodes_result:
+            node = record['n']
+            labels = record['labels']
+            node_type = labels[0] if labels else 'Unknown'
+            
+            # Count node types
+            if node_type not in node_types:
+                node_types[node_type] = 0
+            node_types[node_type] += 1
+            
+            # Create node object
+            node_obj = {
+                'id': node.get('code') or node.get('name') or str(node.identity),
+                'type': node_type,
+                'name': record.get('name') or node.get('name') or node.get('code'),
+                'code': record.get('code'),
+                'group': record.get('group'),
+                'subgroup': record.get('subgroup'),
+                'properties': dict(node)
+            }
+            
+            # Add revenue and profit data if available
+            if record.get('revenue'):
+                node_obj['revenue'] = float(record['revenue'])
+            if record.get('profit'):
+                node_obj['profit'] = float(record['profit'])
+            
+            nodes.append(node_obj)
+        
+        # Process edges
+        edges = []
+        for record in edges_result:
+            edge_obj = {
+                'source': record['source'],
+                'target': record['target'],
+                'type': record['type'],
+                'weight': record.get('weight', 1)
+            }
+            edges.append(edge_obj)
+        
+        # Calculate statistics
+        stats = {
+            'totalNodes': len(nodes),
+            'totalEdges': len(edges),
+            'products': node_types.get('Product', 0),
+            'plants': node_types.get('Plant', 0),
+            'storage': node_types.get('StorageLocation', 0),
+            'groups': node_types.get('Group', 0),
+            'categories': node_types.get('Category', 0)
+        }
+        
+        # Add revenue and profit statistics
+        revenue_nodes = [n for n in nodes if 'revenue' in n]
+        profit_nodes = [n for n in nodes if 'profit' in n]
+        
+        if revenue_nodes:
+            total_revenue = sum(n['revenue'] for n in revenue_nodes)
+            avg_revenue = total_revenue / len(revenue_nodes)
+            stats['totalRevenue'] = total_revenue
+            stats['avgRevenue'] = avg_revenue
+        
+        if profit_nodes:
+            total_profit = sum(n['profit'] for n in profit_nodes)
+            avg_profit = total_profit / len(profit_nodes)
+            stats['totalProfit'] = total_profit
+            stats['avgProfit'] = avg_profit
+        
+        visualization_data = {
+            'nodes': nodes,
+            'edges': edges,
+            'stats': stats,
+            'nodeTypes': node_types,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return visualization_data
+        
+    except Exception as e:
+        logger.error(f"Graph visualization error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Serve React application
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse

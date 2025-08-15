@@ -10,13 +10,15 @@ import {
   ChevronLeft,
   ChevronRight,
   Brain,
-  Sparkles
+  Sparkles,
+  Network
 } from 'lucide-react'
 import clsx from 'clsx'
 
 const navigation = [
   { name: 'Advanced Dashboard', href: '/', icon: Brain, badge: 'AI' },
   { name: 'Advanced Chat', href: '/chat', icon: Sparkles, badge: 'ML' },
+  { name: 'Graph Visualizer', href: '/graph', icon: Network, badge: '3D' },
   { name: 'Analytics', href: '/analytics', icon: TrendingUp },
   { name: 'Product Explorer', href: '/products', icon: Package },
   { name: 'Basic Dashboard', href: '/dashboard', icon: BarChart3 },
