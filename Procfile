@@ -1,1 +1,1 @@
-web: STREAMLIT_CONFIG=.streamlit/config.toml streamlit run bot_supplygraph.py --server.port=$PORT --server.address=0.0.0.0
+web: python3 advanced_api_server.py
