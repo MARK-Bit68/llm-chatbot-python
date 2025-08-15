@@ -60,8 +60,10 @@ export const fetchDashboardData = async () => {
     
     // Transform FastAPI response to dashboard format
     const overview = response.data
+    console.log('FastAPI response:', overview) // Debug log
+    
     return {
-      totalSKUs: overview.node_statistics.products || 500,
+      totalSKUs: overview.node_statistics?.node_types?.Product || overview.node_statistics?.total_nodes || 500,
       totalRevenue: '$1.2M',
       supplyIssues: 23,
       performanceScore: '94%',
