@@ -79,12 +79,12 @@ class AdvancedAIAgentService:
             Tool(
                 name="Simple Database Query",
                 func=self._simple_database_query,
-                description="Use this tool for basic questions about products, groups, and counts. Examples: 'How many products are there?', 'Show me product groups', 'What products are in Group S?'"
+                description="Use this tool when the user asks about product counts, product groups, or basic supply chain data. Examples: 'How many products are there?', 'Show me product groups', 'What products are in Group S?', 'How many products in each group?'"
             ),
             Tool(
                 name="Dashboard Data",
                 func=self._safe_dashboard_data,
-                description="Use this tool for dashboard overview requests. Examples: 'Show me dashboard data', 'Give me an overview', 'What are the key metrics?'"
+                description="Use this tool when the user asks for dashboard data, overview, or key metrics. Examples: 'Show me dashboard data', 'Give me an overview', 'What are the key metrics?', 'Show me the dashboard'"
             )
         ]
         
@@ -218,8 +218,8 @@ Question: {input}
 {agent_scratchpad}
 """)
             
-            # Use our custom prompt instead of the hub prompt
-            prompt = agent_prompt
+            # Use the standard LangChain hub prompt
+            prompt = hub.pull("hwchase17/react")
             
             # Create agent
             self.agent = create_react_agent(llm, self.tools, prompt)
