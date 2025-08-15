@@ -36,19 +36,19 @@ def _ensure_trace_initialized() -> None:
 
 
 def enable_monitoring(enable: bool) -> None:
+    global _fallback_enabled
     _ensure_trace_initialized()
     try:
         if STREAMLIT_AVAILABLE and hasattr(st, "session_state"):
             st.session_state.monitoring_enabled = enable
         else:
-            global _fallback_enabled
             _fallback_enabled = enable
     except Exception:
-        global _fallback_enabled
         _fallback_enabled = enable
 
 
 def record_event(event_type: str, details: Optional[Dict[str, Any]] = None) -> None:
+    global _fallback_enabled, _fallback_trace
     _ensure_trace_initialized()
     try:
         if STREAMLIT_AVAILABLE and hasattr(st, "session_state"):
@@ -95,19 +95,26 @@ def timeit(label: str, extra: Optional[Dict[str, Any]] = None):
 
 
 def get_trace() -> List[Dict[str, Any]]:
+    global _fallback_trace
     _ensure_trace_initialized()
     try:
-        return list(st.session_state.trace)
+        if STREAMLIT_AVAILABLE and hasattr(st, "session_state"):
+            return list(st.session_state.trace)
+        else:
+            return list(_fallback_trace)
     except Exception:
         return list(_fallback_trace)
 
 
 def clear_trace() -> None:
+    global _fallback_trace
     _ensure_trace_initialized()
     try:
-        st.session_state.trace = []
+        if STREAMLIT_AVAILABLE and hasattr(st, "session_state"):
+            st.session_state.trace = []
+        else:
+            _fallback_trace = []
     except Exception:
-        global _fallback_trace
         _fallback_trace = []
 
 
