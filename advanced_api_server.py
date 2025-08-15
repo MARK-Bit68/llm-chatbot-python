@@ -370,30 +370,57 @@ async def dashboard_endpoint():
         logger.error(f"Dashboard endpoint error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Root endpoint
-@app.get("/", summary="API Information")
-async def root():
-    """API information and documentation links"""
-    return {
-        "message": "🚀 Advanced FMCG Supply Chain Analytics API",
-        "version": "2.0.0",
-        "features": [
-            "🔬 Advanced graph analytics with machine learning",
-            "🤖 Intelligent AI agent with natural language processing", 
-            "📊 Real-time Neo4j database integration",
-            "💡 Supply chain insights and recommendations",
-            "🌟 Executive dashboards and reporting"
-        ],
-        "endpoints": {
-            "docs": "/docs",
-            "health": "/health",
-            "chat": "/api/chat",
-            "analytics": "/api/analytics/overview",
-            "insights": "/api/analytics/insights",
-            "dashboard": "/api/dashboard"
-        },
-        "timestamp": datetime.now().isoformat()
-    }
+# Serve React application
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+react_dist_path = "dist"
+if os.path.exists(react_dist_path) and os.path.exists(os.path.join(react_dist_path, "index.html")):
+    # Mount static assets
+    if os.path.exists(os.path.join(react_dist_path, "assets")):
+        app.mount("/assets", StaticFiles(directory=os.path.join(react_dist_path, "assets")), name="assets")
+    
+    # Serve React app for all other routes
+    @app.get("/{full_path:path}")
+    async def serve_react_app(full_path: str):
+        # Don't serve React for API routes
+        if full_path.startswith(("api/", "health", "docs")):
+            return {"error": "Route not found", "path": full_path}
+        
+        # Serve specific files if they exist
+        if full_path and "." in full_path.split("/")[-1]:
+            file_path = os.path.join(react_dist_path, full_path)
+            if os.path.exists(file_path) and os.path.isfile(file_path):
+                return FileResponse(file_path)
+        
+        # Default to React index.html for SPA routing
+        return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
+
+else:
+    # Root endpoint (fallback when React build not found)
+    @app.get("/", summary="API Information")
+    async def root():
+        """API information and documentation links"""
+        return {
+            "message": "🚀 Advanced FMCG Supply Chain Analytics API",
+            "version": "2.0.0",
+            "features": [
+                "🔬 Advanced graph analytics with machine learning",
+                "🤖 Intelligent AI agent with natural language processing", 
+                "📊 Real-time Neo4j database integration",
+                "💡 Supply chain insights and recommendations",
+                "🌟 Executive dashboards and reporting"
+            ],
+            "endpoints": {
+                "docs": "/docs",
+                "health": "/health",
+                "chat": "/api/chat",
+                "analytics": "/api/analytics/overview",
+                "insights": "/api/analytics/insights",
+                "dashboard": "/api/dashboard"
+            },
+            "timestamp": datetime.now().isoformat()
+        }
 
 if __name__ == "__main__":
     import uvicorn
