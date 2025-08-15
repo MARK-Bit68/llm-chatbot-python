@@ -77,50 +77,19 @@ class AdvancedAIAgentService:
         
         tools = [
             Tool(
-                name="SupplyGraph Database Query",
+                name="Database Query",
                 func=enhanced_cypher_qa,
-                description="""Use this tool for ANY SupplyGraph supply chain analysis, including product analysis, plant utilization, storage optimization, time series analysis, and supply chain network analysis. 
-                
-                Input: the question (e.g., 'How many products are in Group S?', 'Which plant produces the most products?', 'Show me production data for SOS008L02P', 'What are the storage locations for products in subgroup POV?', 'Analyze sales patterns across different groups', 'Find products with similar production characteristics', 'Show me plant utilization statistics', 'Analyze inventory distribution across storage locations'). 
-                
-                This tool queries the SupplyGraph database and returns comprehensive analysis with detailed insights for supply chain planning and optimization.
-                
-                CRITICAL: When you receive this data, you MUST present the ENTIRE response EXACTLY as provided, including ALL sections and analysis. NEVER summarize, condense, or rephrase this data - present the COMPLETE analysis with all tables, metrics, and insights exactly as received."""
+                description="Query the SupplyGraph database for supply chain analysis. Input: your question about products, plants, storage, or supply chain data."
             ),
             Tool(
-                name="Product Search",
-                func=search_products,
-                description="Search for products by code (partial match). Input: search term (e.g., 'SOS', 'POV', 'AT'). Returns matching products with their group and subgroup information."
-            ),
-            Tool(
-                name="Product Details",
-                func=get_product_details,
-                description="Get detailed information about a specific product including its group, subgroup, plants, storage locations, and available time series data. Input: product code (e.g., 'SOS008L02P')."
-            ),
-            Tool(
-                name="SupplyGraph Dashboard",
+                name="Dashboard Data",
                 func=get_dashboard_data,
-                description="Get comprehensive dashboard data including product overview, group/subgroup statistics, plant/storage statistics, and time series summary."
-            ),
-            Tool(
-                name="Entity Information Search",
-                func=get_sku_data,
-                description="Use ONLY for semantic similarity search when Enhanced Database Query doesn't work. Input: search terms. NEVER use for specific SKU queries or 'all SKUs' queries. For 'What SKUs are in the master data?' use Enhanced Database Query instead."
-            ),
-            Tool(
-                name="Entity Data Parser",
-                func=parse_sku_data,
-                description="Use ONLY to extract structured data from raw SKU data. Input: raw SKU data. Use after Enhanced Database Query."
+                description="Get comprehensive dashboard data including product overview and statistics."
             ),
             Tool(
                 name="Advanced Analytics",
                 func=self._advanced_analytics_tool,
-                description="Use for advanced graph analytics, machine learning insights, pattern detection, and sophisticated supply chain analysis. Input: analytical question or request for insights."
-            ),
-            Tool(
-                name="General Chat",
-                func=lambda x: f"I can help you with {self.domain_config['domain_name']} questions. Please ask about specific {self.domain_config['entity_plural']}, plant utilization, storage optimization, time series analysis, or supply chain network analysis.",
-                description=f"General conversation about {self.domain_config['domain_name']} topics. Input: general questions about SupplyGraph dataset or supply chain concepts."
+                description="Use for advanced graph analytics and machine learning insights. Input: analytical question or request for insights."
             )
         ]
         
@@ -243,13 +212,14 @@ You are a helpful supply chain AI assistant. You have access to the following to
 {tools}
 
 RULES:
-1. For supply chain analysis, use the "SupplyGraph Database Query" tool
-2. For advanced analytics, use the "Advanced Analytics" tool  
-3. For greetings or simple questions, respond directly with "Final Answer:"
-4. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
-5. For direct responses: "Final Answer:" then your response
-6. Don't loop or repeat actions
-7. If a tool fails, provide a helpful response
+1. For supply chain analysis, use the "Database Query" tool
+2. For dashboard data, use the "Dashboard Data" tool
+3. For advanced analytics, use the "Advanced Analytics" tool  
+4. For greetings or simple questions, respond directly with "Final Answer:"
+5. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
+6. For direct responses: "Final Answer:" then your response
+7. Don't loop or repeat actions
+8. If a tool fails, provide a helpful response
 
 Question: {input}
 {agent_scratchpad}
