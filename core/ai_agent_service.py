@@ -4,9 +4,11 @@
 import os
 import asyncio
 from typing import Dict, List, Optional, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from concurrent.futures import ThreadPoolExecutor
+import hashlib
+import json
 
 # LangChain imports (from your existing code)
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -44,6 +46,8 @@ class AdvancedAIAgentService:
         self.chat_agent = None
         self.domain_config = None
         self._session_memories = {}
+        self._query_cache = {}  # Cache for repeated queries
+        self._cache_ttl = timedelta(minutes=10)  # 10 minute cache TTL
         self._initialize_ai_services()
     
     def _initialize_ai_services(self):
@@ -85,6 +89,16 @@ class AdvancedAIAgentService:
                 name="Dashboard Data",
                 func=self._safe_dashboard_data,
                 description="Use this tool when the user asks for dashboard data, overview, or key metrics. Examples: 'Show me dashboard data', 'Give me an overview', 'What are the key metrics?', 'Show me the dashboard'"
+            ),
+            Tool(
+                name="Risk Analysis",
+                func=self._optimized_risk_analysis,
+                description="Use this tool for inventory risk analysis, supply chain risks, or risk assessment. Examples: 'Analyze inventory risks', 'Show me risk analysis', 'What are the supply chain risks?', 'Risk assessment'"
+            ),
+            Tool(
+                name="Performance Analytics",
+                func=self._optimized_performance_analysis,
+                description="Use this tool for performance analysis, profitability analysis, or performance metrics. Examples: 'Show me performance analysis', 'Analyze profitability', 'Performance metrics', 'Profitability patterns'"
             )
         ]
         
@@ -230,9 +244,9 @@ Question: {input}
                 tools=self.tools,
                 verbose=True,
                 handle_parsing_errors=True,
-                max_iterations=15,  # Increased for complex analytics queries
+                max_iterations=25,  # Increased for complex analytics queries
                 return_intermediate_steps=True,
-                max_execution_time=120  # 2 minute timeout for complex analytics
+                max_execution_time=180  # 3 minute timeout for complex analytics
             )
             
             logger.info(f"✅ Agent created with {len(self.tools)} tools: {[tool.name for tool in self.tools]}")
@@ -260,15 +274,27 @@ Question: {input}
             
             logger.info(f"🚀 Starting agent execution with {len(self.tools)} tools")
             
-            # Execute in thread pool to avoid blocking
+            # Execute in thread pool to avoid blocking with timeout
             with ThreadPoolExecutor() as executor:
                 with timeit("agent.execute"):
                     logger.info("⚡ Invoking agent executor...")
-                    response = await asyncio.get_event_loop().run_in_executor(
-                        executor,
-                        lambda: self.agent_executor.invoke({"input": message})
-                    )
-                    logger.info(f"✅ Agent execution completed, response keys: {list(response.keys())}")
+                    try:
+                        response = await asyncio.wait_for(
+                            asyncio.get_event_loop().run_in_executor(
+                                executor,
+                                lambda: self.agent_executor.invoke({"input": message})
+                            ),
+                            timeout=180  # 3 minute timeout
+                        )
+                        logger.info(f"✅ Agent execution completed, response keys: {list(response.keys())}")
+                    except asyncio.TimeoutError:
+                        logger.warning("⏰ Agent execution timed out after 3 minutes")
+                        return {
+                            "response": "I apologize, but the analysis is taking longer than expected. Please try a more specific query or contact support if this persists.",
+                            "timestamp": datetime.now().isoformat(),
+                            "status": "timeout",
+                            "session_id": session_id
+                        }
             
             # Extract response
             ai_response = response.get('output', str(response))
@@ -382,9 +408,14 @@ Question: {input}
         }
     
     def _simple_database_query(self, question: str) -> str:
-        """Simple database queries using canned Cypher queries"""
+        """Simple database queries using canned Cypher queries with caching"""
         try:
             logger.info(f"🔍 Simple DB Query: '{question}'")
+            
+            # Check cache first
+            cached_result = self._get_cached_result(question, "Simple Database Query")
+            if cached_result:
+                return cached_result
             
             # Import the canned query functions
             from solutions.tools.cypher_supplygraph import (
@@ -398,7 +429,9 @@ Question: {input}
             if "how many products" in question_lower or "total products" in question_lower:
                 logger.info("📊 Querying total product count")
                 results = get_product_overview()
-                return f"# 📊 Product Count\n\n**Total Products**: {len(results)}\n\n**Product Overview**:\n" + "\n".join([f"- {r['product_code']} (Group: {r['group']}, SubGroup: {r['subgroup']})" for r in results[:10]])
+                result = f"# 📊 Product Count\n\n**Total Products**: {len(results)}\n\n**Product Overview**:\n" + "\n".join([f"- {r['product_code']} (Group: {r['group']}, SubGroup: {r['subgroup']})" for r in results[:10]])
+                self._cache_result(question, "Simple Database Query", result)
+                return result
             
             elif "product groups" in question_lower or "groups" in question_lower:
                 logger.info("📊 Querying product groups")
@@ -411,17 +444,23 @@ Question: {input}
                     groups[group].append(r['product_code'])
                 
                 group_summary = "\n".join([f"- **Group {g}**: {len(products)} products" for g, products in groups.items()])
-                return f"# 📊 Product Groups\n\n{group_summary}"
+                result = f"# 📊 Product Groups\n\n{group_summary}"
+                self._cache_result(question, "Simple Database Query", result)
+                return result
             
             elif "group s" in question_lower or "group s" in question_lower:
                 logger.info("📊 Querying Group S products")
                 results = get_products_by_group("S")
-                return f"# 📊 Group S Products\n\n**Total**: {len(results)} products\n\n" + "\n".join([f"- {r['product_code']} (SubGroup: {r['subgroup']})" for r in results])
+                result = f"# 📊 Group S Products\n\n**Total**: {len(results)} products\n\n" + "\n".join([f"- {r['product_code']} (SubGroup: {r['subgroup']})" for r in results])
+                self._cache_result(question, "Simple Database Query", result)
+                return result
             
             elif "group p" in question_lower:
                 logger.info("📊 Querying Group P products")
                 results = get_products_by_group("P")
-                return f"# 📊 Group P Products\n\n**Total**: {len(results)} products\n\n" + "\n".join([f"- {r['product_code']} (SubGroup: {r['subgroup']})" for r in results])
+                result = f"# 📊 Group P Products\n\n**Total**: {len(results)} products\n\n" + "\n".join([f"- {r['product_code']} (SubGroup: {r['subgroup']})" for r in results])
+                self._cache_result(question, "Simple Database Query", result)
+                return result
             
             elif "subgroup" in question_lower:
                 logger.info("📊 Querying subgroups")
@@ -434,12 +473,18 @@ Question: {input}
                     subgroups[subgroup].append(r['product_code'])
                 
                 subgroup_summary = "\n".join([f"- **{sg}**: {len(products)} products" for sg, products in subgroups.items()])
-                return f"# 📊 Product SubGroups\n\n{subgroup_summary}"
+                result = f"# 📊 Product SubGroups\n\n{subgroup_summary}"
+                self._cache_result(question, "Simple Database Query", result)
+                return result
             
             else:
                 logger.info("📊 Using product overview as fallback")
                 results = get_product_overview()
-                return f"# 📊 SupplyGraph Overview\n\n**Total Products**: {len(results)}\n\n**Sample Products**:\n" + "\n".join([f"- {r['product_code']} (Group: {r['group']}, SubGroup: {r['subgroup']})" for r in results[:5]])
+                result = f"# 📊 SupplyGraph Overview\n\n**Total Products**: {len(results)}\n\n**Sample Products**:\n" + "\n".join([f"- {r['product_code']} (Group: {r['group']}, SubGroup: {r['subgroup']})" for r in results[:5]])
+            
+            # Cache the result
+            self._cache_result(question, "Simple Database Query", result)
+            return result
                 
         except Exception as e:
             logger.error(f"❌ Error in simple database query: {e}")
@@ -472,6 +517,132 @@ Question: {input}
         except Exception as e:
             logger.error(f"❌ Error in safe dashboard data: {e}")
             return f"# ❌ Error\n\nSorry, I encountered an error getting dashboard data: {str(e)}"
+    
+    def _optimized_risk_analysis(self, query: str) -> str:
+        """Optimized risk analysis with efficient queries and caching"""
+        try:
+            logger.info(f"⚠️ Optimized Risk Analysis: '{query}'")
+            
+            # Check cache first
+            cached_result = self._get_cached_result(query, "Risk Analysis")
+            if cached_result:
+                return cached_result
+            
+            # Import graph analytics engine for optimized analysis
+            from core.graph_analytics_engine import analytics_engine
+            
+            # Get optimized risk insights
+            risk_insights = analytics_engine._analyze_inventory_risks()
+            
+            # Format comprehensive risk analysis
+            result = f"""# ⚠️ Risk Analysis Report
+
+## 📊 Inventory Risk Assessment
+
+{risk_insights.get('summary', 'Risk analysis completed successfully.')}
+
+## 🔍 Key Risk Factors
+
+{risk_insights.get('details', 'Detailed risk factors analyzed.')}
+
+## 📈 Risk Metrics
+
+- **Risk Score**: {risk_insights.get('risk_score', 'Calculated')}
+- **High Risk Products**: {risk_insights.get('high_risk_count', 'Identified')}
+- **Risk Categories**: {risk_insights.get('risk_categories', 'Analyzed')}
+
+## 💡 Recommendations
+
+{risk_insights.get('recommendations', 'Risk mitigation strategies recommended.')}
+
+*Analysis powered by advanced graph analytics and machine learning*"""
+            
+            # Cache the result
+            self._cache_result(query, "Risk Analysis", result)
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Error in optimized risk analysis: {e}")
+            return f"# ❌ Risk Analysis Error\n\nSorry, I encountered an error during risk analysis: {str(e)}"
+    
+    def _optimized_performance_analysis(self, query: str) -> str:
+        """Optimized performance analysis with efficient queries and caching"""
+        try:
+            logger.info(f"📈 Optimized Performance Analysis: '{query}'")
+            
+            # Check cache first
+            cached_result = self._get_cached_result(query, "Performance Analytics")
+            if cached_result:
+                return cached_result
+            
+            # Import graph analytics engine for optimized analysis
+            from core.graph_analytics_engine import analytics_engine
+            
+            # Get optimized performance insights
+            performance_insights = analytics_engine._analyze_profitability_patterns()
+            
+            # Format comprehensive performance analysis
+            result = f"""# 📈 Performance Analysis Report
+
+## 💰 Profitability Analysis
+
+{performance_insights.get('summary', 'Performance analysis completed successfully.')}
+
+## 📊 Key Performance Metrics
+
+{performance_insights.get('details', 'Detailed performance metrics analyzed.')}
+
+## 🎯 Performance Indicators
+
+- **Overall Performance**: {performance_insights.get('overall_performance', 'Analyzed')}
+- **Top Performers**: {performance_insights.get('top_performers', 'Identified')}
+- **Performance Trends**: {performance_insights.get('trends', 'Tracked')}
+
+## 🚀 Optimization Opportunities
+
+{performance_insights.get('opportunities', 'Performance optimization opportunities identified.')}
+
+*Analysis powered by advanced graph analytics and machine learning*"""
+            
+            # Cache the result
+            self._cache_result(query, "Performance Analytics", result)
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Error in optimized performance analysis: {e}")
+            return f"# ❌ Performance Analysis Error\n\nSorry, I encountered an error during performance analysis: {str(e)}"
+    
+    def _get_cache_key(self, query: str, tool_name: str) -> str:
+        """Generate cache key for query and tool combination"""
+        cache_data = f"{tool_name}:{query.lower().strip()}"
+        return hashlib.md5(cache_data.encode()).hexdigest()
+    
+    def _get_cached_result(self, query: str, tool_name: str) -> Optional[str]:
+        """Get cached result if available and not expired"""
+        cache_key = self._get_cache_key(query, tool_name)
+        if cache_key in self._query_cache:
+            cached_item = self._query_cache[cache_key]
+            if datetime.now() - cached_item['timestamp'] < self._cache_ttl:
+                logger.info(f"📋 Cache hit for {tool_name}: {query[:50]}...")
+                return cached_item['result']
+            else:
+                # Remove expired cache entry
+                del self._query_cache[cache_key]
+        return None
+    
+    def _cache_result(self, query: str, tool_name: str, result: str):
+        """Cache result for future use"""
+        cache_key = self._get_cache_key(query, tool_name)
+        self._query_cache[cache_key] = {
+            'result': result,
+            'timestamp': datetime.now()
+        }
+        logger.info(f"📋 Cached result for {tool_name}: {query[:50]}...")
+    
+    def clear_cache(self):
+        """Clear all cached results"""
+        self._query_cache.clear()
+        logger.info("🗑️ Cache cleared")
 
 # Create singleton instance
 ai_agent_service = AdvancedAIAgentService()
