@@ -227,6 +227,16 @@ async def graph_overview_endpoint():
         logger.error(f"Graph overview error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/graph/overview", summary="Graph Overview (React Frontend)")
+async def get_graph_overview_react():
+    """Get graph overview for React frontend compatibility"""
+    try:
+        overview = await analytics_engine.get_graph_overview()
+        return overview
+    except Exception as e:
+        logger.error(f"Graph overview error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/analytics/insights", summary="Advanced Supply Chain Insights")
 async def supply_chain_insights_endpoint(background_tasks: BackgroundTasks):
     """
