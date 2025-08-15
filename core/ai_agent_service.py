@@ -450,13 +450,24 @@ Question: {input}
         try:
             logger.info(f"🔍 Safe Dashboard Data: '{query}'")
             
-            # Import the dashboard function
-            from solutions.tools.cypher_supplygraph import get_dashboard_data
+            # Call the dashboard API endpoint directly
+            import requests
             
-            # Get dashboard data
-            dashboard_data = get_dashboard_data()
-            
-            return f"# 📊 Dashboard Data\n\n{dashboard_data}"
+            response = requests.get("https://llm-chatbot-python-production-7e6f.up.railway.app/api/dashboard", timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                
+                return f"""# 📊 Dashboard Overview
+
+**Total Products**: {data.get('totalProducts', 'N/A')}
+**Total Groups**: {data.get('totalGroups', 'N/A')}
+**Total Plants**: {data.get('totalPlants', 'N/A')}
+**Total Storage Locations**: {data.get('totalStorageLocations', 'N/A')}
+**Total Categories**: {data.get('totalCategories', 'N/A')}
+
+*Data from SupplyGraph database*"""
+            else:
+                return f"# ❌ Error\n\nFailed to fetch dashboard data: HTTP {response.status_code}"
             
         except Exception as e:
             logger.error(f"❌ Error in safe dashboard data: {e}")
