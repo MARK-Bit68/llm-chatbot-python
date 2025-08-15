@@ -425,7 +425,7 @@ async def graph_visualization_endpoint():
                n.subgroup as subgroup
         """
         
-        nodes_result = graph.run(nodes_query).data()
+        nodes_result = graph.query(nodes_query)
         
         # Query relationships
         edges_query = """
@@ -436,7 +436,7 @@ async def graph_visualization_endpoint():
                r.weight as weight
         """
         
-        edges_result = graph.run(edges_query).data()
+        edges_result = graph.query(edges_query)
         
         # Process nodes
         nodes = []
