@@ -80,21 +80,6 @@ class AdvancedAIAgentService:
                 name="Simple Database Query",
                 func=self._simple_database_query,
                 description="Simple database queries for basic supply chain questions. Input: simple questions like 'How many products are there?' or 'Show me product groups'"
-            ),
-            Tool(
-                name="Database Query",
-                func=enhanced_cypher_qa,
-                description="Advanced database queries for complex supply chain analysis. Input: your question about products, plants, storage, or supply chain data."
-            ),
-            Tool(
-                name="Dashboard Data",
-                func=get_dashboard_data,
-                description="Get comprehensive dashboard data including product overview and statistics."
-            ),
-            Tool(
-                name="Advanced Analytics",
-                func=self._advanced_analytics_tool,
-                description="Use for advanced graph analytics and machine learning insights. Input: analytical question or request for insights."
             )
         ]
         
@@ -217,15 +202,12 @@ You are a helpful supply chain AI assistant. You have access to the following to
 {tools}
 
 RULES:
-1. For simple questions like "How many products are there?" or "Show me product groups", use the "Simple Database Query" tool FIRST
-2. For complex supply chain analysis, use the "Database Query" tool
-3. For dashboard data, use the "Dashboard Data" tool
-4. For advanced analytics, use the "Advanced Analytics" tool  
-5. For greetings or simple questions, respond directly with "Final Answer:"
-6. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
-7. For direct responses: "Final Answer:" then your response
-8. Don't loop or repeat actions
-9. If a tool fails, provide a helpful response
+1. For ANY data questions, use the "Simple Database Query" tool
+2. For greetings or simple questions, respond directly with "Final Answer:"
+3. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
+4. For direct responses: "Final Answer:" then your response
+5. Don't loop or repeat actions
+6. If a tool fails, provide a helpful response
 
 Question: {input}
 {agent_scratchpad}
