@@ -230,8 +230,9 @@ Question: {input}
                 tools=self.tools,
                 verbose=True,
                 handle_parsing_errors=True,
-                max_iterations=5,  # Reduced to prevent loops
-                return_intermediate_steps=True
+                max_iterations=15,  # Increased for complex analytics queries
+                return_intermediate_steps=True,
+                max_execution_time=120  # 2 minute timeout for complex analytics
             )
             
             logger.info(f"✅ Agent created with {len(self.tools)} tools: {[tool.name for tool in self.tools]}")
