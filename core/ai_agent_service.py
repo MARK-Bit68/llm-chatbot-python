@@ -77,9 +77,14 @@ class AdvancedAIAgentService:
         
         tools = [
             Tool(
+                name="Simple Database Query",
+                func=self._simple_database_query,
+                description="Simple database queries for basic supply chain questions. Input: simple questions like 'How many products are there?' or 'Show me product groups'"
+            ),
+            Tool(
                 name="Database Query",
                 func=enhanced_cypher_qa,
-                description="Query the SupplyGraph database for supply chain analysis. Input: your question about products, plants, storage, or supply chain data."
+                description="Advanced database queries for complex supply chain analysis. Input: your question about products, plants, storage, or supply chain data."
             ),
             Tool(
                 name="Dashboard Data",
@@ -212,14 +217,15 @@ You are a helpful supply chain AI assistant. You have access to the following to
 {tools}
 
 RULES:
-1. For supply chain analysis, use the "Database Query" tool
-2. For dashboard data, use the "Dashboard Data" tool
-3. For advanced analytics, use the "Advanced Analytics" tool  
-4. For greetings or simple questions, respond directly with "Final Answer:"
-5. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
-6. For direct responses: "Final Answer:" then your response
-7. Don't loop or repeat actions
-8. If a tool fails, provide a helpful response
+1. For simple questions like "How many products are there?" or "Show me product groups", use the "Simple Database Query" tool FIRST
+2. For complex supply chain analysis, use the "Database Query" tool
+3. For dashboard data, use the "Dashboard Data" tool
+4. For advanced analytics, use the "Advanced Analytics" tool  
+5. For greetings or simple questions, respond directly with "Final Answer:"
+6. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
+7. For direct responses: "Final Answer:" then your response
+8. Don't loop or repeat actions
+9. If a tool fails, provide a helpful response
 
 Question: {input}
 {agent_scratchpad}
@@ -241,6 +247,8 @@ Question: {input}
                 return_intermediate_steps=True
             )
             
+            logger.info(f"✅ Agent created with {len(self.tools)} tools: {[tool.name for tool in self.tools]}")
+            
             logger.info("✅ AI Agent created successfully")
             
         except Exception as e:
@@ -250,9 +258,11 @@ Question: {input}
     async def chat_async(self, message: str, session_id: str = "default") -> Dict[str, Any]:
         """Async chat with AI agent"""
         try:
+            logger.info(f"🔍 Chat request: '{message[:50]}...' (session: {session_id})")
             record_event("chat.request", {"message_preview": message[:100], "session_id": session_id})
             
             if not self.agent_executor:
+                logger.error("❌ Agent executor not available")
                 return {
                     "response": "AI Agent is not available. Please check the configuration.",
                     "timestamp": datetime.now().isoformat(),
@@ -260,13 +270,17 @@ Question: {input}
                     "session_id": session_id
                 }
             
+            logger.info(f"🚀 Starting agent execution with {len(self.tools)} tools")
+            
             # Execute in thread pool to avoid blocking
             with ThreadPoolExecutor() as executor:
                 with timeit("agent.execute"):
+                    logger.info("⚡ Invoking agent executor...")
                     response = await asyncio.get_event_loop().run_in_executor(
                         executor,
                         lambda: self.agent_executor.invoke({"input": message})
                     )
+                    logger.info(f"✅ Agent execution completed, response keys: {list(response.keys())}")
             
             # Extract response
             ai_response = response.get('output', str(response))
@@ -378,6 +392,70 @@ Question: {input}
             "domain_config": self.domain_config,
             "timestamp": datetime.now().isoformat()
         }
+    
+    def _simple_database_query(self, question: str) -> str:
+        """Simple database queries using canned Cypher queries"""
+        try:
+            logger.info(f"🔍 Simple DB Query: '{question}'")
+            
+            # Import the canned query functions
+            from solutions.tools.cypher_supplygraph import (
+                get_product_overview, get_products_by_group, get_products_by_subgroup,
+                get_products_by_plant, get_products_by_storage, get_product_details
+            )
+            
+            question_lower = question.lower()
+            
+            # Simple pattern matching for common queries
+            if "how many products" in question_lower or "total products" in question_lower:
+                logger.info("📊 Querying total product count")
+                results = get_product_overview()
+                return f"# 📊 Product Count\n\n**Total Products**: {len(results)}\n\n**Product Overview**:\n" + "\n".join([f"- {r['product_code']} (Group: {r['group']}, SubGroup: {r['subgroup']})" for r in results[:10]])
+            
+            elif "product groups" in question_lower or "groups" in question_lower:
+                logger.info("📊 Querying product groups")
+                results = get_product_overview()
+                groups = {}
+                for r in results:
+                    group = r['group']
+                    if group not in groups:
+                        groups[group] = []
+                    groups[group].append(r['product_code'])
+                
+                group_summary = "\n".join([f"- **Group {g}**: {len(products)} products" for g, products in groups.items()])
+                return f"# 📊 Product Groups\n\n{group_summary}"
+            
+            elif "group s" in question_lower or "group s" in question_lower:
+                logger.info("📊 Querying Group S products")
+                results = get_products_by_group("S")
+                return f"# 📊 Group S Products\n\n**Total**: {len(results)} products\n\n" + "\n".join([f"- {r['product_code']} (SubGroup: {r['subgroup']})" for r in results])
+            
+            elif "group p" in question_lower:
+                logger.info("📊 Querying Group P products")
+                results = get_products_by_group("P")
+                return f"# 📊 Group P Products\n\n**Total**: {len(results)} products\n\n" + "\n".join([f"- {r['product_code']} (SubGroup: {r['subgroup']})" for r in results])
+            
+            elif "subgroup" in question_lower:
+                logger.info("📊 Querying subgroups")
+                results = get_product_overview()
+                subgroups = {}
+                for r in results:
+                    subgroup = r['subgroup']
+                    if subgroup not in subgroups:
+                        subgroups[subgroup] = []
+                    subgroups[subgroup].append(r['product_code'])
+                
+                subgroup_summary = "\n".join([f"- **{sg}**: {len(products)} products" for sg, products in subgroups.items()])
+                return f"# 📊 Product SubGroups\n\n{subgroup_summary}"
+            
+            else:
+                logger.info("📊 Using product overview as fallback")
+                results = get_product_overview()
+                return f"# 📊 SupplyGraph Overview\n\n**Total Products**: {len(results)}\n\n**Sample Products**:\n" + "\n".join([f"- {r['product_code']} (Group: {r['group']}, SubGroup: {r['subgroup']})" for r in results[:5]])
+                
+        except Exception as e:
+            logger.error(f"❌ Error in simple database query: {e}")
+            return f"# ❌ Error\n\nSorry, I encountered an error: {str(e)}"
 
 # Create singleton instance
 ai_agent_service = AdvancedAIAgentService()
