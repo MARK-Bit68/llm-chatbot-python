@@ -194,24 +194,27 @@ class AdvancedGraphAnalyticsEngine:
             
             G = self.networkx_graph
             
+            # Convert to undirected graph for metrics that don't work with directed graphs
+            G_undirected = G.to_undirected()
+            
             metrics = {
                 "density": nx.density(G),
-                "number_of_components": nx.number_connected_components(G),
-                "average_clustering": nx.average_clustering(G),
-                "transitivity": nx.transitivity(G),
+                "number_of_components": nx.number_connected_components(G_undirected),
+                "average_clustering": nx.average_clustering(G_undirected),
+                "transitivity": nx.transitivity(G_undirected),
                 "diameter": None,
                 "average_shortest_path": None,
                 "centrality_metrics": {}
             }
             
             # Calculate diameter and average shortest path for largest component
-            if nx.is_connected(G):
-                metrics["diameter"] = nx.diameter(G)
-                metrics["average_shortest_path"] = nx.average_shortest_path_length(G)
+            if nx.is_connected(G_undirected):
+                metrics["diameter"] = nx.diameter(G_undirected)
+                metrics["average_shortest_path"] = nx.average_shortest_path_length(G_undirected)
             else:
                 # Use largest connected component
-                largest_cc = max(nx.connected_components(G), key=len)
-                subgraph = G.subgraph(largest_cc)
+                largest_cc = max(nx.connected_components(G_undirected), key=len)
+                subgraph = G_undirected.subgraph(largest_cc)
                 if len(subgraph) > 1:
                     metrics["diameter"] = nx.diameter(subgraph)
                     metrics["average_shortest_path"] = nx.average_shortest_path_length(subgraph)
