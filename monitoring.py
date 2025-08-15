@@ -3,7 +3,13 @@ import uuid
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 
-import streamlit as st
+# Optional Streamlit import for session state
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+    st = None
 
 # Fallback storage when Streamlit session_state is unavailable
 _fallback_enabled = False
@@ -13,11 +19,16 @@ _fallback_trace = []
 def _ensure_trace_initialized() -> None:
     global _fallback_enabled, _fallback_trace
     try:
-        # Accessing session_state can raise if not in a Streamlit context
-        if "monitoring_enabled" not in st.session_state:
-            st.session_state.monitoring_enabled = False
-        if "trace" not in st.session_state:
-            st.session_state.trace = []  # type: ignore[var-annotated]
+        if STREAMLIT_AVAILABLE and hasattr(st, "session_state"):
+            # Accessing session_state can raise if not in a Streamlit context
+            if "monitoring_enabled" not in st.session_state:
+                st.session_state.monitoring_enabled = False
+            if "trace" not in st.session_state:
+                st.session_state.trace = []  # type: ignore[var-annotated]
+        else:
+            # Use module-level fallback to avoid crashing in non-Streamlit contexts
+            if _fallback_trace is None:
+                _fallback_trace = []
     except Exception:
         # Use module-level fallback to avoid crashing in non-Streamlit contexts
         if _fallback_trace is None:
@@ -27,7 +38,11 @@ def _ensure_trace_initialized() -> None:
 def enable_monitoring(enable: bool) -> None:
     _ensure_trace_initialized()
     try:
-        st.session_state.monitoring_enabled = enable
+        if STREAMLIT_AVAILABLE and hasattr(st, "session_state"):
+            st.session_state.monitoring_enabled = enable
+        else:
+            global _fallback_enabled
+            _fallback_enabled = enable
     except Exception:
         global _fallback_enabled
         _fallback_enabled = enable
@@ -36,15 +51,26 @@ def enable_monitoring(enable: bool) -> None:
 def record_event(event_type: str, details: Optional[Dict[str, Any]] = None) -> None:
     _ensure_trace_initialized()
     try:
-        if not st.session_state.monitoring_enabled:
-            return
-        event = {
-            "id": str(uuid.uuid4()),
-            "ts": time.time(),
-            "type": event_type,
-            "details": details or {},
-        }
-        st.session_state.trace.append(event)
+        if STREAMLIT_AVAILABLE and hasattr(st, "session_state"):
+            if not st.session_state.monitoring_enabled:
+                return
+            event = {
+                "id": str(uuid.uuid4()),
+                "ts": time.time(),
+                "type": event_type,
+                "details": details or {},
+            }
+            st.session_state.trace.append(event)
+        else:
+            # Fallback mode (non-Streamlit)
+            if not _fallback_enabled:
+                return
+            _fallback_trace.append({
+                "id": str(uuid.uuid4()),
+                "ts": time.time(),
+                "type": event_type,
+                "details": details or {},
+            })
     except Exception:
         # Fallback mode (non-Streamlit)
         if not _fallback_enabled:
