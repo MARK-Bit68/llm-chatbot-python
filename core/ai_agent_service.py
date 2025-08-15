@@ -80,6 +80,11 @@ class AdvancedAIAgentService:
                 name="Simple Database Query",
                 func=self._simple_database_query,
                 description="Simple database queries for basic supply chain questions. Input: simple questions like 'How many products are there?' or 'Show me product groups'"
+            ),
+            Tool(
+                name="Dashboard Data",
+                func=self._safe_dashboard_data,
+                description="Get comprehensive dashboard data including product overview and statistics."
             )
         ]
         
@@ -202,12 +207,13 @@ You are a helpful supply chain AI assistant. You have access to the following to
 {tools}
 
 RULES:
-1. For ANY data questions, use the "Simple Database Query" tool
-2. For greetings or simple questions, respond directly with "Final Answer:"
-3. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
-4. For direct responses: "Final Answer:" then your response
-5. Don't loop or repeat actions
-6. If a tool fails, provide a helpful response
+1. For simple data questions like "How many products are there?" or "Show me product groups", use the "Simple Database Query" tool
+2. For comprehensive dashboard data or overview requests, use the "Dashboard Data" tool
+3. For greetings or simple questions, respond directly with "Final Answer:"
+4. Use proper ReAct format: "Action:" then tool name, then "Action Input:" then your query
+5. For direct responses: "Final Answer:" then your response
+6. Don't loop or repeat actions
+7. If a tool fails, provide a helpful response
 
 Question: {input}
 {agent_scratchpad}
@@ -438,6 +444,23 @@ Question: {input}
         except Exception as e:
             logger.error(f"❌ Error in simple database query: {e}")
             return f"# ❌ Error\n\nSorry, I encountered an error: {str(e)}"
+    
+    def _safe_dashboard_data(self, query: str = "") -> str:
+        """Safe dashboard data function with error handling"""
+        try:
+            logger.info(f"🔍 Safe Dashboard Data: '{query}'")
+            
+            # Import the dashboard function
+            from solutions.tools.cypher_supplygraph import get_dashboard_data
+            
+            # Get dashboard data
+            dashboard_data = get_dashboard_data()
+            
+            return f"# 📊 Dashboard Data\n\n{dashboard_data}"
+            
+        except Exception as e:
+            logger.error(f"❌ Error in safe dashboard data: {e}")
+            return f"# ❌ Error\n\nSorry, I encountered an error getting dashboard data: {str(e)}"
 
 # Create singleton instance
 ai_agent_service = AdvancedAIAgentService()
