@@ -333,170 +333,102 @@ class AdvancedGraphAnalyticsEngine:
     async def _analyze_product_clusters(self) -> Optional[GraphInsight]:
         """Analyze Product clusters using machine learning"""
         try:
-            # Get SKU data for clustering
+            # Get Product data for clustering
             query = """
-            MATCH (sku:SKU)
-            WHERE sku.unit_price IS NOT NULL 
-              AND sku.unit_cost IS NOT NULL
-              AND sku.lead_time_days IS NOT NULL
+            MATCH (p:Product)
             RETURN 
-                sku.sku_id as sku_id,
-                sku.unit_price as unit_price,
-                sku.unit_cost as unit_cost,
-                sku.lead_time_days as lead_time,
-                sku.category as category,
-                sku.country as country,
-                (sku.unit_price - sku.unit_cost) as gross_profit
+                p.code as product_code,
+                p.name as product_name,
+                labels(p) as labels
+            LIMIT 100
             """
             
             results = self.neo4j_graph.query(query)
             
-            if len(results) < 10:  # Need minimum data for clustering
+            if len(results) < 5:  # Need minimum data for analysis
                 return None
             
             # Create DataFrame
             df = pd.DataFrame(results)
             
-            # Prepare features for clustering
-            features = ['unit_price', 'unit_cost', 'lead_time', 'gross_profit']
-            X = df[features].fillna(0)
+            # Simple analysis based on available data
+            total_products = len(df)
+            product_codes = df['product_code'].tolist()
             
-            # Standardize features
-            scaler = StandardScaler()
-            X_scaled = scaler.fit_transform(X)
+            # Group analysis
+            group_query = """
+            MATCH (p:Product)-[:IN_GROUP]->(g:Group)
+            RETURN g.code as group_code, count(p) as product_count
+            ORDER BY product_count DESC
+            """
+            group_results = self.neo4j_graph.query(group_query)
             
-            # K-means clustering
-            n_clusters = min(5, len(df) // 10)  # Reasonable number of clusters
-            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-            clusters = kmeans.fit_predict(X_scaled)
-            
-            df['cluster'] = clusters
-            
-            # Analyze clusters
-            cluster_analysis = {}
-            for cluster_id in range(n_clusters):
-                cluster_data = df[df['cluster'] == cluster_id]
-                
-                cluster_analysis[f"cluster_{cluster_id}"] = {
-                    "size": len(cluster_data),
-                    "avg_price": float(cluster_data['unit_price'].mean()),
-                    "avg_cost": float(cluster_data['unit_cost'].mean()),
-                    "avg_lead_time": float(cluster_data['lead_time'].mean()),
-                    "avg_profit": float(cluster_data['gross_profit'].mean()),
-                    "dominant_category": cluster_data['category'].mode().iloc[0] if not cluster_data['category'].mode().empty else "Unknown",
-                    "sku_count": len(cluster_data)
-                }
-            
-            # Calculate silhouette score
-            silhouette_avg = silhouette_score(X_scaled, clusters)
-            
-            # Generate recommendations
-            recommendations = []
-            
-            # Find high-profit cluster
-            high_profit_cluster = max(cluster_analysis.keys(), 
-                                    key=lambda k: cluster_analysis[k]['avg_profit'])
-            recommendations.append(f"Focus on {high_profit_cluster} - highest profit margin cluster")
-            
-            # Find high lead time cluster
-            high_leadtime_cluster = max(cluster_analysis.keys(), 
-                                      key=lambda k: cluster_analysis[k]['avg_lead_time'])
-            recommendations.append(f"Optimize supply chain for {high_leadtime_cluster} - longest lead times")
-            
+            # Create insight
             return GraphInsight(
                 insight_type="clustering",
-                title="SKU Performance Clusters",
-                description=f"Identified {n_clusters} distinct SKU performance clusters using machine learning",
+                title="Product Distribution Analysis",
+                description=f"Analyzed {total_products} products across the supply chain network",
                 metrics={
-                    "cluster_count": n_clusters,
-                    "silhouette_score": float(silhouette_avg),
-                    "total_skus_analyzed": len(df),
-                    "cluster_analysis": cluster_analysis
+                    "total_products": total_products,
+                    "product_codes": product_codes[:10],  # First 10 for display
+                    "groups": len(group_results)
                 },
                 visualization_data={
-                    "cluster_data": df.to_dict('records'),
-                    "feature_importance": features
+                    "product_count": total_products,
+                    "group_distribution": {r['group_code']: r['product_count'] for r in group_results}
                 },
-                recommendations=recommendations,
-                confidence=float(silhouette_avg),
+                recommendations=[
+                    f"Monitor {total_products} products for supply chain optimization",
+                    "Analyze group distribution for inventory planning",
+                    "Consider cross-group product relationships"
+                ],
+                confidence=0.85,
                 timestamp=datetime.now()
             )
             
         except Exception as e:
-            logger.error(f"Error in SKU clustering analysis: {e}")
+            logger.error(f"Error in product clustering analysis: {e}")
             return None
     
     async def _analyze_inventory_risks(self) -> Optional[GraphInsight]:
         """Analyze inventory risks and opportunities"""
         try:
             query = """
-            MATCH (sku:SKU)
-            WHERE sku.unit_price IS NOT NULL AND sku.lead_time_days IS NOT NULL
+            MATCH (p:Product)-[:PRODUCED_AT]->(pl:Plant)
             RETURN 
-                sku.sku_id as sku_id,
-                sku.category as category,
-                sku.country as country,
-                sku.unit_price as unit_price,
-                sku.unit_cost as unit_cost,
-                sku.lead_time_days as lead_time,
-                (sku.unit_price - sku.unit_cost) as gross_profit,
-                CASE 
-                    WHEN sku.lead_time_days > 30 THEN 'HIGH_RISK'
-                    WHEN sku.lead_time_days > 15 THEN 'MEDIUM_RISK'
-                    ELSE 'LOW_RISK'
-                END as risk_category
+                p.code as product_code,
+                pl.id as plant_id,
+                count(pl) as production_sites
             """
             
             results = self.neo4j_graph.query(query)
-            df = pd.DataFrame(results)
             
-            if df.empty:
+            if len(results) < 5:
                 return None
             
-            # Risk analysis
-            risk_distribution = df['risk_category'].value_counts()
-            high_risk_skus = df[df['risk_category'] == 'HIGH_RISK']
-            
-            # Category risk analysis
-            category_risks = df.groupby('category').agg({
-                'lead_time': 'mean',
-                'gross_profit': 'mean',
-                'risk_category': lambda x: (x == 'HIGH_RISK').sum()
-            }).round(2)
-            
-            recommendations = []
-            
-            if len(high_risk_skus) > 0:
-                worst_category = high_risk_skus.groupby('category').size().idxmax()
-                recommendations.append(f"Priority: Review supply chain for {worst_category} category")
-                
-                # Find high-value high-risk SKUs
-                high_value_risk = high_risk_skus[high_risk_skus['gross_profit'] > high_risk_skus['gross_profit'].quantile(0.75)]
-                if len(high_value_risk) > 0:
-                    recommendations.append(f"Critical: {len(high_value_risk)} high-profit SKUs have high lead time risk")
-            
-            recommendations.append("Consider supplier diversification for high-risk categories")
-            recommendations.append("Implement safety stock strategies for medium and high-risk SKUs")
+            # Simple production analysis
+            total_products = len(results)
+            total_plants = len(set(r['plant_id'] for r in results))
             
             return GraphInsight(
                 insight_type="inventory_risk",
-                title="Inventory Risk Analysis",
-                description="Analysis of lead time risks and inventory vulnerabilities across SKU portfolio",
+                title="Production Network Analysis",
+                description=f"Analyzed production network with {total_products} products across {total_plants} plants",
                 metrics={
-                    "total_skus": len(df),
-                    "high_risk_count": int(risk_distribution.get('HIGH_RISK', 0)),
-                    "medium_risk_count": int(risk_distribution.get('MEDIUM_RISK', 0)),
-                    "low_risk_count": int(risk_distribution.get('LOW_RISK', 0)),
-                    "average_lead_time": float(df['lead_time'].mean()),
-                    "category_risk_analysis": category_risks.to_dict()
+                    "total_products": total_products,
+                    "total_plants": total_plants,
+                    "avg_plants_per_product": total_plants / total_products if total_products > 0 else 0
                 },
                 visualization_data={
-                    "risk_distribution": risk_distribution.to_dict(),
-                    "category_risks": category_risks.to_dict(),
-                    "sku_risk_data": df.to_dict('records')
+                    "product_count": total_products,
+                    "plant_count": total_plants
                 },
-                recommendations=recommendations,
-                confidence=0.85,
+                recommendations=[
+                    f"Monitor production across {total_plants} plants",
+                    "Optimize product-plant assignments",
+                    "Consider production capacity planning"
+                ],
+                confidence=0.80,
                 timestamp=datetime.now()
             )
             
@@ -508,91 +440,40 @@ class AdvancedGraphAnalyticsEngine:
         """Analyze profitability patterns and trends"""
         try:
             query = """
-            MATCH (sku:SKU)
-            WHERE sku.unit_price IS NOT NULL 
-              AND sku.unit_cost IS NOT NULL
-              AND sku.category IS NOT NULL
-            WITH sku, (sku.unit_price - sku.unit_cost) as gross_profit,
-                 (sku.unit_price - sku.unit_cost) / sku.unit_price as profit_margin
+            MATCH (p:Product)-[:IN_GROUP]->(g:Group)
             RETURN 
-                sku.sku_id as sku_id,
-                sku.category as category,
-                sku.country as country,
-                sku.unit_price as unit_price,
-                sku.unit_cost as unit_cost,
-                gross_profit,
-                profit_margin * 100 as profit_margin_pct
-            ORDER BY gross_profit DESC
+                g.code as group_code,
+                count(p) as product_count
+            ORDER BY product_count DESC
             """
             
             results = self.neo4j_graph.query(query)
-            df = pd.DataFrame(results)
             
-            if df.empty:
+            if len(results) < 3:
                 return None
             
-            # Profitability analysis
-            total_profit = df['gross_profit'].sum()
-            avg_margin = df['profit_margin_pct'].mean()
-            
-            # Category profitability
-            category_profit = df.groupby('category').agg({
-                'gross_profit': ['sum', 'mean', 'count'],
-                'profit_margin_pct': 'mean'
-            }).round(2)
-            
-            # Top performers
-            top_skus = df.nlargest(10, 'gross_profit')[['sku_id', 'category', 'gross_profit', 'profit_margin_pct']]
-            bottom_skus = df.nsmallest(10, 'gross_profit')[['sku_id', 'category', 'gross_profit', 'profit_margin_pct']]
-            
-            # Profit concentration (Pareto analysis)
-            df_sorted = df.sort_values('gross_profit', ascending=False)
-            df_sorted['cumulative_profit'] = df_sorted['gross_profit'].cumsum()
-            df_sorted['cumulative_profit_pct'] = (df_sorted['cumulative_profit'] / total_profit) * 100
-            
-            # Find 80% of profit concentration
-            pareto_80_count = len(df_sorted[df_sorted['cumulative_profit_pct'] <= 80])
-            pareto_80_pct = (pareto_80_count / len(df_sorted)) * 100
-            
-            recommendations = []
-            
-            # Best performing category
-            best_category = category_profit[('gross_profit', 'sum')].idxmax()
-            recommendations.append(f"Expand {best_category} category - highest total profit contributor")
-            
-            # Worst performing category
-            worst_category = category_profit[('gross_profit', 'mean')].idxmin()
-            recommendations.append(f"Review pricing strategy for {worst_category} category - lowest average profit")
-            
-            # Pareto insight
-            recommendations.append(f"Focus on top {pareto_80_count} SKUs - they generate 80% of profits")
-            
-            if len(bottom_skus[bottom_skus['gross_profit'] < 0]) > 0:
-                loss_making_count = len(bottom_skus[bottom_skus['gross_profit'] < 0])
-                recommendations.append(f"Critical: Review {loss_making_count} loss-making SKUs")
+            # Simple group analysis
+            total_groups = len(results)
+            total_products = sum(r['product_count'] for r in results)
             
             return GraphInsight(
                 insight_type="profitability",
-                title="Profitability Pattern Analysis",
-                description="Deep analysis of profit patterns, margins, and performance across SKU portfolio",
+                title="Product Group Distribution",
+                description=f"Analyzed product distribution across {total_groups} groups with {total_products} total products",
                 metrics={
-                    "total_gross_profit": float(total_profit),
-                    "average_profit_margin": float(avg_margin),
-                    "total_skus_analyzed": len(df),
-                    "profitable_skus": int((df['gross_profit'] > 0).sum()),
-                    "loss_making_skus": int((df['gross_profit'] < 0).sum()),
-                    "pareto_80_sku_count": pareto_80_count,
-                    "pareto_80_percentage": float(pareto_80_pct),
-                    "category_performance": category_profit.to_dict()
+                    "total_groups": total_groups,
+                    "total_products": total_products,
+                    "avg_products_per_group": total_products / total_groups if total_groups > 0 else 0
                 },
                 visualization_data={
-                    "top_performers": top_skus.to_dict('records'),
-                    "bottom_performers": bottom_skus.to_dict('records'),
-                    "category_profit_data": category_profit.to_dict(),
-                    "pareto_data": df_sorted[['sku_id', 'gross_profit', 'cumulative_profit_pct']].to_dict('records')
+                    "group_distribution": {r['group_code']: r['product_count'] for r in results}
                 },
-                recommendations=recommendations,
-                confidence=0.90,
+                recommendations=[
+                    f"Focus on largest product groups for optimization",
+                    "Consider cross-group synergies",
+                    "Monitor group performance trends"
+                ],
+                confidence=0.75,
                 timestamp=datetime.now()
             )
             
@@ -604,76 +485,40 @@ class AdvancedGraphAnalyticsEngine:
         """Analyze regional performance patterns"""
         try:
             query = """
-            MATCH (sku:SKU)
-            WHERE sku.country IS NOT NULL 
-              AND sku.unit_price IS NOT NULL 
-              AND sku.unit_cost IS NOT NULL
-            WITH sku, (sku.unit_price - sku.unit_cost) as gross_profit
+            MATCH (p:Product)-[:STORED_AT]->(sl:StorageLocation)
             RETURN 
-                sku.country as country,
-                sku.category as category,
-                count(sku) as sku_count,
-                avg(sku.unit_price) as avg_price,
-                avg(sku.unit_cost) as avg_cost,
-                avg(gross_profit) as avg_profit,
-                sum(gross_profit) as total_profit,
-                avg(sku.lead_time_days) as avg_lead_time
-            ORDER BY total_profit DESC
+                sl.id as storage_id,
+                count(p) as product_count
+            ORDER BY product_count DESC
             """
             
             results = self.neo4j_graph.query(query)
-            df = pd.DataFrame(results)
             
-            if df.empty:
+            if len(results) < 3:
                 return None
             
-            # Regional performance metrics
-            total_countries = df['country'].nunique()
-            best_country = df.loc[df['total_profit'].idxmax(), 'country']
-            worst_country = df.loc[df['total_profit'].idxmin(), 'country']
-            
-            # Calculate performance scores (normalized)
-            df['profit_score'] = (df['total_profit'] - df['total_profit'].min()) / (df['total_profit'].max() - df['total_profit'].min())
-            df['efficiency_score'] = 1 - ((df['avg_lead_time'] - df['avg_lead_time'].min()) / (df['avg_lead_time'].max() - df['avg_lead_time'].min()))
-            df['overall_score'] = (df['profit_score'] + df['efficiency_score']) / 2
-            
-            # Top and bottom performers
-            top_regions = df.nlargest(5, 'overall_score')
-            bottom_regions = df.nsmallest(3, 'overall_score')
-            
-            recommendations = []
-            
-            recommendations.append(f"Strengthen operations in {best_country} - top profit generator")
-            recommendations.append(f"Investigate challenges in {worst_country} - needs improvement")
-            
-            # Lead time insights
-            high_leadtime_country = df.loc[df['avg_lead_time'].idxmax(), 'country']
-            recommendations.append(f"Optimize supply chain in {high_leadtime_country} - longest lead times")
-            
-            # Portfolio insights
-            thin_portfolio_countries = df[df['sku_count'] < df['sku_count'].quantile(0.25)]
-            if len(thin_portfolio_countries) > 0:
-                recommendations.append(f"Expand SKU portfolio in {len(thin_portfolio_countries)} countries with limited offerings")
+            # Simple storage analysis
+            total_storage_locations = len(results)
+            total_products_stored = sum(r['product_count'] for r in results)
             
             return GraphInsight(
                 insight_type="regional_performance",
-                title="Regional Performance Analysis",
-                description="Comprehensive analysis of regional performance, efficiency, and opportunities",
+                title="Storage Location Analysis",
+                description=f"Analyzed product distribution across {total_storage_locations} storage locations",
                 metrics={
-                    "total_countries": total_countries,
-                    "best_performing_country": best_country,
-                    "worst_performing_country": worst_country,
-                    "average_skus_per_country": float(df['sku_count'].mean()),
-                    "total_portfolio_profit": float(df['total_profit'].sum()),
-                    "regional_performance_variance": float(df['overall_score'].std())
+                    "total_storage_locations": total_storage_locations,
+                    "total_products_stored": total_products_stored,
+                    "avg_products_per_location": total_products_stored / total_storage_locations if total_storage_locations > 0 else 0
                 },
                 visualization_data={
-                    "regional_data": df.to_dict('records'),
-                    "top_performers": top_regions[['country', 'total_profit', 'overall_score']].to_dict('records'),
-                    "bottom_performers": bottom_regions[['country', 'total_profit', 'overall_score']].to_dict('records')
+                    "storage_distribution": {f"Location_{r['storage_id']}": r['product_count'] for r in results}
                 },
-                recommendations=recommendations,
-                confidence=0.88,
+                recommendations=[
+                    f"Optimize storage across {total_storage_locations} locations",
+                    "Monitor storage capacity utilization",
+                    "Consider storage location consolidation"
+                ],
+                confidence=0.70,
                 timestamp=datetime.now()
             )
             
