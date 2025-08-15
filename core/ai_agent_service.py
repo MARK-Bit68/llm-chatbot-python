@@ -229,8 +229,7 @@ class AdvancedAIAgentService:
                 handle_parsing_errors=True,
                 max_iterations=10,  # Reduced to prevent infinite loops
                 return_intermediate_steps=True,
-                max_execution_time=120,  # 2 minute timeout for better UX
-                early_stopping_method="generate"  # Stop early if agent generates final answer
+                max_execution_time=120  # 2 minute timeout for better UX
             )
             
             logger.info(f"✅ Agent created with {len(self.tools)} tools: {[tool.name for tool in self.tools]}")
