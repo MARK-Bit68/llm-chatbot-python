@@ -1,7 +1,7 @@
 // Advanced API Service for Enhanced Graph Analytics
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || ''
+const API_BASE_URL = import.meta.env.VITE_API_URL || window.location.origin
 
 // Create axios instance with enhanced configuration
 const advancedAPI = axios.create({
