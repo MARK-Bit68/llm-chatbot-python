@@ -49,18 +49,9 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info("🚀 Starting Advanced FMCG Analytics API")
     
-    # Initialize services (with error handling)
-    try:
-        health = analytics_engine.health_check()
-        logger.info(f"📊 Analytics Engine Status: {health['overall_status']}")
-    except Exception as e:
-        logger.warning(f"⚠️ Analytics Engine initialization failed: {e}")
-    
-    try:
-        agent_status = ai_agent_service.get_agent_status()
-        logger.info(f"🤖 AI Agent Status: {'Available' if agent_status['agent_available'] else 'Unavailable'}")
-    except Exception as e:
-        logger.warning(f"⚠️ AI Agent initialization failed: {e}")
+    # Don't block startup with service initialization
+    # Services will be initialized on-demand when needed
+    logger.info("✅ FastAPI server ready - services will initialize on-demand")
     
     yield
     
@@ -113,6 +104,12 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Simple startup check endpoint
+@app.get("/startup", summary="Startup Check")
+async def startup_check():
+    """Simple startup check - returns immediately when server is ready"""
+    return {"status": "ready", "timestamp": datetime.now().isoformat()}
 
 # Health check endpoint
 @app.get("/health", summary="Comprehensive Health Check")
