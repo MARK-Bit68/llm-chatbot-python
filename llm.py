@@ -1,7 +1,14 @@
-import streamlit as st
 import os
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from monitoring import record_event
+
+# Optional Streamlit import for session state
+try:
+    import streamlit as st
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+    st = None
 
 def get_openai_key():
     """Get OpenAI API key from environment variables only"""
@@ -15,14 +22,13 @@ def get_openai_key():
 def get_openai_model():
     """Get OpenAI model from environment variables and session overrides.
 
-    Default model is set to 'gpt-5-nano'. A Streamlit session override under
+    Default model is set to 'gpt-4.1-nano'. A Streamlit session override under
     key 'selected_model' will take precedence when present.
     """
     # Streamlit session override if available
     default_model = "gpt-4.1-nano"
     try:
-        # Avoid import cycles: st is already imported at top
-        if hasattr(st, "session_state") and st.session_state.get("selected_model"):
+        if STREAMLIT_AVAILABLE and hasattr(st, "session_state") and st.session_state.get("selected_model"):
             return st.session_state["selected_model"]
     except Exception:
         pass
