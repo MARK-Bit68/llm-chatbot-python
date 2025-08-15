@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import ForceGraph3D from 'react-force-graph-3d'
 import { 
   Network, 
   TrendingUp, 
@@ -52,6 +51,106 @@ const GraphVisualizer = () => {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Canvas-based graph visualization
+  useEffect(() => {
+    if (graphData && graphData.nodes && graphRef.current) {
+      const canvas = graphRef.current
+      const ctx = canvas.getContext('2d')
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // Set background
+      ctx.fillStyle = '#0F172A'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      
+      // Draw nodes
+      const nodeRadius = 4
+      const nodeColors = {
+        'Product': '#10B981',
+        'Plant': '#3B82F6',
+        'StorageLocation': '#F59E0B',
+        'Group': '#8B5CF6',
+        'Category': '#EF4444'
+      }
+      
+      graphData.nodes.forEach((node, index) => {
+        // Simple positioning - arrange nodes in a circle
+        const angle = (index / graphData.nodes.length) * 2 * Math.PI
+        const radius = Math.min(canvas.width, canvas.height) * 0.3
+        const x = canvas.width / 2 + radius * Math.cos(angle)
+        const y = canvas.height / 2 + radius * Math.sin(angle)
+        
+        // Draw node
+        ctx.beginPath()
+        ctx.arc(x, y, nodeRadius, 0, 2 * Math.PI)
+        ctx.fillStyle = nodeColors[node.type] || '#6B7280'
+        ctx.fill()
+        
+        // Add hover effect
+        canvas.addEventListener('mousemove', (e) => {
+          const rect = canvas.getBoundingClientRect()
+          const mouseX = e.clientX - rect.left
+          const mouseY = e.clientY - rect.top
+          
+          const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2)
+          if (distance < nodeRadius * 3) {
+            canvas.style.cursor = 'pointer'
+          } else {
+            canvas.style.cursor = 'default'
+          }
+        })
+        
+        // Add click handler
+        canvas.addEventListener('click', (e) => {
+          const rect = canvas.getBoundingClientRect()
+          const mouseX = e.clientX - rect.left
+          const mouseY = e.clientY - rect.top
+          
+          const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2)
+          if (distance < nodeRadius * 3) {
+            handleNodeClick(node)
+          }
+        })
+      })
+      
+      // Draw some edges (simplified)
+      if (graphData.edges && graphData.edges.length > 0) {
+        ctx.strokeStyle = '#4B5563'
+        ctx.lineWidth = 1
+        ctx.globalAlpha = 0.6
+        
+        // Draw a few sample edges
+        const sampleEdges = graphData.edges.slice(0, 20) // Limit to 20 edges for performance
+        sampleEdges.forEach(edge => {
+          const sourceNode = graphData.nodes.find(n => n.id === edge.source)
+          const targetNode = graphData.nodes.find(n => n.id === edge.target)
+          
+          if (sourceNode && targetNode) {
+            const sourceIndex = graphData.nodes.indexOf(sourceNode)
+            const targetIndex = graphData.nodes.indexOf(targetNode)
+            
+            const sourceAngle = (sourceIndex / graphData.nodes.length) * 2 * Math.PI
+            const targetAngle = (targetIndex / graphData.nodes.length) * 2 * Math.PI
+            const radius = Math.min(canvas.width, canvas.height) * 0.3
+            
+            const sourceX = canvas.width / 2 + radius * Math.cos(sourceAngle)
+            const sourceY = canvas.height / 2 + radius * Math.sin(sourceAngle)
+            const targetX = canvas.width / 2 + radius * Math.cos(targetAngle)
+            const targetY = canvas.height / 2 + radius * Math.sin(targetAngle)
+            
+            ctx.beginPath()
+            ctx.moveTo(sourceX, sourceY)
+            ctx.lineTo(targetX, targetY)
+            ctx.stroke()
+          }
+        })
+        
+        ctx.globalAlpha = 1.0
+      }
+    }
+  }, [graphData, windowDimensions])
 
   const fetchGraphData = async () => {
     try {
@@ -302,33 +401,29 @@ const GraphVisualizer = () => {
         <div className="flex-1 relative">
           <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
             {graphData && graphData.nodes && graphData.nodes.length > 0 ? (
-              <ForceGraph3D
-                ref={graphRef}
-                graphData={graphData}
-                nodeLabel="name"
-                nodeColor={(node) => {
-                  switch (node.type) {
-                    case 'Product': return '#10B981' // Green
-                    case 'Plant': return '#3B82F6'   // Blue
-                    case 'StorageLocation': return '#F59E0B' // Yellow
-                    case 'Group': return '#8B5CF6'   // Purple
-                    case 'Category': return '#EF4444' // Red
-                    default: return '#6B7280' // Gray
-                  }
-                }}
-                nodeRelSize={6}
-                linkColor={() => '#4B5563'}
-                linkWidth={1}
-                linkOpacity={0.6}
-                backgroundColor="#0F172A"
-                showNavInfo={true}
-                onNodeClick={handleNodeClick}
-                onBackgroundClick={clearSelection}
-                enableNodeDrag={true}
-                enableNavigationControls={true}
-                width={windowDimensions.width - 320} // Account for sidebar width
-                height={windowDimensions.height - 120} // Account for header height
-              />
+              <div className="w-full h-full relative">
+                <canvas
+                  ref={graphRef}
+                  width={windowDimensions.width - 320}
+                  height={windowDimensions.height - 120}
+                  className="w-full h-full"
+                  style={{ backgroundColor: '#0F172A' }}
+                />
+                <div className="absolute top-4 left-4 bg-surface-2 rounded-lg p-3 text-white text-sm">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                    <span>Products ({graphData.stats?.products || 0})</span>
+                  </div>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span>Plants ({graphData.stats?.plants || 0})</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    <span>Storage ({graphData.stats?.storage || 0})</span>
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
