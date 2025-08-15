@@ -17,7 +17,6 @@ import json
 from neo4j import GraphDatabase
 from langchain_neo4j import Neo4jGraph
 import igraph as ig
-from pyvis.network import Network
 
 # Machine Learning Libraries
 from sklearn.cluster import DBSCAN, KMeans
