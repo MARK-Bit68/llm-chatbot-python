@@ -61,18 +61,40 @@ async function test3DVisualization() {
     
     // Check what's actually being rendered in the visualization area
     const visualizationContent = await page.evaluate(() => {
-      const vizArea = document.querySelector('[class*="flex-1"]');
+      // Look for the main visualization area (not the sidebar)
+      const vizArea = document.querySelector('main') || 
+                     document.querySelector('[class*="bg-gradient"]') ||
+                     document.querySelector('[class*="absolute inset-0"]');
+      
       if (vizArea) {
         return {
+          tagName: vizArea.tagName,
+          className: vizArea.className,
           innerHTML: vizArea.innerHTML.substring(0, 500),
           children: vizArea.children.length,
           hasForceGraph: vizArea.innerHTML.includes('ForceGraph'),
           hasCanvas: vizArea.querySelector('canvas') !== null,
           hasError: vizArea.innerHTML.includes('Error') || vizArea.innerHTML.includes('error'),
-          hasFallback: vizArea.innerHTML.includes('placeholder') || vizArea.innerHTML.includes('fallback')
+          hasFallback: vizArea.innerHTML.includes('placeholder') || vizArea.innerHTML.includes('fallback'),
+          hasLoading: vizArea.innerHTML.includes('Loading 3D Visualization'),
+          hasWebGLError: vizArea.innerHTML.includes('WebGL Not Supported')
         };
       }
-      return null;
+      
+      // If not found, check all divs with flex-1
+      const allFlex1 = document.querySelectorAll('[class*="flex-1"]');
+      return {
+        message: 'Main viz area not found, showing all flex-1 elements',
+        count: allFlex1.length,
+        elements: Array.from(allFlex1).map((el, i) => ({
+          index: i,
+          tagName: el.tagName,
+          className: el.className,
+          childrenCount: el.children.length,
+          hasForceGraph: el.innerHTML.includes('ForceGraph'),
+          hasCanvas: el.querySelector('canvas') !== null
+        }))
+      };
     });
     
     console.log('🔍 Visualization area content:', visualizationContent);
