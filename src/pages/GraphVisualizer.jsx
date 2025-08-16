@@ -125,6 +125,10 @@ const GraphVisualizer = () => {
     })
 
     // Prepare edges with proper source/target mapping
+    console.log('🔧 Starting edge mapping...')
+    console.log('🔧 Enhanced nodes count:', enhancedNodes.length)
+    console.log('🔧 Original edges count:', graphData.edges?.length || 0)
+    
     const enhancedEdges = (graphData.edges || []).map((edge, index) => {
       // Ensure source and target are valid node IDs
       const sourceId = edge.source || edge.source_id
@@ -155,9 +159,13 @@ const GraphVisualizer = () => {
           color: '#4B5563',
           width: 1
         }
+      } else {
+        console.log(`❌ Edge ${index} mapping failed:`, { sourceId, targetId, sourceNodeFound: !!sourceNode, targetNodeFound: !!targetNode })
+        return null
       }
-      return null
     }).filter(edge => edge !== null) // Filter out invalid edges
+    
+    console.log('🔧 Enhanced edges count:', enhancedEdges.length)
 
     const result = {
       nodes: enhancedNodes,
