@@ -126,7 +126,7 @@ const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
             userSelect: 'none'
           }}
         >
-          <div className=\"bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap\">
+          <div className="bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
             {node.name}
           </div>
         </Html>
@@ -210,22 +210,22 @@ const GamingHUD = ({
   isPlaying
 }) => {
   return (
-    <div className=\"absolute inset-0 pointer-events-none\">
+    <div className="absolute inset-0 pointer-events-none">
       {/* Top Left - Main Stats */}
-      <div className=\"absolute top-4 left-4 pointer-events-auto\">
+      <div className="absolute top-4 left-4 pointer-events-auto">
         <motion.div 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className=\"bg-black/80 text-green-400 font-mono text-xs p-3 rounded border border-green-500/30\"
+          className="bg-black/80 text-green-400 font-mono text-xs p-3 rounded border border-green-500/30"
         >
-          <div className=\"flex items-center space-x-2 mb-2\">
-            <Network className=\"w-4 h-4\" />
-            <span className=\"text-green-300 font-bold\">GRAPH NAVIGATOR v2.0</span>
+          <div className="flex items-center space-x-2 mb-2">
+            <Network className="w-4 h-4" />
+            <span className="text-green-300 font-bold">GRAPH NAVIGATOR v2.0</span>
           </div>
-          <div className=\"space-y-1 text-xs\">
-            <div>NODES: <span className=\"text-white\">{stats?.totalNodes || 0}</span></div>
-            <div>EDGES: <span className=\"text-white\">{stats?.totalEdges || 0}</span></div>
-            <div>POS: <span className=\"text-white\">
+          <div className="space-y-1 text-xs">
+            <div>NODES: <span className="text-white">{stats?.totalNodes || 0}</span></div>
+            <div>EDGES: <span className="text-white">{stats?.totalEdges || 0}</span></div>
+            <div>POS: <span className="text-white">
               [{cameraPosition.x.toFixed(0)}, {cameraPosition.y.toFixed(0)}, {cameraPosition.z.toFixed(0)}]
             </span></div>
           </div>
@@ -233,12 +233,402 @@ const GamingHUD = ({
       </div>
       
       {/* Top Right - Quick Actions */}
-      <div className=\"absolute top-4 right-4 pointer-events-auto\">
-        <div className=\"flex space-x-2\">
+      <div className="absolute top-4 right-4 pointer-events-auto">
+        <div className="flex space-x-2">
           <button
             onClick={onToggleMap}
-            className={`p-2 rounded border transition-colors ${\n              showMinimap \n                ? 'bg-blue-500/20 border-blue-500 text-blue-400' \n                : 'bg-black/80 border-gray-500/30 text-gray-400 hover:text-white'\n            }`}
-            title=\"Toggle Minimap\"
+            className={`p-2 rounded border transition-colors ${
+              showMinimap 
+                ? 'bg-blue-500/20 border-blue-500 text-blue-400' 
+                : 'bg-black/80 border-gray-500/30 text-gray-400 hover:text-white'
+            }`}
+            title="Toggle Minimap"
           >
-            <Map className=\"w-4 h-4\" />
-          </button>\n          \n          <button\n            onClick={onToggleFilters}\n            className=\"p-2 bg-black/80 border border-gray-500/30 text-gray-400 hover:text-white rounded transition-colors\"\n            title=\"Toggle Filters\"\n          >\n            <Filter className=\"w-4 h-4\" />\n          </button>\n          \n          <button\n            onClick={onReset}\n            className=\"p-2 bg-black/80 border border-gray-500/30 text-gray-400 hover:text-white rounded transition-colors\"\n            title=\"Reset View\"\n          >\n            <RotateCcw className=\"w-4 h-4\" />\n          </button>\n        </div>\n      </div>\n      \n      {/* Bottom Left - Controls Help */}\n      <div className=\"absolute bottom-4 left-4 pointer-events-auto\">\n        <motion.div \n          initial={{ opacity: 0, y: 20 }}\n          animate={{ opacity: 1, y: 0 }}\n          className=\"bg-black/80 text-amber-400 font-mono text-xs p-3 rounded border border-amber-500/30 max-w-xs\"\n        >\n          <div className=\"flex items-center space-x-2 mb-2\">\n            <Gamepad2 className=\"w-4 h-4\" />\n            <span className=\"text-amber-300 font-bold\">CONTROLS</span>\n          </div>\n          <div className=\"space-y-1 text-xs\">\n            <div><span className=\"text-white\">DRAG:</span> Rotate View</div>\n            <div><span className=\"text-white\">SCROLL:</span> Zoom In/Out</div>\n            <div><span className=\"text-white\">CLICK:</span> Select Node</div>\n            <div><span className=\"text-white\">SHIFT+DRAG:</span> Pan View</div>\n          </div>\n        </motion.div>\n      </div>\n      \n      {/* Selected Node Info */}\n      <AnimatePresence>\n        {selectedNode && (\n          <motion.div\n            initial={{ opacity: 0, x: 20 }}\n            animate={{ opacity: 1, x: 0 }}\n            exit={{ opacity: 0, x: 20 }}\n            className=\"absolute top-1/2 right-4 transform -translate-y-1/2 pointer-events-auto\"\n          >\n            <div className=\"bg-black/90 text-cyan-400 font-mono text-sm p-4 rounded border border-cyan-500/30 min-w-64\">\n              <div className=\"flex items-center space-x-2 mb-3\">\n                <Target className=\"w-5 h-5\" />\n                <span className=\"text-cyan-300 font-bold\">TARGET ACQUIRED</span>\n              </div>\n              \n              <div className=\"space-y-2 text-xs\">\n                <div>\n                  <span className=\"text-gray-400\">TYPE:</span>\n                  <span className=\"text-white ml-2 font-semibold\">{selectedNode.type}</span>\n                </div>\n                <div>\n                  <span className=\"text-gray-400\">NAME:</span>\n                  <span className=\"text-white ml-2\">{selectedNode.name}</span>\n                </div>\n                <div>\n                  <span className=\"text-gray-400\">ID:</span>\n                  <span className=\"text-white ml-2 font-mono\">{selectedNode.id}</span>\n                </div>\n                \n                {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 && (\n                  <div className=\"mt-3 pt-2 border-t border-cyan-500/20\">\n                    <div className=\"text-gray-400 mb-1\">PROPERTIES:</div>\n                    {Object.entries(selectedNode.properties).slice(0, 3).map(([key, value]) => (\n                      <div key={key} className=\"text-xs\">\n                        <span className=\"text-gray-500\">{key}:</span>\n                        <span className=\"text-white ml-1\">{String(value).substring(0, 20)}</span>\n                      </div>\n                    ))}\n                  </div>\n                )}\n              </div>\n            </div>\n          </motion.div>\n        )}\n      </AnimatePresence>\n      \n      {/* Minimap */}\n      <AnimatePresence>\n        {showMinimap && (\n          <motion.div\n            initial={{ opacity: 0, scale: 0.8 }}\n            animate={{ opacity: 1, scale: 1 }}\n            exit={{ opacity: 0, scale: 0.8 }}\n            className=\"absolute bottom-4 right-4 pointer-events-auto\"\n          >\n            <div className=\"bg-black/90 border border-blue-500/30 rounded p-2\">\n              <div className=\"flex items-center space-x-2 mb-2\">\n                <Compass className=\"w-4 h-4 text-blue-400\" />\n                <span className=\"text-blue-300 font-mono text-xs font-bold\">RADAR</span>\n              </div>\n              <div className=\"w-32 h-32 bg-blue-950/50 border border-blue-500/20 rounded relative overflow-hidden\">\n                {/* Minimap grid */}\n                <div className=\"absolute inset-0 opacity-20\">\n                  {[...Array(8)].map((_, i) => (\n                    <div key={i} className=\"absolute border-blue-500/20\" style={{\n                      left: `${i * 12.5}%`,\n                      top: 0,\n                      width: '1px',\n                      height: '100%',\n                      borderLeft: '1px solid'\n                    }} />\n                  ))}\n                  {[...Array(8)].map((_, i) => (\n                    <div key={i} className=\"absolute border-blue-500/20\" style={{\n                      top: `${i * 12.5}%`,\n                      left: 0,\n                      height: '1px',\n                      width: '100%',\n                      borderTop: '1px solid'\n                    }} />\n                  ))}\n                </div>\n                \n                {/* Camera indicator */}\n                <div className=\"absolute top-1/2 left-1/2 w-2 h-2 bg-yellow-400 rounded-full transform -translate-x-1/2 -translate-y-1/2\" />\n                \n                {/* Scanning effect */}\n                <div className=\"absolute inset-0 border border-green-500/50 rounded animate-pulse\" />\n              </div>\n            </div>\n          </motion.div>\n        )}\n      </AnimatePresence>\n    </div>\n  )\n}\n\n// Enhanced Camera Controls\nconst GameCameraControls = ({ onCameraChange, autoRotate = false }) => {\n  const { camera, gl } = useThree()\n  const controlsRef = useRef()\n  \n  useFrame(() => {\n    if (controlsRef.current && onCameraChange) {\n      onCameraChange(camera.position)\n    }\n  })\n  \n  return (\n    <OrbitControls\n      ref={controlsRef}\n      args={[camera, gl.domElement]}\n      enableDamping\n      dampingFactor={0.05}\n      enableZoom\n      enablePan\n      enableRotate\n      autoRotate={autoRotate}\n      autoRotateSpeed={0.5}\n      minDistance={50}\n      maxDistance={2000}\n      maxPolarAngle={Math.PI}\n      minPolarAngle={0}\n    />\n  )\n}\n\n// Main Gaming Graph Visualizer Component\nconst GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {\n  const [selectedNode, setSelectedNode] = useState(null)\n  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 0, z: 300 })\n  const [showMinimap, setShowMinimap] = useState(true)\n  const [showFilters, setShowFilters] = useState(false)\n  const [filters, setFilters] = useState({\n    showProducts: true,\n    showPlants: true,\n    showStorage: true,\n    showGroups: true,\n    showEntities: true\n  })\n  const [autoRotate, setAutoRotate] = useState(false)\n  const [isFullscreen, setIsFullscreen] = useState(false)\n  \n  // Process graph data for 3D positioning\n  const processedData = useMemo(() => {\n    if (!graphData?.nodes) return { nodes: [], edges: [] }\n    \n    // Enhanced 3D positioning with clustering\n    const nodes = graphData.nodes.map((node, index) => {\n      // Cluster nodes by type\n      const typeOffset = {\n        'Product': { x: 0, y: 0, z: 0 },\n        'Plant': { x: 200, y: 0, z: 0 },\n        'StorageLocation': { x: -200, y: 0, z: 0 },\n        'Group': { x: 0, y: 200, z: 0 },\n        'Entity': { x: 0, y: -200, z: 0 }\n      }[node.type] || { x: 0, y: 0, z: 0 }\n      \n      // Add some randomness for natural distribution\n      const spread = 80\n      const angle = (index / graphData.nodes.length) * Math.PI * 2\n      const radius = Math.sqrt(index) * 15\n      \n      return {\n        ...node,\n        position: {\n          x: typeOffset.x + Math.cos(angle) * radius + (Math.random() - 0.5) * spread,\n          y: typeOffset.y + Math.sin(angle) * radius + (Math.random() - 0.5) * spread,\n          z: typeOffset.z + (Math.random() - 0.5) * spread\n        }\n      }\n    })\n    \n    const edges = (graphData.edges || []).map(edge => ({\n      ...edge,\n      source: nodes.find(n => n.id === edge.source),\n      target: nodes.find(n => n.id === edge.target)\n    })).filter(edge => edge.source && edge.target)\n    \n    return { nodes, edges }\n  }, [graphData])\n  \n  // Calculate node distance from camera\n  const calculateDistance = useCallback((nodePosition) => {\n    return Math.sqrt(\n      Math.pow(nodePosition.x - cameraPosition.x, 2) +\n      Math.pow(nodePosition.y - cameraPosition.y, 2) +\n      Math.pow(nodePosition.z - cameraPosition.z, 2)\n    )\n  }, [cameraPosition])\n  \n  const handleNodeSelect = useCallback((node) => {\n    setSelectedNode(node)\n    if (onNodeSelect) onNodeSelect(node)\n  }, [onNodeSelect])\n  \n  const handleReset = useCallback(() => {\n    setCameraPosition({ x: 0, y: 0, z: 300 })\n    setSelectedNode(null)\n  }, [])\n  \n  // Filter nodes based on current filters\n  const filteredNodes = useMemo(() => {\n    return processedData.nodes.filter(node => {\n      switch (node.type) {\n        case 'Product': return filters.showProducts\n        case 'Plant': return filters.showPlants\n        case 'StorageLocation': return filters.showStorage\n        case 'Group': return filters.showGroups\n        case 'Entity': return filters.showEntities\n        default: return true\n      }\n    })\n  }, [processedData.nodes, filters])\n  \n  const stats = useMemo(() => ({\n    totalNodes: filteredNodes.length,\n    totalEdges: processedData.edges.length,\n    products: filteredNodes.filter(n => n.type === 'Product').length,\n    plants: filteredNodes.filter(n => n.type === 'Plant').length,\n    storage: filteredNodes.filter(n => n.type === 'StorageLocation').length,\n    groups: filteredNodes.filter(n => n.type === 'Group').length\n  }), [filteredNodes, processedData.edges])\n  \n  return (\n    <div className=\"relative w-full h-full bg-gray-900 overflow-hidden\">\n      {/* 3D Canvas */}\n      <Canvas\n        className=\"absolute inset-0\"\n        camera={{ position: [0, 0, 300], fov: 75 }}\n        gl={{ antialias: true, alpha: false }}\n        onCreated={({ gl }) => {\n          gl.setClearColor('#0a0a0a')\n        }}\n      >\n        {/* Lighting */}\n        <ambientLight intensity={0.3} />\n        <pointLight position={[100, 100, 100]} intensity={0.8} />\n        <pointLight position={[-100, -100, -100]} intensity={0.4} color=\"#4FFFEF\" />\n        \n        {/* Environment */}\n        <Environment preset=\"night\" />\n        \n        {/* Camera Controls */}\n        <GameCameraControls \n          onCameraChange={setCameraPosition}\n          autoRotate={autoRotate}\n        />\n        \n        {/* Render Nodes */}\n        {filteredNodes.map(node => {\n          const distance = calculateDistance(node.position)\n          return (\n            <GraphNode\n              key={node.id}\n              node={node}\n              selected={selectedNode?.id === node.id}\n              distance={distance}\n              onSelect={handleNodeSelect}\n              cameraPosition={cameraPosition}\n            />\n          )\n        })}\n        \n        {/* Render Edges */}\n        {processedData.edges.map((edge, index) => {\n          if (!edge.source || !edge.target) return null\n          const distance = (calculateDistance(edge.source.position) + calculateDistance(edge.target.position)) / 2\n          return (\n            <GraphEdge\n              key={`edge-${index}`}\n              edge={edge}\n              visible={distance < 600}\n              distance={distance}\n            />\n          )\n        })}\n        \n        {/* Performance Stats */}\n        <Stats />\n      </Canvas>\n      \n      {/* Gaming HUD */}\n      <GamingHUD\n        selectedNode={selectedNode}\n        cameraPosition={cameraPosition}\n        stats={stats}\n        onToggleMap={() => setShowMinimap(!showMinimap)}\n        onToggleFilters={() => setShowFilters(!showFilters)}\n        onReset={handleReset}\n        filters={filters}\n        showMinimap={showMinimap}\n        isPlaying={autoRotate}\n      />\n      \n      {/* Filter Panel */}\n      <AnimatePresence>\n        {showFilters && (\n          <motion.div\n            initial={{ opacity: 0, x: 300 }}\n            animate={{ opacity: 1, x: 0 }}\n            exit={{ opacity: 0, x: 300 }}\n            className=\"absolute top-16 right-4 bg-black/90 border border-purple-500/30 rounded p-4 min-w-64\"\n          >\n            <div className=\"flex items-center space-x-2 mb-4\">\n              <Filter className=\"w-5 h-5 text-purple-400\" />\n              <span className=\"text-purple-300 font-mono font-bold\">FILTERS</span>\n            </div>\n            \n            <div className=\"space-y-3\">\n              {Object.entries(filters).map(([key, value]) => (\n                <label key={key} className=\"flex items-center space-x-3 cursor-pointer\">\n                  <input\n                    type=\"checkbox\"\n                    checked={value}\n                    onChange={(e) => setFilters(prev => ({ ...prev, [key]: e.target.checked }))}\n                    className=\"w-4 h-4 text-purple-500 bg-gray-900 border-purple-500/30 rounded focus:ring-purple-500\"\n                  />\n                  <span className=\"text-white text-sm\">\n                    {key.replace('show', '').replace(/([A-Z])/g, ' $1').trim()}\n                  </span>\n                  <span className=\"text-gray-400 text-xs\">\n                    ({stats[key.replace('show', '').toLowerCase() + 's'] || stats[key.replace('show', '').toLowerCase()] || 0})\n                  </span>\n                </label>\n              ))}\n            </div>\n            \n            <div className=\"mt-4 pt-3 border-t border-purple-500/20\">\n              <label className=\"flex items-center space-x-3 cursor-pointer\">\n                <input\n                  type=\"checkbox\"\n                  checked={autoRotate}\n                  onChange={(e) => setAutoRotate(e.target.checked)}\n                  className=\"w-4 h-4 text-purple-500 bg-gray-900 border-purple-500/30 rounded focus:ring-purple-500\"\n                />\n                <span className=\"text-white text-sm\">Auto Rotate</span>\n              </label>\n            </div>\n          </motion.div>\n        )}\n      </AnimatePresence>\n    </div>\n  )\n}\n\nexport default GamingGraphVisualizer
+            <Map className="w-4 h-4" />
+          </button>
+          
+          <button
+            onClick={onToggleFilters}
+            className="p-2 bg-black/80 border border-gray-500/30 text-gray-400 hover:text-white rounded transition-colors"
+            title="Toggle Filters"
+          >
+            <Filter className="w-4 h-4" />
+          </button>
+          
+          <button
+            onClick={onReset}
+            className="p-2 bg-black/80 border border-gray-500/30 text-gray-400 hover:text-white rounded transition-colors"
+            title="Reset View"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+      
+      {/* Bottom Left - Controls Help */}
+      <div className="absolute bottom-4 left-4 pointer-events-auto">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-black/80 text-amber-400 font-mono text-xs p-3 rounded border border-amber-500/30 max-w-xs"
+        >
+          <div className="flex items-center space-x-2 mb-2">
+            <Gamepad2 className="w-4 h-4" />
+            <span className="text-amber-300 font-bold">CONTROLS</span>
+          </div>
+          <div className="space-y-1 text-xs">
+            <div><span className="text-white">DRAG:</span> Rotate View</div>
+            <div><span className="text-white">SCROLL:</span> Zoom In/Out</div>
+            <div><span className="text-white">CLICK:</span> Select Node</div>
+            <div><span className="text-white">SHIFT+DRAG:</span> Pan View</div>
+          </div>
+        </motion.div>
+      </div>
+      
+      {/* Selected Node Info */}
+      <AnimatePresence>
+        {selectedNode && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            className="absolute top-1/2 right-4 transform -translate-y-1/2 pointer-events-auto"
+          >
+            <div className="bg-black/90 text-cyan-400 font-mono text-sm p-4 rounded border border-cyan-500/30 min-w-64">
+              <div className="flex items-center space-x-2 mb-3">
+                <Target className="w-5 h-5" />
+                <span className="text-cyan-300 font-bold">TARGET ACQUIRED</span>
+              </div>
+              
+              <div className="space-y-2 text-xs">
+                <div>
+                  <span className="text-gray-400">TYPE:</span>
+                  <span className="text-white ml-2 font-semibold">{selectedNode.type}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">NAME:</span>
+                  <span className="text-white ml-2">{selectedNode.name}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">ID:</span>
+                  <span className="text-white ml-2 font-mono">{selectedNode.id}</span>
+                </div>
+                
+                {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 && (
+                  <div className="mt-3 pt-2 border-t border-cyan-500/20">
+                    <div className="text-gray-400 mb-1">PROPERTIES:</div>
+                    {Object.entries(selectedNode.properties).slice(0, 3).map(([key, value]) => (
+                      <div key={key} className="text-xs">
+                        <span className="text-gray-500">{key}:</span>
+                        <span className="text-white ml-1">{String(value).substring(0, 20)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Minimap */}
+      <AnimatePresence>
+        {showMinimap && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="absolute bottom-4 right-4 pointer-events-auto"
+          >
+            <div className="bg-black/90 border border-blue-500/30 rounded p-2">
+              <div className="flex items-center space-x-2 mb-2">
+                <Compass className="w-4 h-4 text-blue-400" />
+                <span className="text-blue-300 font-mono text-xs font-bold">RADAR</span>
+              </div>
+              <div className="w-32 h-32 bg-blue-950/50 border border-blue-500/20 rounded relative overflow-hidden">
+                {/* Minimap grid */}
+                <div className="absolute inset-0 opacity-20">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="absolute border-blue-500/20" style={{
+                      left: `${i * 12.5}%`,
+                      top: 0,
+                      width: '1px',
+                      height: '100%',
+                      borderLeft: '1px solid'
+                    }} />
+                  ))}
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="absolute border-blue-500/20" style={{
+                      top: `${i * 12.5}%`,
+                      left: 0,
+                      height: '1px',
+                      width: '100%',
+                      borderTop: '1px solid'
+                    }} />
+                  ))}
+                </div>
+                
+                {/* Camera indicator */}
+                <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-yellow-400 rounded-full transform -translate-x-1/2 -translate-y-1/2" />
+                
+                {/* Scanning effect */}
+                <div className="absolute inset-0 border border-green-500/50 rounded animate-pulse" />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// Enhanced Camera Controls
+const GameCameraControls = ({ onCameraChange, autoRotate = false }) => {
+  const { camera, gl } = useThree()
+  const controlsRef = useRef()
+  
+  useFrame(() => {
+    if (controlsRef.current && onCameraChange) {
+      onCameraChange(camera.position)
+    }
+  })
+  
+  return (
+    <OrbitControls
+      ref={controlsRef}
+      args={[camera, gl.domElement]}
+      enableDamping
+      dampingFactor={0.05}
+      enableZoom
+      enablePan
+      enableRotate
+      autoRotate={autoRotate}
+      autoRotateSpeed={0.5}
+      minDistance={50}
+      maxDistance={2000}
+      maxPolarAngle={Math.PI}
+      minPolarAngle={0}
+    />
+  )
+}
+
+// Main Gaming Graph Visualizer Component
+const GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {
+  const [selectedNode, setSelectedNode] = useState(null)
+  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 0, z: 300 })
+  const [showMinimap, setShowMinimap] = useState(true)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({
+    showProducts: true,
+    showPlants: true,
+    showStorage: true,
+    showGroups: true,
+    showEntities: true
+  })
+  const [autoRotate, setAutoRotate] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  
+  // Process graph data for 3D positioning
+  const processedData = useMemo(() => {
+    if (!graphData?.nodes) return { nodes: [], edges: [] }
+    
+    // Enhanced 3D positioning with clustering
+    const nodes = graphData.nodes.map((node, index) => {
+      // Cluster nodes by type
+      const typeOffset = {
+        'Product': { x: 0, y: 0, z: 0 },
+        'Plant': { x: 200, y: 0, z: 0 },
+        'StorageLocation': { x: -200, y: 0, z: 0 },
+        'Group': { x: 0, y: 200, z: 0 },
+        'Entity': { x: 0, y: -200, z: 0 }
+      }[node.type] || { x: 0, y: 0, z: 0 }
+      
+      // Add some randomness for natural distribution
+      const spread = 80
+      const angle = (index / graphData.nodes.length) * Math.PI * 2
+      const radius = Math.sqrt(index) * 15
+      
+      return {
+        ...node,
+        position: {
+          x: typeOffset.x + Math.cos(angle) * radius + (Math.random() - 0.5) * spread,
+          y: typeOffset.y + Math.sin(angle) * radius + (Math.random() - 0.5) * spread,
+          z: typeOffset.z + (Math.random() - 0.5) * spread
+        }
+      }
+    })
+    
+    const edges = (graphData.edges || []).map(edge => ({
+      ...edge,
+      source: nodes.find(n => n.id === edge.source),
+      target: nodes.find(n => n.id === edge.target)
+    })).filter(edge => edge.source && edge.target)
+    
+    return { nodes, edges }
+  }, [graphData])
+  
+  // Calculate node distance from camera
+  const calculateDistance = useCallback((nodePosition) => {
+    return Math.sqrt(
+      Math.pow(nodePosition.x - cameraPosition.x, 2) +
+      Math.pow(nodePosition.y - cameraPosition.y, 2) +
+      Math.pow(nodePosition.z - cameraPosition.z, 2)
+    )
+  }, [cameraPosition])
+  
+  const handleNodeSelect = useCallback((node) => {
+    setSelectedNode(node)
+    if (onNodeSelect) onNodeSelect(node)
+  }, [onNodeSelect])
+  
+  const handleReset = useCallback(() => {
+    setCameraPosition({ x: 0, y: 0, z: 300 })
+    setSelectedNode(null)
+  }, [])
+  
+  // Filter nodes based on current filters
+  const filteredNodes = useMemo(() => {
+    return processedData.nodes.filter(node => {
+      switch (node.type) {
+        case 'Product': return filters.showProducts
+        case 'Plant': return filters.showPlants
+        case 'StorageLocation': return filters.showStorage
+        case 'Group': return filters.showGroups
+        case 'Entity': return filters.showEntities
+        default: return true
+      }
+    })
+  }, [processedData.nodes, filters])
+  
+  const stats = useMemo(() => ({
+    totalNodes: filteredNodes.length,
+    totalEdges: processedData.edges.length,
+    products: filteredNodes.filter(n => n.type === 'Product').length,
+    plants: filteredNodes.filter(n => n.type === 'Plant').length,
+    storage: filteredNodes.filter(n => n.type === 'StorageLocation').length,
+    groups: filteredNodes.filter(n => n.type === 'Group').length
+  }), [filteredNodes, processedData.edges])
+  
+  return (
+    <div className="relative w-full h-full bg-gray-900 overflow-hidden">
+      {/* 3D Canvas */}
+      <Canvas
+        className="absolute inset-0"
+        camera={{ position: [0, 0, 300], fov: 75 }}
+        gl={{ antialias: true, alpha: false }}
+        onCreated={({ gl }) => {
+          gl.setClearColor('#0a0a0a')
+        }}
+      >
+        {/* Lighting */}
+        <ambientLight intensity={0.3} />
+        <pointLight position={[100, 100, 100]} intensity={0.8} />
+        <pointLight position={[-100, -100, -100]} intensity={0.4} color="#4FFFEF" />
+        
+        {/* Environment */}
+        <Environment preset="night" />
+        
+        {/* Camera Controls */}
+        <GameCameraControls 
+          onCameraChange={setCameraPosition}
+          autoRotate={autoRotate}
+        />
+        
+        {/* Render Nodes */}
+        {filteredNodes.map(node => {
+          const distance = calculateDistance(node.position)
+          return (
+            <GraphNode
+              key={node.id}
+              node={node}
+              selected={selectedNode?.id === node.id}
+              distance={distance}
+              onSelect={handleNodeSelect}
+              cameraPosition={cameraPosition}
+            />
+          )
+        })}
+        
+        {/* Render Edges */}
+        {processedData.edges.map((edge, index) => {
+          if (!edge.source || !edge.target) return null
+          const distance = (calculateDistance(edge.source.position) + calculateDistance(edge.target.position)) / 2
+          return (
+            <GraphEdge
+              key={`edge-${index}`}
+              edge={edge}
+              visible={distance < 600}
+              distance={distance}
+            />
+          )
+        })}
+        
+        {/* Performance Stats */}
+        <Stats />
+      </Canvas>
+      
+      {/* Gaming HUD */}
+      <GamingHUD
+        selectedNode={selectedNode}
+        cameraPosition={cameraPosition}
+        stats={stats}
+        onToggleMap={() => setShowMinimap(!showMinimap)}
+        onToggleFilters={() => setShowFilters(!showFilters)}
+        onReset={handleReset}
+        filters={filters}
+        showMinimap={showMinimap}
+        isPlaying={autoRotate}
+      />
+      
+      {/* Filter Panel */}
+      <AnimatePresence>
+        {showFilters && (
+          <motion.div
+            initial={{ opacity: 0, x: 300 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 300 }}
+            className="absolute top-16 right-4 bg-black/90 border border-purple-500/30 rounded p-4 min-w-64"
+          >
+            <div className="flex items-center space-x-2 mb-4">
+              <Filter className="w-5 h-5 text-purple-400" />
+              <span className="text-purple-300 font-mono font-bold">FILTERS</span>
+            </div>
+            
+            <div className="space-y-3">
+              {Object.entries(filters).map(([key, value]) => (
+                <label key={key} className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) => setFilters(prev => ({ ...prev, [key]: e.target.checked }))}
+                    className="w-4 h-4 text-purple-500 bg-gray-900 border-purple-500/30 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-white text-sm">
+                    {key.replace('show', '').replace(/([A-Z])/g, ' $1').trim()}
+                  </span>
+                  <span className="text-gray-400 text-xs">
+                    ({stats[key.replace('show', '').toLowerCase() + 's'] || stats[key.replace('show', '').toLowerCase()] || 0})
+                  </span>
+                </label>
+              ))}
+            </div>
+            
+            <div className="mt-4 pt-3 border-t border-purple-500/20">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoRotate}
+                  onChange={(e) => setAutoRotate(e.target.checked)}
+                  className="w-4 h-4 text-purple-500 bg-gray-900 border-purple-500/30 rounded focus:ring-purple-500"
+                />
+                <span className="text-white text-sm">Auto Rotate</span>
+              </label>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+export default GamingGraphVisualizer
