@@ -253,8 +253,9 @@ class AdvancedAIAgentService:
             
             # Check for specific profit-related queries and handle them directly
             message_lower = message.lower()
-            if any(profit_term in message_lower for profit_term in ["profit", "gross profit", "highest profit", "best profit", "sku has highest"]):
-                logger.info("💰 Direct handling of profit query")
+            profit_keywords = ["profit", "gross profit", "highest profit", "best profit", "sku has highest", "which sku"]
+            if any(profit_term in message_lower for profit_term in profit_keywords):
+                logger.info(f"💰 Direct handling of profit query: {message}")
                 return await self._handle_profit_query_directly(message, session_id)
             
             if not self.agent_executor:
@@ -350,25 +351,6 @@ For detailed analysis, try these specific queries:
                                     "status": "fallback",
                                     "session_id": session_id
                                 }
-- **Overall Performance**: Good across most product categories
-- **Top Performers**: Group S and P products showing strong performance
-- **Trends**: Positive growth trends in most categories
-
-### 📈 **Key Metrics**
-- Product categories analyzed across all regions
-- Performance patterns identified using advanced analytics
-- Optimization opportunities mapped
-
-### 🎯 **Recommendations**
-- Focus on high-performing Group S and P products
-- Monitor performance trends regularly
-- Implement data-driven optimization strategies
-
-*Note: This response was generated using fallback analysis due to a technical formatting issue.*""",
-                                "timestamp": datetime.now().isoformat(),
-                                "status": "fallback",
-                                "session_id": session_id
-                            }
                         else:
                             # Re-raise other errors
                             raise agent_error
