@@ -75,39 +75,62 @@ const GraphVisualizer = () => {
   const prepareGraphData = useCallback(() => {
     if (!graphData || !graphData.nodes) return null
 
+    console.log('🔧 Preparing graph data for 3D visualization:', {
+      nodesCount: graphData.nodes.length,
+      edgesCount: graphData.edges?.length || 0
+    })
+
     // Add 3D positioning and enhanced properties to nodes
-    const enhancedNodes = graphData.nodes.map((node, index) => ({
-      ...node,
-      id: node.id || node.code || `node-${index}`,
-      val: node.type === 'Product' ? 8 : 
-           node.type === 'Plant' ? 12 : 
-           node.type === 'StorageLocation' ? 10 : 
-           node.type === 'Group' ? 15 : 6,
-      color: node.type === 'Product' ? '#10B981' : 
-             node.type === 'Plant' ? '#3B82F6' : 
-             node.type === 'StorageLocation' ? '#F59E0B' : 
-             node.type === 'Group' ? '#8B5CF6' : 
-             node.type === 'Category' ? '#EF4444' : '#6B7280',
-      // Add 3D positioning hints
-      x: Math.cos(index * 0.1) * 100,
-      y: Math.sin(index * 0.1) * 100,
-      z: Math.sin(index * 0.05) * 50
-    }))
+    const enhancedNodes = graphData.nodes.map((node, index) => {
+      const nodeId = node.id || node.code || `node-${index}`
+      return {
+        ...node,
+        id: nodeId,
+        val: node.type === 'Product' ? 8 : 
+             node.type === 'Plant' ? 12 : 
+             node.type === 'StorageLocation' ? 10 : 
+             node.type === 'Group' ? 15 : 6,
+        color: node.type === 'Product' ? '#10B981' : 
+               node.type === 'Plant' ? '#3B82F6' : 
+               node.type === 'StorageLocation' ? '#F59E0B' : 
+               node.type === 'Group' ? '#8B5CF6' : 
+               node.type === 'Category' ? '#EF4444' : '#6B7280',
+        // Add 3D positioning hints
+        x: Math.cos(index * 0.1) * 100,
+        y: Math.sin(index * 0.1) * 100,
+        z: Math.sin(index * 0.05) * 50
+      }
+    })
 
     // Prepare edges with proper source/target mapping
-    const enhancedEdges = (graphData.edges || []).map((edge, index) => ({
-      ...edge,
-      id: `edge-${index}`,
-      source: edge.source,
-      target: edge.target,
-      color: '#4B5563',
-      width: 1
-    }))
+    const enhancedEdges = (graphData.edges || []).map((edge, index) => {
+      // Ensure source and target are valid node IDs
+      const sourceId = edge.source || edge.source_id
+      const targetId = edge.target || edge.target_id
+      
+      return {
+        ...edge,
+        id: `edge-${index}`,
+        source: sourceId,
+        target: targetId,
+        color: '#4B5563',
+        width: 1
+      }
+    }).filter(edge => edge.source && edge.target) // Filter out invalid edges
 
-    return {
+    const result = {
       nodes: enhancedNodes,
       links: enhancedEdges
     }
+
+    console.log('✅ Prepared 3D graph data:', {
+      nodesCount: result.nodes.length,
+      linksCount: result.links.length,
+      sampleNode: result.nodes[0],
+      sampleLink: result.links[0]
+    })
+
+    return result
   }, [graphData])
 
   const graphData3D = prepareGraphData()
@@ -439,28 +462,59 @@ const GraphVisualizer = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
             {graphData3D && graphData3D.nodes && graphData3D.nodes.length > 0 ? (
               <div className="w-full h-full relative">
-                <ForceGraph3D
-                  ref={graphRef}
-                  graphData={graphData3D}
-                  nodeLabel="name"
-                  nodeColor="color"
-                  nodeVal="val"
-                  linkColor="color"
-                  linkWidth="width"
-                  linkOpacity={graphConfig.linkOpacity}
-                  backgroundColor={graphConfig.backgroundColor}
-                  showNavInfo={graphConfig.showNavInfo}
-                  enableNodeDrag={graphConfig.enableNodeDrag}
-                  enableNavigationControls={graphConfig.enableNavigationControls}
-                  d3AlphaDecay={graphConfig.d3AlphaDecay}
-                  d3VelocityDecay={graphConfig.d3VelocityDecay}
-                  cooldownTicks={graphConfig.cooldownTicks}
-                  onNodeClick={handleNodeClick}
-                  onBackgroundClick={handleBackgroundClick}
-                  onNodeHover={handleNodeHover}
-                  width={windowDimensions.width - 320}
-                  height={windowDimensions.height - 120}
-                />
+                {(() => {
+                  try {
+                    console.log('🎯 Rendering ForceGraph3D with data:', {
+                      nodes: graphData3D.nodes.length,
+                      links: graphData3D.links.length
+                    })
+                    
+                    return (
+                      <ForceGraph3D
+                        ref={graphRef}
+                        graphData={graphData3D}
+                        nodeLabel="name"
+                        nodeColor="color"
+                        nodeVal="val"
+                        linkColor="color"
+                        linkWidth="width"
+                        linkOpacity={graphConfig.linkOpacity}
+                        backgroundColor={graphConfig.backgroundColor}
+                        showNavInfo={graphConfig.showNavInfo}
+                        enableNodeDrag={graphConfig.enableNodeDrag}
+                        enableNavigationControls={graphConfig.enableNavigationControls}
+                        d3AlphaDecay={graphConfig.d3AlphaDecay}
+                        d3VelocityDecay={graphConfig.d3VelocityDecay}
+                        cooldownTicks={graphConfig.cooldownTicks}
+                        onNodeClick={handleNodeClick}
+                        onBackgroundClick={handleBackgroundClick}
+                        onNodeHover={handleNodeHover}
+                        width={windowDimensions.width - 320}
+                        height={windowDimensions.height - 120}
+                      />
+                    )
+                  } catch (error) {
+                    console.error('❌ ForceGraph3D rendering error:', error)
+                    return (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-center">
+                          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Network className="w-8 h-8 text-red-500" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-white mb-2">3D Visualization Error</h3>
+                          <p className="text-dark-muted mb-4">Error: {error.message}</p>
+                          <button
+                            onClick={fetchGraphData}
+                            className="btn-primary px-4 py-2"
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" />
+                            Retry
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  }
+                })()}
                 
                 {/* 3D Controls Overlay */}
                 <div className="absolute top-4 right-4 flex flex-col space-y-2">
