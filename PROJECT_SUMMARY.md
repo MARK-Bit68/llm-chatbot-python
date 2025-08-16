@@ -93,7 +93,7 @@ I have successfully built a robust, modern, and responsive user experience on to
 ## 🧪 Testing & Validation
 
 ### **Automated Testing**
-- **Puppeteer Integration**: Browser automation testing
+- **Playwright Integration**: Browser automation testing via MCP server
 - **Build Validation**: Confirmed successful production builds
 - **Component Testing**: UI component verification
 
@@ -166,7 +166,7 @@ The new UI seamlessly integrates with your existing Streamlit backend:
 │   ├── services/          # API integration layer
 │   └── styles/            # Global styling
 ├── public/                # Static assets
-├── test-ui.js            # Puppeteer testing
+├── test-ui.js            # Playwright testing
 ├── railway-ui.toml       # Deployment configuration
 ├── deploy-guide.md       # Comprehensive deployment guide
 └── package.json          # Dependencies and scripts

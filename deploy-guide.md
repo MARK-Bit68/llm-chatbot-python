@@ -117,7 +117,7 @@ npm install
 
 ```bash
 # Run UI tests
-node test-ui.js
+# Test files have been migrated to use Playwright MCP server
 
 # Run integrated test
 ./start-and-test.sh
