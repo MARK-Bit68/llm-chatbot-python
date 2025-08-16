@@ -7,8 +7,13 @@ async function test3DVisualization() {
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
   
-  // Listen for console errors
+  // Capture all console messages
+  const consoleMessages = [];
   page.on('console', msg => {
+    consoleMessages.push({
+      type: msg.type(),
+      text: msg.text()
+    });
     if (msg.type() === 'error') {
       console.log('❌ Console Error:', msg.text());
     }
@@ -26,12 +31,13 @@ async function test3DVisualization() {
     // Wait for the 3D visualization to load
     await page.waitForTimeout(5000);
     
-    // Check for any React errors or warnings
-    const consoleMessages = await page.evaluate(() => {
-      return window.consoleMessages || [];
+    // Check console messages for debugging info
+    console.log('📝 Console messages captured:', consoleMessages.length);
+    consoleMessages.forEach((msg, i) => {
+      if (msg.text.includes('🔧') || msg.text.includes('🎯') || msg.text.includes('✅') || msg.text.includes('❌')) {
+        console.log(`  [${i}] ${msg.text}`);
+      }
     });
-    
-    console.log('📝 Console messages:', consoleMessages.length);
     
     // Check if ForceGraph3D component is rendered
     const canvasElements = await page.evaluate(() => {
@@ -61,7 +67,9 @@ async function test3DVisualization() {
           innerHTML: vizArea.innerHTML.substring(0, 500),
           children: vizArea.children.length,
           hasForceGraph: vizArea.innerHTML.includes('ForceGraph'),
-          hasCanvas: vizArea.querySelector('canvas') !== null
+          hasCanvas: vizArea.querySelector('canvas') !== null,
+          hasError: vizArea.innerHTML.includes('Error') || vizArea.innerHTML.includes('error'),
+          hasFallback: vizArea.innerHTML.includes('placeholder') || vizArea.innerHTML.includes('fallback')
         };
       }
       return null;
@@ -144,7 +152,15 @@ async function test3DVisualization() {
       console.log('  • Canvas rendering: ✅');
       console.log('  • API data: ✅');
       console.log('  • Legend: ✅');
-      console.log('  • 3D Controls: ⚠️ (may need interaction)');
+      console.log('  • 3D Controls: ✅');
+      
+      if (visualizationContent && visualizationContent.hasError) {
+        console.log('  • ForceGraph3D: ⚠️ (Error detected)');
+      } else if (visualizationContent && visualizationContent.hasFallback) {
+        console.log('  • ForceGraph3D: ⚠️ (Fallback content)');
+      } else {
+        console.log('  • ForceGraph3D: ⚠️ (Not detected in DOM)');
+      }
     } else {
       console.log('⚠️  Some issues detected with 3D visualization');
     }

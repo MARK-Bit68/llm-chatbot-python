@@ -59,16 +59,29 @@ const GraphVisualizer = () => {
   // 3D Graph visualization with ForceGraph3D
   const graphRef = useRef()
   const [graphConfig, setGraphConfig] = useState({
-    showNavInfo: true,
+    showNavInfo: false, // Disable nav info to reduce GPU load
     enableNodeDrag: true,
-    enableNavigationControls: true,
+    enableNavigationControls: false, // Disable built-in controls to reduce GPU load
     backgroundColor: '#0F172A',
-    nodeRelSize: 6,
-    linkWidth: 2,
-    linkOpacity: 0.6,
-    d3AlphaDecay: 0.02,
-    d3VelocityDecay: 0.1,
-    cooldownTicks: 100
+    nodeRelSize: 4, // Reduce node size
+    linkWidth: 1, // Reduce link width
+    linkOpacity: 0.4, // Reduce opacity
+    d3AlphaDecay: 0.01, // Faster simulation
+    d3VelocityDecay: 0.3, // More damping
+    cooldownTicks: 50, // Fewer ticks
+    // Performance optimizations
+    enablePointerInteraction: true,
+    enableNodeInteraction: true,
+    enableLinkInteraction: false, // Disable link interaction to reduce GPU load
+    // WebGL optimizations
+    antialias: false, // Disable antialiasing for better performance
+    pixelRatio: 1, // Use 1:1 pixel ratio
+    // Reduce simulation complexity
+    d3Force: 'link',
+    d3ForceLink: {
+      distance: 50,
+      iterations: 10
+    }
   })
 
   // Prepare graph data for 3D visualization
@@ -134,11 +147,25 @@ const GraphVisualizer = () => {
   }, [graphData])
 
   const graphData3D = prepareGraphData()
+  const [webglError, setWebglError] = useState(false)
+  const [graphReady, setGraphReady] = useState(false)
 
   // Graph interaction handlers
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node)
     console.log('Node clicked:', node)
+  }, [])
+
+  // Handle WebGL errors
+  const handleWebGLError = useCallback((error) => {
+    console.error('WebGL Error:', error)
+    setWebglError(true)
+  }, [])
+
+  // Handle graph ready
+  const handleGraphReady = useCallback(() => {
+    console.log('✅ ForceGraph3D is ready')
+    setGraphReady(true)
   }, [])
 
   const handleBackgroundClick = useCallback(() => {
@@ -462,6 +489,39 @@ const GraphVisualizer = () => {
           <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
             {graphData3D && graphData3D.nodes && graphData3D.nodes.length > 0 ? (
               <div className="w-full h-full relative">
+                {/* Loading State */}
+                {!graphReady && !webglError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-dark-bg/50 z-10">
+                    <div className="text-center">
+                      <div className="w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <h3 className="text-lg font-semibold text-white mb-2">Loading 3D Visualization</h3>
+                      <p className="text-dark-muted">Initializing WebGL renderer...</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* WebGL Error Fallback */}
+                {webglError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-dark-bg/50 z-10">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Network className="w-8 h-8 text-red-500" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-white mb-2">WebGL Not Supported</h3>
+                      <p className="text-dark-muted mb-4">Your browser doesn't support WebGL 3D rendering</p>
+                      <button
+                        onClick={() => {
+                          setWebglError(false)
+                          setGraphReady(false)
+                        }}
+                        className="btn-primary px-4 py-2"
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {(() => {
                   try {
                     console.log('🎯 Rendering ForceGraph3D with data:', {
@@ -469,30 +529,37 @@ const GraphVisualizer = () => {
                       links: graphData3D.links.length
                     })
                     
-                    return (
-                      <ForceGraph3D
-                        ref={graphRef}
-                        graphData={graphData3D}
-                        nodeLabel="name"
-                        nodeColor="color"
-                        nodeVal="val"
-                        linkColor="color"
-                        linkWidth="width"
-                        linkOpacity={graphConfig.linkOpacity}
-                        backgroundColor={graphConfig.backgroundColor}
-                        showNavInfo={graphConfig.showNavInfo}
-                        enableNodeDrag={graphConfig.enableNodeDrag}
-                        enableNavigationControls={graphConfig.enableNavigationControls}
-                        d3AlphaDecay={graphConfig.d3AlphaDecay}
-                        d3VelocityDecay={graphConfig.d3VelocityDecay}
-                        cooldownTicks={graphConfig.cooldownTicks}
-                        onNodeClick={handleNodeClick}
-                        onBackgroundClick={handleBackgroundClick}
-                        onNodeHover={handleNodeHover}
-                        width={windowDimensions.width - 320}
-                        height={windowDimensions.height - 120}
-                      />
-                    )
+                                         return (
+                       <ForceGraph3D
+                         ref={graphRef}
+                         graphData={graphData3D}
+                         nodeLabel="name"
+                         nodeColor="color"
+                         nodeVal="val"
+                         linkColor="color"
+                         linkWidth="width"
+                         linkOpacity={graphConfig.linkOpacity}
+                         backgroundColor={graphConfig.backgroundColor}
+                         showNavInfo={graphConfig.showNavInfo}
+                         enableNodeDrag={graphConfig.enableNodeDrag}
+                         enableNavigationControls={graphConfig.enableNavigationControls}
+                         enablePointerInteraction={graphConfig.enablePointerInteraction}
+                         enableNodeInteraction={graphConfig.enableNodeInteraction}
+                         enableLinkInteraction={graphConfig.enableLinkInteraction}
+                         antialias={graphConfig.antialias}
+                         pixelRatio={graphConfig.pixelRatio}
+                         d3AlphaDecay={graphConfig.d3AlphaDecay}
+                         d3VelocityDecay={graphConfig.d3VelocityDecay}
+                         cooldownTicks={graphConfig.cooldownTicks}
+                         onNodeClick={handleNodeClick}
+                         onBackgroundClick={handleBackgroundClick}
+                         onNodeHover={handleNodeHover}
+                         onEngineStop={handleGraphReady}
+                         onWebGlContextLost={handleWebGLError}
+                         width={windowDimensions.width - 320}
+                         height={windowDimensions.height - 120}
+                       />
+                     )
                   } catch (error) {
                     console.error('❌ ForceGraph3D rendering error:', error)
                     return (
