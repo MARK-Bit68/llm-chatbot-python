@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import ForceGraph3D from 'react-force-graph-3d'
 import { 
   Network, 
   TrendingUp, 
@@ -11,7 +12,11 @@ import {
   Eye,
   EyeOff,
   Maximize2,
-  Minimize2
+  Minimize2,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+  Layers
 } from 'lucide-react'
 
 const GraphVisualizer = () => {
@@ -34,7 +39,6 @@ const GraphVisualizer = () => {
     width: window.innerWidth,
     height: window.innerHeight
   })
-  const graphRef = useRef()
 
   useEffect(() => {
     fetchGraphData()
@@ -52,105 +56,108 @@ const GraphVisualizer = () => {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // Canvas-based graph visualization
-  useEffect(() => {
-    if (graphData && graphData.nodes && graphRef.current) {
-      const canvas = graphRef.current
-      const ctx = canvas.getContext('2d')
-      
-      // Clear canvas
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      
-      // Set background
-      ctx.fillStyle = '#0F172A'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      
-      // Draw nodes
-      const nodeRadius = 4
-      const nodeColors = {
-        'Product': '#10B981',
-        'Plant': '#3B82F6',
-        'StorageLocation': '#F59E0B',
-        'Group': '#8B5CF6',
-        'Category': '#EF4444'
-      }
-      
-      graphData.nodes.forEach((node, index) => {
-        // Simple positioning - arrange nodes in a circle
-        const angle = (index / graphData.nodes.length) * 2 * Math.PI
-        const radius = Math.min(canvas.width, canvas.height) * 0.3
-        const x = canvas.width / 2 + radius * Math.cos(angle)
-        const y = canvas.height / 2 + radius * Math.sin(angle)
-        
-        // Draw node
-        ctx.beginPath()
-        ctx.arc(x, y, nodeRadius, 0, 2 * Math.PI)
-        ctx.fillStyle = nodeColors[node.type] || '#6B7280'
-        ctx.fill()
-        
-        // Add hover effect
-        canvas.addEventListener('mousemove', (e) => {
-          const rect = canvas.getBoundingClientRect()
-          const mouseX = e.clientX - rect.left
-          const mouseY = e.clientY - rect.top
-          
-          const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2)
-          if (distance < nodeRadius * 3) {
-            canvas.style.cursor = 'pointer'
-          } else {
-            canvas.style.cursor = 'default'
-          }
-        })
-        
-        // Add click handler
-        canvas.addEventListener('click', (e) => {
-          const rect = canvas.getBoundingClientRect()
-          const mouseX = e.clientX - rect.left
-          const mouseY = e.clientY - rect.top
-          
-          const distance = Math.sqrt((mouseX - x) ** 2 + (mouseY - y) ** 2)
-          if (distance < nodeRadius * 3) {
-            handleNodeClick(node)
-          }
-        })
-      })
-      
-      // Draw some edges (simplified)
-      if (graphData.edges && graphData.edges.length > 0) {
-        ctx.strokeStyle = '#4B5563'
-        ctx.lineWidth = 1
-        ctx.globalAlpha = 0.6
-        
-        // Draw a few sample edges
-        const sampleEdges = graphData.edges.slice(0, 20) // Limit to 20 edges for performance
-        sampleEdges.forEach(edge => {
-          const sourceNode = graphData.nodes.find(n => n.id === edge.source)
-          const targetNode = graphData.nodes.find(n => n.id === edge.target)
-          
-          if (sourceNode && targetNode) {
-            const sourceIndex = graphData.nodes.indexOf(sourceNode)
-            const targetIndex = graphData.nodes.indexOf(targetNode)
-            
-            const sourceAngle = (sourceIndex / graphData.nodes.length) * 2 * Math.PI
-            const targetAngle = (targetIndex / graphData.nodes.length) * 2 * Math.PI
-            const radius = Math.min(canvas.width, canvas.height) * 0.3
-            
-            const sourceX = canvas.width / 2 + radius * Math.cos(sourceAngle)
-            const sourceY = canvas.height / 2 + radius * Math.sin(sourceAngle)
-            const targetX = canvas.width / 2 + radius * Math.cos(targetAngle)
-            const targetY = canvas.height / 2 + radius * Math.sin(targetAngle)
-            
-            ctx.beginPath()
-            ctx.moveTo(sourceX, sourceY)
-            ctx.lineTo(targetX, targetY)
-            ctx.stroke()
-          }
-        })
-        
-        ctx.globalAlpha = 1.0
-      }
+  // 3D Graph visualization with ForceGraph3D
+  const graphRef = useRef()
+  const [graphConfig, setGraphConfig] = useState({
+    showNavInfo: true,
+    enableNodeDrag: true,
+    enableNavigationControls: true,
+    backgroundColor: '#0F172A',
+    nodeRelSize: 6,
+    linkWidth: 2,
+    linkOpacity: 0.6,
+    d3AlphaDecay: 0.02,
+    d3VelocityDecay: 0.1,
+    cooldownTicks: 100
+  })
+
+  // Prepare graph data for 3D visualization
+  const prepareGraphData = useCallback(() => {
+    if (!graphData || !graphData.nodes) return null
+
+    // Add 3D positioning and enhanced properties to nodes
+    const enhancedNodes = graphData.nodes.map((node, index) => ({
+      ...node,
+      id: node.id || node.code || `node-${index}`,
+      val: node.type === 'Product' ? 8 : 
+           node.type === 'Plant' ? 12 : 
+           node.type === 'StorageLocation' ? 10 : 
+           node.type === 'Group' ? 15 : 6,
+      color: node.type === 'Product' ? '#10B981' : 
+             node.type === 'Plant' ? '#3B82F6' : 
+             node.type === 'StorageLocation' ? '#F59E0B' : 
+             node.type === 'Group' ? '#8B5CF6' : 
+             node.type === 'Category' ? '#EF4444' : '#6B7280',
+      // Add 3D positioning hints
+      x: Math.cos(index * 0.1) * 100,
+      y: Math.sin(index * 0.1) * 100,
+      z: Math.sin(index * 0.05) * 50
+    }))
+
+    // Prepare edges with proper source/target mapping
+    const enhancedEdges = (graphData.edges || []).map((edge, index) => ({
+      ...edge,
+      id: `edge-${index}`,
+      source: edge.source,
+      target: edge.target,
+      color: '#4B5563',
+      width: 1
+    }))
+
+    return {
+      nodes: enhancedNodes,
+      links: enhancedEdges
     }
-  }, [graphData, windowDimensions])
+  }, [graphData])
+
+  const graphData3D = prepareGraphData()
+
+  // Graph interaction handlers
+  const handleNodeClick = useCallback((node) => {
+    setSelectedNode(node)
+    console.log('Node clicked:', node)
+  }, [])
+
+  const handleBackgroundClick = useCallback(() => {
+    setSelectedNode(null)
+  }, [])
+
+  const handleNodeHover = useCallback((node, previousNode) => {
+    if (node) {
+      document.body.style.cursor = 'pointer'
+    } else {
+      document.body.style.cursor = 'default'
+    }
+  }, [])
+
+  // Graph controls
+  const resetCamera = useCallback(() => {
+    if (graphRef.current) {
+      graphRef.current.cameraPosition({ x: 0, y: 0, z: 200 })
+    }
+  }, [])
+
+  const zoomIn = useCallback(() => {
+    if (graphRef.current) {
+      const currentPos = graphRef.current.cameraPosition()
+      graphRef.current.cameraPosition({
+        x: currentPos.x * 0.8,
+        y: currentPos.y * 0.8,
+        z: currentPos.z * 0.8
+      })
+    }
+  }, [])
+
+  const zoomOut = useCallback(() => {
+    if (graphRef.current) {
+      const currentPos = graphRef.current.cameraPosition()
+      graphRef.current.cameraPosition({
+        x: currentPos.x * 1.2,
+        y: currentPos.y * 1.2,
+        z: currentPos.z * 1.2
+      })
+    }
+  }, [])
 
   const fetchGraphData = async () => {
     try {
@@ -180,9 +187,7 @@ const GraphVisualizer = () => {
     }))
   }
 
-  const handleNodeClick = (node) => {
-    setSelectedNode(node)
-  }
+
 
   const clearSelection = () => {
     setSelectedNode(null)
@@ -311,6 +316,38 @@ const GraphVisualizer = () => {
             </div>
           </div>
 
+          {/* 3D Controls */}
+          {viewMode === '3D' && (
+            <div>
+              <label className="block text-sm font-medium text-white mb-2">3D Controls</label>
+              <div className="space-y-2">
+                <button
+                  onClick={resetCamera}
+                  className="w-full px-3 py-2 text-sm bg-surface-2 hover:bg-surface-3 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  <span>Reset Camera</span>
+                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={zoomIn}
+                    className="px-3 py-2 text-sm bg-surface-2 hover:bg-surface-3 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <ZoomIn className="w-4 h-4" />
+                    <span>Zoom In</span>
+                  </button>
+                  <button
+                    onClick={zoomOut}
+                    className="px-3 py-2 text-sm bg-surface-2 hover:bg-surface-3 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  >
+                    <ZoomOut className="w-4 h-4" />
+                    <span>Zoom Out</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Filters */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">Filters</label>
@@ -397,18 +434,60 @@ const GraphVisualizer = () => {
           )}
         </div>
 
-        {/* Graph Visualization Area */}
+        {/* 3D Graph Visualization Area */}
         <div className="flex-1 relative">
           <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
-            {graphData && graphData.nodes && graphData.nodes.length > 0 ? (
+            {graphData3D && graphData3D.nodes && graphData3D.nodes.length > 0 ? (
               <div className="w-full h-full relative">
-                <canvas
+                <ForceGraph3D
                   ref={graphRef}
+                  graphData={graphData3D}
+                  nodeLabel="name"
+                  nodeColor="color"
+                  nodeVal="val"
+                  linkColor="color"
+                  linkWidth="width"
+                  linkOpacity={graphConfig.linkOpacity}
+                  backgroundColor={graphConfig.backgroundColor}
+                  showNavInfo={graphConfig.showNavInfo}
+                  enableNodeDrag={graphConfig.enableNodeDrag}
+                  enableNavigationControls={graphConfig.enableNavigationControls}
+                  d3AlphaDecay={graphConfig.d3AlphaDecay}
+                  d3VelocityDecay={graphConfig.d3VelocityDecay}
+                  cooldownTicks={graphConfig.cooldownTicks}
+                  onNodeClick={handleNodeClick}
+                  onBackgroundClick={handleBackgroundClick}
+                  onNodeHover={handleNodeHover}
                   width={windowDimensions.width - 320}
                   height={windowDimensions.height - 120}
-                  className="w-full h-full"
-                  style={{ backgroundColor: '#0F172A' }}
                 />
+                
+                {/* 3D Controls Overlay */}
+                <div className="absolute top-4 right-4 flex flex-col space-y-2">
+                  <button
+                    onClick={resetCamera}
+                    className="p-2 bg-surface-2 hover:bg-surface-3 rounded-lg transition-colors"
+                    title="Reset Camera"
+                  >
+                    <RotateCcw className="w-4 h-4 text-white" />
+                  </button>
+                  <button
+                    onClick={zoomIn}
+                    className="p-2 bg-surface-2 hover:bg-surface-3 rounded-lg transition-colors"
+                    title="Zoom In"
+                  >
+                    <ZoomIn className="w-4 h-4 text-white" />
+                  </button>
+                  <button
+                    onClick={zoomOut}
+                    className="p-2 bg-surface-2 hover:bg-surface-3 rounded-lg transition-colors"
+                    title="Zoom Out"
+                  >
+                    <ZoomOut className="w-4 h-4 text-white" />
+                  </button>
+                </div>
+
+                {/* Legend Overlay */}
                 <div className="absolute top-4 left-4 bg-surface-2 rounded-lg p-3 text-white text-sm">
                   <div className="flex items-center space-x-2 mb-2">
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>
@@ -418,10 +497,27 @@ const GraphVisualizer = () => {
                     <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                     <span>Plants ({graphData.stats?.plants || 0})</span>
                   </div>
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 mb-2">
                     <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                     <span>Storage ({graphData.stats?.storage || 0})</span>
                   </div>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                    <span>Groups ({graphData.stats?.groups || 0})</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span>Categories ({graphData.stats?.categories || 0})</span>
+                  </div>
+                </div>
+
+                {/* Instructions Overlay */}
+                <div className="absolute bottom-4 left-4 bg-surface-2 rounded-lg p-3 text-white text-xs opacity-80">
+                  <div className="flex items-center space-x-2 mb-1">
+                    <Layers className="w-3 h-3" />
+                    <span className="font-medium">3D Controls</span>
+                  </div>
+                  <div>• Drag to rotate • Scroll to zoom • Click nodes for details</div>
                 </div>
               </div>
             ) : (
