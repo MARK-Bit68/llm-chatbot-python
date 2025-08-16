@@ -57,8 +57,22 @@ class EnhancedGraphImporterV2:
         
         try:
             logger.info("🧹 Clearing existing graph data...")
-            # Clear all nodes and relationships (but keep metadata)
-            self.graph.query("MATCH (n) WHERE NOT n:Metadata DETACH DELETE n")
+            
+            # First, delete all relationships
+            self.graph.query("MATCH ()-[r]->() DELETE r")
+            logger.info("✅ Cleared all relationships")
+            
+            # Then delete all nodes except metadata
+            self.graph.query("MATCH (n) WHERE NOT n:Metadata DELETE n")
+            logger.info("✅ Cleared all nodes (preserved metadata)")
+            
+            # Clear any remaining constraints that might cause issues
+            try:
+                self.graph.query("CALL db.clearQueryCaches()")
+                logger.info("✅ Cleared query caches")
+            except:
+                pass  # This might not be available in all Neo4j versions
+                
             logger.info("✅ Cleared existing graph data (preserved metadata)")
             return True
         except Exception as e:

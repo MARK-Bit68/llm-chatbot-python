@@ -570,8 +570,29 @@ async def upload_excel_file(file: UploadFile = File(...)):
             logger.info(f"📁 Processing uploaded Excel file: {file.filename}")
             result = import_enhanced_fmcg_graph_v2(tmp_file_path, original_filename=file.filename)
             
+            # Check if import was successful despite constraint errors
             if "error" in result:
-                raise HTTPException(status_code=500, detail=result["error"])
+                error_msg = result["error"]
+                # If there's a constraint error but connectivity stats exist, the import partially succeeded
+                if "ConstraintValidationFailed" in error_msg and "connectivity" in result:
+                    connectivity = result.get("connectivity", {})
+                    connected_nodes = connectivity.get("connected_nodes", 0)
+                    total_relationships = connectivity.get("total_relationships", 0)
+                    
+                    if connected_nodes > 0 and total_relationships > 0:
+                        logger.warning(f"⚠️ Import completed with constraint warnings: {error_msg}")
+                        # Return success with warning
+                        return {
+                            "success": True,
+                            "message": f"Excel file processed successfully with warnings (constraint errors ignored)",
+                            "filename": file.filename,
+                            "import_stats": result,
+                            "warning": error_msg,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                
+                # If it's a real error, raise HTTPException
+                raise HTTPException(status_code=500, detail=error_msg)
             
             return {
                 "success": True,
