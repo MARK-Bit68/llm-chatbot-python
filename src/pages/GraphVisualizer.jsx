@@ -40,6 +40,25 @@ const GraphVisualizer = () => {
   useEffect(() => {
     console.log('🎯 Current viewMode:', viewMode)
   }, [viewMode])
+  
+  // Add error handling for 3D component
+  const [forceGraph3DError, setForceGraph3DError] = useState(false)
+  
+  // Check if ForceGraph3D is available
+  useEffect(() => {
+    try {
+      // Test if ForceGraph3D is available
+      if (typeof ForceGraph3D === 'undefined') {
+        console.warn('⚠️ ForceGraph3D not available, falling back to 2D')
+        setForceGraph3DError(true)
+        setViewMode('2D')
+      }
+    } catch (error) {
+      console.error('❌ Error checking ForceGraph3D:', error)
+      setForceGraph3DError(true)
+      setViewMode('2D')
+    }
+  }, [])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [windowDimensions, setWindowDimensions] = useState({
     width: window.innerWidth,
@@ -96,7 +115,10 @@ const GraphVisualizer = () => {
 
   // Prepare graph data for visualization with focus on dense parts
   const prepareGraphData = useCallback(() => {
-    if (!graphData || !graphData.nodes) return null
+    if (!graphData || !graphData.nodes) {
+      console.log('❌ No graph data available')
+      return null
+    }
 
     console.log('🔧 Preparing graph data for visualization:', {
       nodesCount: graphData.nodes.length,
@@ -104,144 +126,112 @@ const GraphVisualizer = () => {
       viewMode
     })
 
-    // First, analyze the graph to find dense clusters
-    const nodeConnections = {}
-    const edgeMap = new Map()
-    
-    // Build connection map
-    (graphData.edges || []).forEach(edge => {
-      const sourceId = edge.source || edge.source_id
-      const targetId = edge.target || edge.target_id
-      
-      if (!nodeConnections[sourceId]) nodeConnections[sourceId] = []
-      if (!nodeConnections[targetId]) nodeConnections[targetId] = []
-      
-      nodeConnections[sourceId].push(targetId)
-      nodeConnections[targetId].push(sourceId)
-      edgeMap.set(`${sourceId}-${targetId}`, edge)
-    })
-
-    // Find nodes with the most connections (dense parts)
-    const nodeConnectionCounts = Object.entries(nodeConnections).map(([nodeId, connections]) => ({
-      nodeId,
-      connectionCount: connections.length
-    })).sort((a, b) => b.connectionCount - a.connectionCount)
-
-    console.log('🔍 Dense nodes found:', nodeConnectionCounts.slice(0, 10))
-
-    // Enhanced nodes with better positioning for dense clusters
-    const enhancedNodes = graphData.nodes.map((node, index) => {
-      const nodeId = node.id || node.code || `node-${index}`
-      const connectionCount = nodeConnections[nodeId]?.length || 0
-      
-      // Position nodes based on their connectivity - dense nodes in center
-      const isDense = connectionCount > 2
-      const angle = index * 0.1
-      const radius = isDense ? 50 + (connectionCount * 10) : 200 + (index * 5)
-      
-      return {
-        ...node,
-        id: nodeId,
-        val: node.type === 'Product' ? 8 + (connectionCount * 2) : 
-             node.type === 'Plant' ? 12 + (connectionCount * 2) : 
-             node.type === 'StorageLocation' ? 10 + (connectionCount * 2) : 
-             node.type === 'Group' ? 15 + (connectionCount * 2) : 
-             node.type === 'SubGroup' ? 12 + (connectionCount * 2) : 6 + (connectionCount * 2),
-        color: node.type === 'Product' ? '#10B981' : 
-               node.type === 'Plant' ? '#3B82F6' : 
-               node.type === 'StorageLocation' ? '#F59E0B' : 
-               node.type === 'Group' ? '#8B5CF6' : 
-               node.type === 'Category' ? '#EF4444' : '#6B7280',
-        // Better positioning for dense clusters
-        x: Math.cos(angle) * radius,
-        y: Math.sin(angle) * radius,
-        z: isDense ? Math.sin(angle * 2) * 30 : Math.sin(angle) * 100,
-        connectionCount,
-        isDense
-      }
-    })
-
-    // Prepare edges with improved mapping and focus on dense connections
-    console.log('🔧 Starting edge mapping...')
-    console.log('🔧 Enhanced nodes count:', enhancedNodes.length)
-    console.log('🔧 Original edges count:', graphData.edges?.length || 0)
-    
-    const enhancedEdges = (graphData.edges || []).map((edge, index) => {
-      // Try multiple ways to get source and target IDs
-      const sourceId = edge.source || edge.source_id || edge.from || edge.start
-      const targetId = edge.target || edge.target_id || edge.to || edge.end
-      
-      // Find the actual node objects for source and target
-      const sourceNode = enhancedNodes.find(node => 
-        node.id === sourceId || 
-        node.code === sourceId || 
-        node.name === sourceId
-      )
-      const targetNode = enhancedNodes.find(node => 
-        node.id === targetId || 
-        node.code === targetId || 
-        node.name === targetId
-      )
-      
-      // Debug edge mapping for first few edges
-      if (index < 5) {
-        console.log(`🔗 Edge ${index} mapping:`, {
-          sourceId,
-          targetId,
-          sourceNodeFound: !!sourceNode,
-          targetNodeFound: !!targetNode,
-          sourceNodeId: sourceNode?.id,
-          targetNodeId: targetNode?.id
-        })
-      }
-      
-      if (sourceNode && targetNode) {
-        // Calculate edge importance based on node connectivity
-        const sourceConnections = sourceNode.connectionCount || 0
-        const targetConnections = targetNode.connectionCount || 0
-        const edgeImportance = Math.max(sourceConnections, targetConnections)
+    try {
+      // Simple and robust node processing
+      const enhancedNodes = graphData.nodes.slice(0, 50).map((node, index) => {
+        const nodeId = node.id || node.code || `node-${index}`
+        
+        // Simple color mapping
+        let color = '#6B7280' // default gray
+        let size = 5 // default size
+        
+        if (node.type === 'Product') {
+          color = '#10B981' // green
+          size = 8
+        } else if (node.type === 'Plant') {
+          color = '#3B82F6' // blue
+          size = 12
+        } else if (node.type === 'StorageLocation') {
+          color = '#F59E0B' // yellow
+          size = 10
+        } else if (node.type === 'Group') {
+          color = '#8B5CF6' // purple
+          size = 15
+        } else if (node.type === 'SubGroup') {
+          color = '#EF4444' // red
+          size = 12
+        }
         
         return {
-          ...edge,
-          id: `edge-${index}`,
-          source: sourceNode,
-          target: targetNode,
-          color: edgeImportance > 3 ? '#FFD700' : '#FFFFFF', // Gold for important edges
-          width: Math.max(1, Math.min(5, edgeImportance)), // Thicker for more important edges
-          opacity: 0.6 + (edgeImportance * 0.1), // More opaque for important edges
-          importance: edgeImportance
+          id: nodeId,
+          name: node.name || node.code || nodeId,
+          type: node.type || 'Unknown',
+          val: size,
+          color: color,
+          // Simple positioning
+          x: Math.cos(index * 0.5) * 100,
+          y: Math.sin(index * 0.5) * 100,
+          z: Math.sin(index * 0.3) * 50
         }
-      } else {
-        console.log(`❌ Edge ${index} mapping failed:`, { 
-          sourceId, 
-          targetId, 
-          sourceNodeFound: !!sourceNode, 
-          targetNodeFound: !!targetNode,
-          availableNodeIds: enhancedNodes.slice(0, 5).map(n => n.id)
-        })
-        return null
+      })
+
+      // Simple and robust edge processing
+      const enhancedEdges = []
+      const processedEdges = new Set()
+      
+      ;(graphData.edges || []).slice(0, 100).forEach((edge, index) => {
+        const sourceId = edge.source || edge.source_id
+        const targetId = edge.target || edge.target_id
+        
+        if (!sourceId || !targetId) return
+        
+        const edgeKey = `${sourceId}-${targetId}`
+        if (processedEdges.has(edgeKey)) return
+        processedEdges.add(edgeKey)
+        
+        // Find source and target nodes
+        const sourceNode = enhancedNodes.find(node => 
+          node.id === sourceId || 
+          node.code === sourceId || 
+          node.name === sourceId
+        )
+        const targetNode = enhancedNodes.find(node => 
+          node.id === targetId || 
+          node.code === targetId || 
+          node.name === targetId
+        )
+        
+        if (sourceNode && targetNode) {
+          enhancedEdges.push({
+            id: `edge-${index}`,
+            source: sourceNode,
+            target: targetNode,
+            color: '#FFFFFF',
+            width: 1,
+            opacity: 0.6
+          })
+        }
+      })
+
+      const result = {
+        nodes: enhancedNodes,
+        links: enhancedEdges
       }
-    }).filter(edge => edge !== null) // Filter out invalid edges
-    
-    console.log('🔧 Enhanced edges count:', enhancedEdges.length)
 
-    const result = {
-      nodes: enhancedNodes,
-      links: enhancedEdges
+      console.log('✅ Prepared robust graph data:', {
+        nodesCount: result.nodes.length,
+        linksCount: result.links.length,
+        sampleNode: result.nodes[0],
+        sampleLink: result.links[0]
+      })
+
+      return result
+    } catch (error) {
+      console.error('❌ Error preparing graph data:', error)
+      // Return a simple fallback with just a few nodes
+      return {
+        nodes: [
+          { id: 'node1', name: 'Product 1', type: 'Product', val: 8, color: '#10B981' },
+          { id: 'node2', name: 'Plant 1', type: 'Plant', val: 12, color: '#3B82F6' },
+          { id: 'node3', name: 'Storage 1', type: 'StorageLocation', val: 10, color: '#F59E0B' }
+        ],
+        links: [
+          { id: 'edge1', source: 'node1', target: 'node2', color: '#FFFFFF', width: 1, opacity: 0.6 },
+          { id: 'edge2', source: 'node2', target: 'node3', color: '#FFFFFF', width: 1, opacity: 0.6 }
+        ]
+      }
     }
-
-    console.log('✅ Prepared 3D graph data:', {
-      nodesCount: result.nodes.length,
-      linksCount: result.links.length,
-      sampleNode: result.nodes[0],
-      sampleLink: result.links[0],
-      nodeIds: result.nodes.map(n => n.id).slice(0, 10),
-      linkSources: result.links.map(l => l.source?.id || l.source).slice(0, 5),
-      linkTargets: result.links.map(l => l.target?.id || l.target).slice(0, 5)
-    })
-
-    return result
-  }, [graphData])
+  }, [graphData, viewMode])
 
   const graphData3D = prepareGraphData()
   const [webglError, setWebglError] = useState(false)
@@ -629,39 +619,49 @@ const GraphVisualizer = () => {
                     })
                     
                     // Different visualization based on view mode
-                    if (viewMode === '3D') {
-                      return (
-                        <ForceGraph3D
-                          ref={graphRef}
-                          graphData={graphData3D}
-                          nodeLabel="name"
-                          nodeColor="color"
-                          nodeVal="val"
-                          linkColor="color"
-                          linkWidth="width"
-                          linkOpacity={graphConfig.linkOpacity}
-                          backgroundColor={graphConfig.backgroundColor}
-                          showNavInfo={graphConfig.showNavInfo}
-                          enableNodeDrag={graphConfig.enableNodeDrag}
-                          enableNavigationControls={graphConfig.enableNavigationControls}
-                          enablePointerInteraction={graphConfig.enablePointerInteraction}
-                          enableNodeInteraction={graphConfig.enableNodeInteraction}
-                          enableLinkInteraction={graphConfig.enableLinkInteraction}
-                          antialias={graphConfig.antialias}
-                          pixelRatio={graphConfig.pixelRatio}
-                          d3AlphaDecay={graphConfig.d3AlphaDecay}
-                          d3VelocityDecay={graphConfig.d3VelocityDecay}
-                          cooldownTicks={graphConfig.cooldownTicks}
-                          onNodeClick={handleNodeClick}
-                          onBackgroundClick={handleBackgroundClick}
-                          onNodeHover={handleNodeHover}
-                                                   onEngineStop={handleGraphReady}
-                         onWebGlContextLost={handleWebGLError}
-                         width={windowDimensions.width - 288}
-                         height={windowDimensions.height - 100}
-                       />
-                      )
-                                         } else if (viewMode === '2D') {
+                    if (viewMode === '3D' && !forceGraph3DError) {
+                      try {
+                        return (
+                          <ForceGraph3D
+                            ref={graphRef}
+                            graphData={graphData3D}
+                            nodeLabel="name"
+                            nodeColor="color"
+                            nodeVal="val"
+                            linkColor="color"
+                            linkWidth="width"
+                            linkOpacity={graphConfig.linkOpacity}
+                            backgroundColor={graphConfig.backgroundColor}
+                            showNavInfo={graphConfig.showNavInfo}
+                            enableNodeDrag={graphConfig.enableNodeDrag}
+                            enableNavigationControls={graphConfig.enableNavigationControls}
+                            enablePointerInteraction={graphConfig.enablePointerInteraction}
+                            enableNodeInteraction={graphConfig.enableNodeInteraction}
+                            enableLinkInteraction={graphConfig.enableLinkInteraction}
+                            antialias={graphConfig.antialias}
+                            pixelRatio={graphConfig.pixelRatio}
+                            d3AlphaDecay={graphConfig.d3AlphaDecay}
+                            d3VelocityDecay={graphConfig.d3VelocityDecay}
+                            cooldownTicks={graphConfig.cooldownTicks}
+                            onNodeClick={handleNodeClick}
+                            onBackgroundClick={handleBackgroundClick}
+                            onNodeHover={handleNodeHover}
+                            onEngineStop={handleGraphReady}
+                            onWebGlContextLost={handleWebGLError}
+                            width={windowDimensions.width - 288}
+                            height={windowDimensions.height - 100}
+                          />
+                        )
+                      } catch (error) {
+                        console.error('❌ ForceGraph3D error:', error)
+                        setForceGraph3DError(true)
+                        setViewMode('2D')
+                        // Fall through to 2D rendering
+                      }
+                    }
+                    
+                    // Use 2D as fallback for 3D or when 3D is selected
+                    if (viewMode === '2D' || forceGraph3DError) {
                        return (
                          <ForceGraph2D
                            ref={graphRef}

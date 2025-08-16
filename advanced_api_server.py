@@ -508,6 +508,12 @@ if os.path.exists(react_dist_path) and os.path.exists(os.path.join(react_dist_pa
     if os.path.exists(os.path.join(react_dist_path, "assets")):
         app.mount("/assets", StaticFiles(directory=os.path.join(react_dist_path, "assets")), name="assets")
     
+    # Root endpoint to serve React app
+    @app.get("/", summary="React Application")
+    async def serve_react_root():
+        """Serve the React application root"""
+        return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
+    
     # Serve React app for all other routes
     @app.get("/{full_path:path}")
     async def serve_react_app(full_path: str):

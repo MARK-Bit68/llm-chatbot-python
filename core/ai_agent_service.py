@@ -83,27 +83,27 @@ class AdvancedAIAgentService:
             Tool(
                 name="Simple Database Query",
                 func=self._simple_database_query,
-                description="Use this tool when the user asks about product counts, product groups, or basic supply chain data. Input should be the user's question. Examples: 'How many products are there?', 'Show me product groups', 'What products are in Group S?', 'How many products in each group?'"
+                description="Use this tool for basic database queries about product counts, product groups, or simple supply chain data. Input: a question about counts, groups, or basic data. Examples: 'How many products are there?', 'Show me product groups', 'What products are in Group S?'"
             ),
             Tool(
                 name="Dashboard Data",
                 func=self._safe_dashboard_data,
-                description="Use this tool when the user asks for dashboard data, overview, or key metrics. Input should be the user's question. Examples: 'Show me dashboard data', 'Give me an overview', 'What are the key metrics?', 'Show me the dashboard'"
+                description="Use this tool for dashboard data, overview, or key metrics requests. Input: a question about dashboard, overview, or metrics. Examples: 'Show me dashboard data', 'Give me an overview', 'What are the key metrics?'"
             ),
             Tool(
                 name="Risk Analysis",
                 func=self._optimized_risk_analysis,
-                description="Use this tool for inventory risk analysis, supply chain risks, or risk assessment. Input should be the user's question. Examples: 'Analyze inventory risks', 'Show me risk analysis', 'What are the supply chain risks?', 'Risk assessment'"
+                description="Use this tool for inventory risk analysis, supply chain risks, or risk assessment. Input: a question about risks, inventory, or supply chain risks. Examples: 'Analyze inventory risks', 'Show me risk analysis', 'What are the supply chain risks?'"
             ),
             Tool(
                 name="Performance Analytics",
                 func=self._optimized_performance_analysis,
-                description="Use this tool for performance analysis, profitability analysis, profit per unit, or performance metrics. Input should be the user's question. Examples: 'Show me performance analysis', 'Analyze profitability', 'Performance metrics', 'Profitability patterns', 'Which SKU has highest profit', 'Find most profitable products', 'Gross profit per unit analysis'"
+                description="Use this tool for performance analysis, profitability analysis, profit per unit, or performance metrics. Input: a question about performance, profit, or profitability. Examples: 'Show me performance analysis', 'Analyze profitability', 'Which SKU has highest profit?'"
             ),
             Tool(
                 name="Advanced Analytics & ML Insights",
                 func=self._advanced_ml_insights,
-                description="Use this tool for machine learning insights, advanced analytics, pattern detection, or complex supply chain analysis. Input should be the user's question. Examples: 'Generate supply chain insights using machine learning', 'Show me ML-powered analytics', 'Detect patterns using AI', 'Advanced analytics insights'"
+                description="Use this tool for machine learning insights, advanced analytics, pattern detection, or complex supply chain analysis. Input: a question about ML insights, advanced analytics, or patterns. Examples: 'Generate supply chain insights using machine learning', 'Show me ML-powered analytics', 'Detect patterns using AI'"
             )
         ]
         
@@ -220,11 +220,32 @@ class AdvancedAIAgentService:
         try:
             llm = get_llm()
             
-            # Use the standard LangChain hub prompt which is proven to work
-            prompt = hub.pull("hwchase17/react")
+            # Create a custom prompt that matches our tool format
+            custom_prompt = PromptTemplate(
+                input_variables=["input", "agent_scratchpad"],
+                template="""You are an expert supply chain analyst with access to a comprehensive FMCG (Fast Moving Consumer Goods) dataset. You have access to the following tools:
+
+{tools}
+
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
+Begin!
+
+Question: {input}
+{agent_scratchpad}"""
+            )
             
-            # Create agent
-            self.agent = create_react_agent(llm, self.tools, prompt)
+            # Create agent with custom prompt
+            self.agent = create_react_agent(llm, self.tools, custom_prompt)
             
             # Create agent executor with enhanced configuration
             self.agent_executor = AgentExecutor(
@@ -232,7 +253,7 @@ class AdvancedAIAgentService:
                 tools=self.tools,
                 verbose=True,
                 handle_parsing_errors=True,
-                max_iterations=15,  # Increased to handle complex queries
+                max_iterations=10,  # Reduced to prevent infinite loops
                 return_intermediate_steps=True,
                 max_execution_time=120  # 2 minute timeout for better UX
             )
