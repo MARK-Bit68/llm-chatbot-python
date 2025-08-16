@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import ForceGraph3D from 'react-force-graph-3d'
+import ForceGraph2D from 'react-force-graph-2d'
 import { 
   Network, 
   TrendingUp, 
@@ -93,53 +94,96 @@ const GraphVisualizer = () => {
     enablePanInteraction: true
   })
 
-  // Prepare graph data for 3D visualization
+  // Prepare graph data for visualization with focus on dense parts
   const prepareGraphData = useCallback(() => {
     if (!graphData || !graphData.nodes) return null
 
-    console.log('🔧 Preparing graph data for 3D visualization:', {
+    console.log('🔧 Preparing graph data for visualization:', {
       nodesCount: graphData.nodes.length,
-      edgesCount: graphData.edges?.length || 0
+      edgesCount: graphData.edges?.length || 0,
+      viewMode
     })
 
-    // Add 3D positioning and enhanced properties to nodes
+    // First, analyze the graph to find dense clusters
+    const nodeConnections = {}
+    const edgeMap = new Map()
+    
+    // Build connection map
+    (graphData.edges || []).forEach(edge => {
+      const sourceId = edge.source || edge.source_id
+      const targetId = edge.target || edge.target_id
+      
+      if (!nodeConnections[sourceId]) nodeConnections[sourceId] = []
+      if (!nodeConnections[targetId]) nodeConnections[targetId] = []
+      
+      nodeConnections[sourceId].push(targetId)
+      nodeConnections[targetId].push(sourceId)
+      edgeMap.set(`${sourceId}-${targetId}`, edge)
+    })
+
+    // Find nodes with the most connections (dense parts)
+    const nodeConnectionCounts = Object.entries(nodeConnections).map(([nodeId, connections]) => ({
+      nodeId,
+      connectionCount: connections.length
+    })).sort((a, b) => b.connectionCount - a.connectionCount)
+
+    console.log('🔍 Dense nodes found:', nodeConnectionCounts.slice(0, 10))
+
+    // Enhanced nodes with better positioning for dense clusters
     const enhancedNodes = graphData.nodes.map((node, index) => {
       const nodeId = node.id || node.code || `node-${index}`
+      const connectionCount = nodeConnections[nodeId]?.length || 0
+      
+      // Position nodes based on their connectivity - dense nodes in center
+      const isDense = connectionCount > 2
+      const angle = index * 0.1
+      const radius = isDense ? 50 + (connectionCount * 10) : 200 + (index * 5)
+      
       return {
         ...node,
         id: nodeId,
-        val: node.type === 'Product' ? 12 : 
-             node.type === 'Plant' ? 18 : 
-             node.type === 'StorageLocation' ? 15 : 
-             node.type === 'Group' ? 20 : 
-             node.type === 'SubGroup' ? 16 : 10,
+        val: node.type === 'Product' ? 8 + (connectionCount * 2) : 
+             node.type === 'Plant' ? 12 + (connectionCount * 2) : 
+             node.type === 'StorageLocation' ? 10 + (connectionCount * 2) : 
+             node.type === 'Group' ? 15 + (connectionCount * 2) : 
+             node.type === 'SubGroup' ? 12 + (connectionCount * 2) : 6 + (connectionCount * 2),
         color: node.type === 'Product' ? '#10B981' : 
                node.type === 'Plant' ? '#3B82F6' : 
                node.type === 'StorageLocation' ? '#F59E0B' : 
                node.type === 'Group' ? '#8B5CF6' : 
                node.type === 'Category' ? '#EF4444' : '#6B7280',
-        // Add 3D positioning hints
-        x: Math.cos(index * 0.1) * 100,
-        y: Math.sin(index * 0.1) * 100,
-        z: Math.sin(index * 0.05) * 50
+        // Better positioning for dense clusters
+        x: Math.cos(angle) * radius,
+        y: Math.sin(angle) * radius,
+        z: isDense ? Math.sin(angle * 2) * 30 : Math.sin(angle) * 100,
+        connectionCount,
+        isDense
       }
     })
 
-    // Prepare edges with proper source/target mapping
+    // Prepare edges with improved mapping and focus on dense connections
     console.log('🔧 Starting edge mapping...')
     console.log('🔧 Enhanced nodes count:', enhancedNodes.length)
     console.log('🔧 Original edges count:', graphData.edges?.length || 0)
     
     const enhancedEdges = (graphData.edges || []).map((edge, index) => {
-      // Ensure source and target are valid node IDs
-      const sourceId = edge.source || edge.source_id
-      const targetId = edge.target || edge.target_id
+      // Try multiple ways to get source and target IDs
+      const sourceId = edge.source || edge.source_id || edge.from || edge.start
+      const targetId = edge.target || edge.target_id || edge.to || edge.end
       
       // Find the actual node objects for source and target
-      const sourceNode = enhancedNodes.find(node => node.id === sourceId)
-      const targetNode = enhancedNodes.find(node => node.id === targetId)
+      const sourceNode = enhancedNodes.find(node => 
+        node.id === sourceId || 
+        node.code === sourceId || 
+        node.name === sourceId
+      )
+      const targetNode = enhancedNodes.find(node => 
+        node.id === targetId || 
+        node.code === targetId || 
+        node.name === targetId
+      )
       
-      // Debug edge mapping
+      // Debug edge mapping for first few edges
       if (index < 5) {
         console.log(`🔗 Edge ${index} mapping:`, {
           sourceId,
@@ -152,17 +196,29 @@ const GraphVisualizer = () => {
       }
       
       if (sourceNode && targetNode) {
+        // Calculate edge importance based on node connectivity
+        const sourceConnections = sourceNode.connectionCount || 0
+        const targetConnections = targetNode.connectionCount || 0
+        const edgeImportance = Math.max(sourceConnections, targetConnections)
+        
         return {
           ...edge,
           id: `edge-${index}`,
-          source: sourceNode, // Use the actual node object
-          target: targetNode, // Use the actual node object
-          color: '#FFFFFF', // Make edges white for better visibility
-          width: 3, // Make edges thicker
-          opacity: 0.8 // Make edges more opaque
+          source: sourceNode,
+          target: targetNode,
+          color: edgeImportance > 3 ? '#FFD700' : '#FFFFFF', // Gold for important edges
+          width: Math.max(1, Math.min(5, edgeImportance)), // Thicker for more important edges
+          opacity: 0.6 + (edgeImportance * 0.1), // More opaque for important edges
+          importance: edgeImportance
         }
       } else {
-        console.log(`❌ Edge ${index} mapping failed:`, { sourceId, targetId, sourceNodeFound: !!sourceNode, targetNodeFound: !!targetNode })
+        console.log(`❌ Edge ${index} mapping failed:`, { 
+          sourceId, 
+          targetId, 
+          sourceNodeFound: !!sourceNode, 
+          targetNodeFound: !!targetNode,
+          availableNodeIds: enhancedNodes.slice(0, 5).map(n => n.id)
+        })
         return null
       }
     }).filter(edge => edge !== null) // Filter out invalid edges
@@ -370,8 +426,8 @@ const GraphVisualizer = () => {
       </div>
 
       <div className="flex h-full">
-        {/* Controls Panel */}
-        <div className="w-80 bg-surface border-r border-white border-opacity-10 p-4 space-y-6">
+        {/* Controls Panel - Made narrower for larger visualization */}
+        <div className="w-72 bg-surface border-r border-white border-opacity-10 p-4 space-y-6">
           {/* Search */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">Search Nodes</label>
@@ -565,56 +621,108 @@ const GraphVisualizer = () => {
                 )}
                 {(() => {
                   try {
-                                         console.log('🎯 Rendering ForceGraph3D with data:', {
-                       nodes: graphData3D.nodes.length,
-                       links: graphData3D.links.length,
-                       sampleNode: graphData3D.nodes[0],
-                       sampleLink: graphData3D.links[0],
-                       nodeIds: graphData3D.nodes.map(n => n.id).slice(0, 5),
-                       linkSources: graphData3D.links.map(l => l.source?.id || l.source).slice(0, 5),
-                       linkTargets: graphData3D.links.map(l => l.target?.id || l.target).slice(0, 5)
-                     })
+                    console.log('🎯 Rendering graph with viewMode:', viewMode, 'data:', {
+                      nodes: graphData3D.nodes.length,
+                      links: graphData3D.links.length,
+                      sampleNode: graphData3D.nodes[0],
+                      sampleLink: graphData3D.links[0]
+                    })
                     
-                                         return (
-                       <ForceGraph3D
-                         ref={graphRef}
-                         graphData={graphData3D}
-                         nodeLabel="name"
-                         nodeColor="color"
-                         nodeVal="val"
-                         linkColor="color"
-                         linkWidth="width"
-                         linkOpacity={graphConfig.linkOpacity}
-                         backgroundColor={graphConfig.backgroundColor}
-                         showNavInfo={graphConfig.showNavInfo}
-                         enableNodeDrag={graphConfig.enableNodeDrag}
-                         enableNavigationControls={graphConfig.enableNavigationControls}
-                         enablePointerInteraction={graphConfig.enablePointerInteraction}
-                         enableNodeInteraction={graphConfig.enableNodeInteraction}
-                         enableLinkInteraction={graphConfig.enableLinkInteraction}
-                         antialias={graphConfig.antialias}
-                         pixelRatio={graphConfig.pixelRatio}
-                         d3AlphaDecay={graphConfig.d3AlphaDecay}
-                         d3VelocityDecay={graphConfig.d3VelocityDecay}
-                         cooldownTicks={graphConfig.cooldownTicks}
-                         onNodeClick={handleNodeClick}
-                         onBackgroundClick={handleBackgroundClick}
-                         onNodeHover={handleNodeHover}
-                         onEngineStop={handleGraphReady}
+                    // Different visualization based on view mode
+                    if (viewMode === '3D') {
+                      return (
+                        <ForceGraph3D
+                          ref={graphRef}
+                          graphData={graphData3D}
+                          nodeLabel="name"
+                          nodeColor="color"
+                          nodeVal="val"
+                          linkColor="color"
+                          linkWidth="width"
+                          linkOpacity={graphConfig.linkOpacity}
+                          backgroundColor={graphConfig.backgroundColor}
+                          showNavInfo={graphConfig.showNavInfo}
+                          enableNodeDrag={graphConfig.enableNodeDrag}
+                          enableNavigationControls={graphConfig.enableNavigationControls}
+                          enablePointerInteraction={graphConfig.enablePointerInteraction}
+                          enableNodeInteraction={graphConfig.enableNodeInteraction}
+                          enableLinkInteraction={graphConfig.enableLinkInteraction}
+                          antialias={graphConfig.antialias}
+                          pixelRatio={graphConfig.pixelRatio}
+                          d3AlphaDecay={graphConfig.d3AlphaDecay}
+                          d3VelocityDecay={graphConfig.d3VelocityDecay}
+                          cooldownTicks={graphConfig.cooldownTicks}
+                          onNodeClick={handleNodeClick}
+                          onBackgroundClick={handleBackgroundClick}
+                          onNodeHover={handleNodeHover}
+                                                   onEngineStop={handleGraphReady}
                          onWebGlContextLost={handleWebGLError}
-                         width={windowDimensions.width - 320}
-                         height={windowDimensions.height - 120}
+                         width={windowDimensions.width - 288}
+                         height={windowDimensions.height - 100}
                        />
-                     )
+                      )
+                                         } else if (viewMode === '2D') {
+                       return (
+                         <ForceGraph2D
+                           ref={graphRef}
+                           graphData={graphData3D}
+                           nodeLabel="name"
+                           linkLabel="type"
+                           nodeColor={node => node.color}
+                           linkColor={link => link.color}
+                           linkWidth={link => link.width}
+                           linkOpacity={link => link.opacity}
+                           nodeRelSize={6}
+                           linkDirectionalParticles={2}
+                           linkDirectionalParticleSpeed={0.005}
+                           backgroundColor={graphConfig.backgroundColor}
+                           onNodeClick={handleNodeClick}
+                           onBackgroundClick={handleBackgroundClick}
+                           onNodeHover={handleNodeHover}
+                           width={windowDimensions.width - 288}
+                           height={windowDimensions.height - 100}
+                         />
+                       )
+                    } else if (viewMode === 'Force') {
+                      return (
+                        <ForceGraph2D
+                          ref={graphRef}
+                          graphData={graphData3D}
+                          nodeLabel="name"
+                          linkLabel="type"
+                          nodeColor={node => node.color}
+                          linkColor={link => link.color}
+                          linkWidth={link => link.width}
+                          linkOpacity={link => link.opacity}
+                          nodeRelSize={8}
+                          backgroundColor={graphConfig.backgroundColor}
+                          d3Force="charge"
+                          d3ForceLink={{
+                            distance: 80,
+                            iterations: 30
+                          }}
+                          d3ForceCharge={{
+                            strength: -300,
+                            distanceMin: 30,
+                            distanceMax: 200
+                          }}
+                          onNodeClick={handleNodeClick}
+                          onBackgroundClick={handleBackgroundClick}
+                          onNodeHover={handleNodeHover}
+                          width={windowDimensions.width - 288}
+                          height={windowDimensions.height - 100}
+                        />
+                      )
+                    }
                   } catch (error) {
-                    console.error('❌ ForceGraph3D rendering error:', error)
+                    console.error('❌ Graph rendering error:', error)
                     return (
                       <div className="flex items-center justify-center h-full">
                         <div className="text-center">
                           <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                             <Network className="w-8 h-8 text-red-500" />
                           </div>
-                          <h3 className="text-lg font-semibold text-white mb-2">3D Visualization Error</h3>
+                          <h3 className="text-lg font-semibold text-white mb-2">Visualization Error</h3>
                           <p className="text-dark-muted mb-4">Error: {error.message}</p>
                           <button
                             onClick={fetchGraphData}
