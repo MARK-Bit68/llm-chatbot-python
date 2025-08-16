@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { fetchDashboardData } from '../services/api'
+import GraphMetadata from '../components/GraphMetadata'
 
 const StatCard = ({ title, value, change, changeType, icon: Icon, loading }) => (
   <motion.div
@@ -77,6 +78,9 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Graph Metadata - Prominently displayed */}
+      <GraphMetadata />
+      
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

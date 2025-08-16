@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import GamingGraphVisualizer from '../components/GamingGraphVisualizer'
 import Layout from '../components/Layout'
+import GraphMetadata from '../components/GraphMetadata'
 
 const GraphVisualizer = () => {
   const [graphData, setGraphData] = useState(null)
@@ -433,6 +434,11 @@ const GraphVisualizer = () => {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Graph Metadata - Prominently displayed */}
+      <div className="px-6 py-4">
+        <GraphMetadata />
       </div>
 
       <div className="flex h-full">

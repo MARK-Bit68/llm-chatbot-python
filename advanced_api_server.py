@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 # Import our extracted services
 from core.graph_analytics_engine import analytics_engine, GraphInsight
 from core.ai_agent_service import ai_agent_service
-from enhanced_graph_import import import_enhanced_fmcg_graph
+from enhanced_graph_import_v2 import import_enhanced_fmcg_graph_v2
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -500,6 +500,48 @@ async def graph_visualization_endpoint():
         logger.error(f"Graph visualization error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/graph/metadata", summary="Get Graph Import Metadata")
+async def get_graph_metadata():
+    """
+    Get metadata about the current graph data source and import information
+    """
+    try:
+        from langchain_neo4j import Neo4jGraph
+        import os
+        
+        # Initialize Neo4j connection
+        graph = Neo4jGraph(
+            url=os.getenv("NEO4J_URI"),
+            username=os.getenv("NEO4J_USERNAME", "neo4j"),
+            password=os.getenv("NEO4J_PASSWORD"),
+        )
+        
+        # Query for metadata
+        metadata_result = graph.query("""
+            MATCH (m:Metadata {id: 'current_import'})
+            RETURN m
+            LIMIT 1
+        """)
+        
+        if metadata_result:
+            metadata = metadata_result[0]['m']
+            return {
+                "success": True,
+                "metadata": metadata,
+                "has_data": True
+            }
+        else:
+            return {
+                "success": True,
+                "metadata": None,
+                "has_data": False,
+                "message": "No import metadata found"
+            }
+            
+    except Exception as e:
+        logger.error(f"Error retrieving metadata: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving metadata: {str(e)}")
+
 @app.post("/api/upload/excel", summary="Upload Excel File for Graph Import")
 async def upload_excel_file(file: UploadFile = File(...)):
     """
@@ -523,7 +565,7 @@ async def upload_excel_file(file: UploadFile = File(...)):
         try:
             # Import the enhanced graph
             logger.info(f"📁 Processing uploaded Excel file: {file.filename}")
-            result = import_enhanced_fmcg_graph(tmp_file_path)
+            result = import_enhanced_fmcg_graph_v2(tmp_file_path, original_filename=file.filename)
             
             if "error" in result:
                 raise HTTPException(status_code=500, detail=result["error"])
