@@ -68,9 +68,9 @@ const GraphVisualizer = () => {
     enableNodeDrag: true,
     enableNavigationControls: true, // Enable built-in controls for dragging
     backgroundColor: '#0F172A',
-    nodeRelSize: 6, // Increase node size for better visibility
-    linkWidth: 2, // Increase link width for better visibility
-    linkOpacity: 0.6, // Increase opacity for better visibility
+    nodeRelSize: 8, // Increase node size for better visibility
+    linkWidth: 4, // Increase link width for better visibility
+    linkOpacity: 0.8, // Increase opacity for better visibility
     d3AlphaDecay: 0.02, // Slower simulation for better stability
     d3VelocityDecay: 0.1, // Less damping for more dynamic movement
     cooldownTicks: 100, // More ticks for better simulation
@@ -108,10 +108,11 @@ const GraphVisualizer = () => {
       return {
         ...node,
         id: nodeId,
-        val: node.type === 'Product' ? 8 : 
-             node.type === 'Plant' ? 12 : 
-             node.type === 'StorageLocation' ? 10 : 
-             node.type === 'Group' ? 15 : 6,
+        val: node.type === 'Product' ? 12 : 
+             node.type === 'Plant' ? 18 : 
+             node.type === 'StorageLocation' ? 15 : 
+             node.type === 'Group' ? 20 : 
+             node.type === 'SubGroup' ? 16 : 10,
         color: node.type === 'Product' ? '#10B981' : 
                node.type === 'Plant' ? '#3B82F6' : 
                node.type === 'StorageLocation' ? '#F59E0B' : 
@@ -156,8 +157,9 @@ const GraphVisualizer = () => {
           id: `edge-${index}`,
           source: sourceNode, // Use the actual node object
           target: targetNode, // Use the actual node object
-          color: '#4B5563',
-          width: 1
+          color: '#FFFFFF', // Make edges white for better visibility
+          width: 3, // Make edges thicker
+          opacity: 0.8 // Make edges more opaque
         }
       } else {
         console.log(`❌ Edge ${index} mapping failed:`, { sourceId, targetId, sourceNodeFound: !!sourceNode, targetNodeFound: !!targetNode })
