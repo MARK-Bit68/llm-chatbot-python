@@ -134,6 +134,18 @@ const GraphVisualizer = () => {
       const sourceNode = enhancedNodes.find(node => node.id === sourceId)
       const targetNode = enhancedNodes.find(node => node.id === targetId)
       
+      // Debug edge mapping
+      if (index < 5) {
+        console.log(`🔗 Edge ${index} mapping:`, {
+          sourceId,
+          targetId,
+          sourceNodeFound: !!sourceNode,
+          targetNodeFound: !!targetNode,
+          sourceNodeId: sourceNode?.id,
+          targetNodeId: targetNode?.id
+        })
+      }
+      
       if (sourceNode && targetNode) {
         return {
           ...edge,
@@ -156,7 +168,10 @@ const GraphVisualizer = () => {
       nodesCount: result.nodes.length,
       linksCount: result.links.length,
       sampleNode: result.nodes[0],
-      sampleLink: result.links[0]
+      sampleLink: result.links[0],
+      nodeIds: result.nodes.map(n => n.id).slice(0, 10),
+      linkSources: result.links.map(l => l.source?.id || l.source).slice(0, 5),
+      linkTargets: result.links.map(l => l.target?.id || l.target).slice(0, 5)
     })
 
     return result
