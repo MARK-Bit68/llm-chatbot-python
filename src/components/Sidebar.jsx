@@ -11,7 +11,8 @@ import {
   ChevronRight,
   Brain,
   Sparkles,
-  Network
+  Network,
+  Upload
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -21,6 +22,7 @@ const navigation = [
   { name: 'Graph Visualizer', href: '/graph', icon: Network, badge: '3D' },
   { name: 'Analytics', href: '/analytics', icon: TrendingUp },
   { name: 'Product Explorer', href: '/products', icon: Package },
+  { name: 'Upload Excel', href: '/upload', icon: Upload, badge: 'NEW' },
   { name: 'Basic Dashboard', href: '/dashboard', icon: BarChart3 },
   { name: 'Basic Chat', href: '/chat/basic', icon: MessageCircle },
   { name: 'Settings', href: '/settings', icon: Settings },

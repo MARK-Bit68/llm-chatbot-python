@@ -1,7 +1,7 @@
 # Advanced FastAPI Server with Extracted AI Logic
 # World-class graph analytics and AI capabilities
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Optional
 import asyncio
 import json
 import os
+import tempfile
 from datetime import datetime
 import logging
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from contextlib import asynccontextmanager
 # Import our extracted services
 from core.graph_analytics_engine import analytics_engine, GraphInsight
 from core.ai_agent_service import ai_agent_service
+from enhanced_graph_import import import_enhanced_fmcg_graph
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -497,6 +499,53 @@ async def graph_visualization_endpoint():
     except Exception as e:
         logger.error(f"Graph visualization error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/upload/excel", summary="Upload Excel File for Graph Import")
+async def upload_excel_file(file: UploadFile = File(...)):
+    """
+    Upload an Excel file to regenerate the graph database
+    
+    This endpoint accepts Excel files with FMCG supply chain data and
+    creates a fully connected graph with no isolated nodes.
+    """
+    try:
+        # Validate file type
+        if not file.filename.endswith(('.xlsx', '.xls')):
+            raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are supported")
+        
+        # Create temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+            # Write uploaded file content to temporary file
+            content = await file.read()
+            tmp_file.write(content)
+            tmp_file_path = tmp_file.name
+        
+        try:
+            # Import the enhanced graph
+            logger.info(f"📁 Processing uploaded Excel file: {file.filename}")
+            result = import_enhanced_fmcg_graph(tmp_file_path)
+            
+            if "error" in result:
+                raise HTTPException(status_code=500, detail=result["error"])
+            
+            return {
+                "success": True,
+                "message": "Excel file processed successfully",
+                "filename": file.filename,
+                "import_stats": result,
+                "timestamp": datetime.now().isoformat()
+            }
+            
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Excel upload error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error processing Excel file: {str(e)}")
 
 # Serve React application
 from fastapi.staticfiles import StaticFiles

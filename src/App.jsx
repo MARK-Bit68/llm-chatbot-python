@@ -9,6 +9,7 @@ import AdvancedChat from './pages/AdvancedChat'
 import Analytics from './pages/Analytics'
 import ProductExplorer from './pages/ProductExplorer'
 import GraphVisualizer from './pages/GraphVisualizer'
+import ExcelUploadPage from './pages/ExcelUpload'
 import Settings from './pages/Settings'
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
             <Route path="/graph" element={<GraphVisualizer />} />
             <Route path="/products" element={<ProductExplorer />} />
             <Route path="/skus" element={<ProductExplorer />} />
+            <Route path="/upload" element={<ExcelUploadPage />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </motion.div>
