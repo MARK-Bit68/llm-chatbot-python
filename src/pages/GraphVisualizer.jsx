@@ -34,6 +34,11 @@ const GraphVisualizer = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedNode, setSelectedNode] = useState(null)
   const [viewMode, setViewMode] = useState('3D') // 3D, 2D, Force
+  
+  // Debug viewMode
+  useEffect(() => {
+    console.log('🎯 Current viewMode:', viewMode)
+  }, [viewMode])
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [windowDimensions, setWindowDimensions] = useState({
     width: window.innerWidth,
@@ -61,27 +66,31 @@ const GraphVisualizer = () => {
   const [graphConfig, setGraphConfig] = useState({
     showNavInfo: false, // Disable nav info to reduce GPU load
     enableNodeDrag: true,
-    enableNavigationControls: false, // Disable built-in controls to reduce GPU load
+    enableNavigationControls: true, // Enable built-in controls for dragging
     backgroundColor: '#0F172A',
-    nodeRelSize: 4, // Reduce node size
-    linkWidth: 1, // Reduce link width
-    linkOpacity: 0.4, // Reduce opacity
-    d3AlphaDecay: 0.01, // Faster simulation
-    d3VelocityDecay: 0.3, // More damping
-    cooldownTicks: 50, // Fewer ticks
+    nodeRelSize: 6, // Increase node size for better visibility
+    linkWidth: 2, // Increase link width for better visibility
+    linkOpacity: 0.6, // Increase opacity for better visibility
+    d3AlphaDecay: 0.02, // Slower simulation for better stability
+    d3VelocityDecay: 0.1, // Less damping for more dynamic movement
+    cooldownTicks: 100, // More ticks for better simulation
     // Performance optimizations
     enablePointerInteraction: true,
     enableNodeInteraction: true,
-    enableLinkInteraction: false, // Disable link interaction to reduce GPU load
+    enableLinkInteraction: true, // Enable link interaction
     // WebGL optimizations
-    antialias: false, // Disable antialiasing for better performance
+    antialias: true, // Enable antialiasing for better quality
     pixelRatio: 1, // Use 1:1 pixel ratio
-    // Reduce simulation complexity
+    // Force simulation settings
     d3Force: 'link',
     d3ForceLink: {
-      distance: 50,
-      iterations: 10
-    }
+      distance: 100, // Increase distance between nodes
+      iterations: 20 // More iterations for better layout
+    },
+    // Enable camera controls
+    enableCameraInteraction: true,
+    enableZoomInteraction: true,
+    enablePanInteraction: true
   })
 
   // Prepare graph data for 3D visualization
@@ -121,15 +130,22 @@ const GraphVisualizer = () => {
       const sourceId = edge.source || edge.source_id
       const targetId = edge.target || edge.target_id
       
-      return {
-        ...edge,
-        id: `edge-${index}`,
-        source: sourceId,
-        target: targetId,
-        color: '#4B5563',
-        width: 1
+      // Find the actual node objects for source and target
+      const sourceNode = enhancedNodes.find(node => node.id === sourceId)
+      const targetNode = enhancedNodes.find(node => node.id === targetId)
+      
+      if (sourceNode && targetNode) {
+        return {
+          ...edge,
+          id: `edge-${index}`,
+          source: sourceNode, // Use the actual node object
+          target: targetNode, // Use the actual node object
+          color: '#4B5563',
+          width: 1
+        }
       }
-    }).filter(edge => edge.source && edge.target) // Filter out invalid edges
+      return null
+    }).filter(edge => edge !== null) // Filter out invalid edges
 
     const result = {
       nodes: enhancedNodes,
@@ -524,10 +540,15 @@ const GraphVisualizer = () => {
                 )}
                 {(() => {
                   try {
-                    console.log('🎯 Rendering ForceGraph3D with data:', {
-                      nodes: graphData3D.nodes.length,
-                      links: graphData3D.links.length
-                    })
+                                         console.log('🎯 Rendering ForceGraph3D with data:', {
+                       nodes: graphData3D.nodes.length,
+                       links: graphData3D.links.length,
+                       sampleNode: graphData3D.nodes[0],
+                       sampleLink: graphData3D.links[0],
+                       nodeIds: graphData3D.nodes.map(n => n.id).slice(0, 5),
+                       linkSources: graphData3D.links.map(l => l.source?.id || l.source).slice(0, 5),
+                       linkTargets: graphData3D.links.map(l => l.target?.id || l.target).slice(0, 5)
+                     })
                     
                                          return (
                        <ForceGraph3D

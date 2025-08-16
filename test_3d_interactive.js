@@ -35,11 +35,21 @@ async function test3DInteractive() {
     // Test 3D controls
     console.log('🎛️ Testing 3D controls...');
     
+    // Test 3D controls
+    console.log('🎛️ Testing 3D controls...');
+    
     // Test Reset Camera button
-    const resetCameraButton = await page.$('button:has-text("Reset Camera")');
+    const resetCameraButton = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      return buttons.find(btn => btn.textContent.includes('Reset Camera'));
+    });
     if (resetCameraButton) {
       console.log('✅ Reset Camera button found');
-      await resetCameraButton.click();
+      await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const resetBtn = buttons.find(btn => btn.textContent.includes('Reset Camera'));
+        if (resetBtn) resetBtn.click();
+      });
       await page.waitForTimeout(1000);
       console.log('✅ Reset Camera button clicked');
     } else {
@@ -47,10 +57,17 @@ async function test3DInteractive() {
     }
     
     // Test Zoom In button
-    const zoomInButton = await page.$('button:has-text("Zoom In")');
+    const zoomInButton = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      return buttons.find(btn => btn.textContent.includes('Zoom In'));
+    });
     if (zoomInButton) {
       console.log('✅ Zoom In button found');
-      await zoomInButton.click();
+      await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const zoomInBtn = buttons.find(btn => btn.textContent.includes('Zoom In'));
+        if (zoomInBtn) zoomInBtn.click();
+      });
       await page.waitForTimeout(1000);
       console.log('✅ Zoom In button clicked');
     } else {
@@ -58,10 +75,17 @@ async function test3DInteractive() {
     }
     
     // Test Zoom Out button
-    const zoomOutButton = await page.$('button:has-text("Zoom Out")');
+    const zoomOutButton = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      return buttons.find(btn => btn.textContent.includes('Zoom Out'));
+    });
     if (zoomOutButton) {
       console.log('✅ Zoom Out button found');
-      await zoomOutButton.click();
+      await page.evaluate(() => {
+        const buttons = Array.from(document.querySelectorAll('button'));
+        const zoomOutBtn = buttons.find(btn => btn.textContent.includes('Zoom Out'));
+        if (zoomOutBtn) zoomOutBtn.click();
+      });
       await page.waitForTimeout(1000);
       console.log('✅ Zoom Out button clicked');
     } else {
@@ -103,6 +127,46 @@ async function test3DInteractive() {
     console.log('🔍 Checking for node interactions...');
     const nodeClickMessages = consoleMessages.filter(msg => msg.text.includes('Node clicked'));
     console.log(`🎯 Node click messages: ${nodeClickMessages.length}`);
+    
+    // Test graph data and edges
+    console.log('🔗 Testing graph data and edges...');
+    const graphData = await page.evaluate(async () => {
+      try {
+        const response = await fetch('/api/graph/visualization');
+        const data = await response.json();
+        return {
+          nodes: data.nodes?.length || 0,
+          edges: data.edges?.length || 0,
+          sampleNode: data.nodes?.[0],
+          sampleEdge: data.edges?.[0],
+          nodeTypes: [...new Set(data.nodes?.map(n => n.type) || [])],
+          edgeTypes: [...new Set(data.edges?.map(e => e.type || 'default') || [])]
+        };
+      } catch (error) {
+        return { error: error.message };
+      }
+    });
+    
+    console.log('📊 Graph Data:', graphData);
+    
+    // Check if ForceGraph3D is actually rendering edges
+    const forceGraphStatus = await page.evaluate(() => {
+      const canvas = document.querySelector('canvas');
+      if (canvas) {
+        // Check if there are any WebGL contexts or 3D elements
+        const webglContext = canvas.getContext('webgl') || canvas.getContext('webgl2');
+        return {
+          hasCanvas: true,
+          hasWebGL: !!webglContext,
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height,
+          canvasStyle: canvas.style.cssText
+        };
+      }
+      return { hasCanvas: false };
+    });
+    
+    console.log('🎨 ForceGraph3D Status:', forceGraphStatus);
     
     // Take a screenshot after interactions
     await page.screenshot({ 
