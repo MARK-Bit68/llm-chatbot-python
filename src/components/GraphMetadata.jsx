@@ -17,12 +17,18 @@ const GraphMetadata = () => {
       const response = await fetch('/api/graph/metadata');
       const data = await response.json();
       
-      if (data.success) {
+      console.log('📋 Metadata API response:', data);
+      
+      if (data.success && data.has_data && data.metadata) {
         setMetadata(data.metadata);
+      } else if (data.success && !data.has_data) {
+        // No metadata found - this is normal for fresh installations
+        setMetadata(null);
       } else {
         setError('Failed to fetch metadata');
       }
     } catch (err) {
+      console.error('❌ Metadata fetch error:', err);
       setError('Error fetching metadata');
     } finally {
       setLoading(false);
