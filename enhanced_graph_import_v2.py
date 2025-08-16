@@ -360,9 +360,259 @@ class EnhancedGraphImporterV2:
         """Import Enhanced format (multiple business sheets)"""
         logger.info("🏗️ Importing Enhanced format...")
         
-        # This would handle the Enhanced_SOP_Dataset.xlsx format
-        # For now, fall back to FMCG format for the first sheet
-        return self._import_fmcg_format(excel_file_path, analysis)
+        try:
+            stats = {
+                "products": 0, "categories": 0, "countries": 0, "plants": 0,
+                "customers": 0, "orders": 0, "campaigns": 0, "regions": 0,
+                "relationships": 0
+            }
+            
+            # Import from Master Data sheet (core product information)
+            if 'Master Data' in analysis['sheets']:
+                logger.info("📦 Processing Master Data sheet...")
+                master_df = pd.read_excel(excel_file_path, sheet_name='Master Data')
+                
+                # Create unique categories
+                categories = master_df['Category'].unique()
+                logger.info(f"🏷️ Creating {len(categories)} category nodes...")
+                for category in categories:
+                    self.graph.query("""
+                        CREATE (c:Category {
+                            id: $category_id,
+                            name: $category_id,
+                            type: 'Category'
+                        })
+                    """, {"category_id": category})
+                    stats["categories"] += 1
+                
+                # Create unique countries
+                countries = master_df['Country'].unique()
+                logger.info(f"🌍 Creating {len(countries)} country nodes...")
+                for country in countries:
+                    self.graph.query("""
+                        CREATE (c:Country {
+                            id: $country_id,
+                            name: $country_id,
+                            type: 'Country'
+                        })
+                    """, {"country_id": country})
+                    stats["countries"] += 1
+                
+                # Create product nodes
+                logger.info(f"📦 Creating {len(master_df)} product nodes...")
+                for _, row in master_df.iterrows():
+                    sku_code = row['SKU Code']
+                    
+                    # Create product node with all available properties
+                    product_props = {
+                        "id": sku_code,
+                        "code": sku_code,
+                        "name": sku_code,
+                        "category": row['Category'],
+                        "country": row['Country'],
+                        "type": 'Product'
+                    }
+                    
+                    # Add optional properties if they exist
+                    if 'Region' in row:
+                        product_props["region"] = row['Region']
+                    if 'UOM' in row:
+                        product_props["uom"] = row['UOM']
+                    if 'Unit Price ($)' in row:
+                        product_props["unit_price"] = float(row['Unit Price ($)'])
+                    if 'Unit Cost ($)' in row:
+                        product_props["unit_cost"] = float(row['Unit Cost ($)'])
+                    if 'Lead Time (days)' in row:
+                        product_props["lead_time"] = int(row['Lead Time (days)'])
+                    
+                    self.graph.query("""
+                        CREATE (p:Product $props)
+                    """, {"props": product_props})
+                    stats["products"] += 1
+                    
+                    # Create relationships
+                    # Product -> Category
+                    self.graph.query("""
+                        MATCH (p:Product {id: $sku_code})
+                        MATCH (c:Category {id: $category})
+                        CREATE (p)-[:BELONGS_TO]->(c)
+                    """, {"sku_code": sku_code, "category": row['Category']})
+                    stats["relationships"] += 1
+                    
+                    # Product -> Country
+                    self.graph.query("""
+                        MATCH (p:Product {id: $sku_code})
+                        MATCH (c:Country {id: $country})
+                        CREATE (p)-[:OPERATES_IN]->(c)
+                    """, {"sku_code": sku_code, "country": row['Country']})
+                    stats["relationships"] += 1
+            
+            # Import Customer Data
+            if 'Customer Data' in analysis['sheets']:
+                logger.info("👥 Processing Customer Data sheet...")
+                customer_df = pd.read_excel(excel_file_path, sheet_name='Customer Data')
+                
+                for _, row in customer_df.iterrows():
+                    customer_id = row['customer_id']
+                    self.graph.query("""
+                        CREATE (c:Customer {
+                            id: $customer_id,
+                            name: $name,
+                            priority_level: $priority_level,
+                            service_level: $service_level,
+                            type: 'Customer'
+                        })
+                    """, {
+                        "customer_id": customer_id,
+                        "name": row['name'],
+                        "priority_level": row['priority_level'],
+                        "service_level": row['service_level']
+                    })
+                    stats["customers"] += 1
+            
+            # Import Manufacturing Capacity
+            if 'Manufacturing Capacity' in analysis['sheets']:
+                logger.info("🏭 Processing Manufacturing Capacity sheet...")
+                capacity_df = pd.read_excel(excel_file_path, sheet_name='Manufacturing Capacity')
+                
+                for _, row in capacity_df.iterrows():
+                    plant_name = row['Plant']
+                    self.graph.query("""
+                        CREATE (p:Plant {
+                            id: $plant_id,
+                            name: $plant_id,
+                            category: $category,
+                            location: $location,
+                            total_capacity: $total_capacity,
+                            category_capacity: $category_capacity,
+                            type: 'Plant'
+                        })
+                    """, {
+                        "plant_id": plant_name,
+                        "category": row['Category'],
+                        "location": row['Location'],
+                        "total_capacity": float(row['Total Capacity']),
+                        "category_capacity": float(row['Category Capacity'])
+                    })
+                    stats["plants"] += 1
+                    
+                    # Create Product -> Plant relationships for matching categories
+                    self.graph.query("""
+                        MATCH (p:Product {category: $category})
+                        MATCH (plant:Plant {id: $plant_id})
+                        CREATE (p)-[:MANUFACTURED_AT]->(plant)
+                    """, {"category": row['Category'], "plant_id": plant_name})
+                    stats["relationships"] += 1
+            
+            # Import Regional Data
+            if 'Regional Data' in analysis['sheets']:
+                logger.info("🌍 Processing Regional Data sheet...")
+                region_df = pd.read_excel(excel_file_path, sheet_name='Regional Data')
+                
+                for _, row in region_df.iterrows():
+                    region_name = row['Region']
+                    self.graph.query("""
+                        CREATE (r:Region {
+                            id: $region_id,
+                            name: $region_id,
+                            countries: $countries,
+                            demand_multiplier: $demand_multiplier,
+                            service_level: $service_level,
+                            market_size: $market_size,
+                            type: 'Region'
+                        })
+                    """, {
+                        "region_id": region_name,
+                        "countries": row['Countries'],
+                        "demand_multiplier": float(row['Demand Multiplier']),
+                        "service_level": float(row['Service Level']),
+                        "market_size": float(row['Market Size'])
+                    })
+                    stats["regions"] += 1
+            
+            # Import Promotional Campaigns
+            if 'Promotional Campaigns' in analysis['sheets']:
+                logger.info("📢 Processing Promotional Campaigns sheet...")
+                campaign_df = pd.read_excel(excel_file_path, sheet_name='Promotional Campaigns')
+                
+                for _, row in campaign_df.iterrows():
+                    campaign_name = row['Campaign Name']
+                    self.graph.query("""
+                        CREATE (c:Campaign {
+                            id: $campaign_id,
+                            name: $campaign_id,
+                            start_date: $start_date,
+                            end_date: $end_date,
+                            categories: $categories,
+                            demand_uplift: $demand_uplift,
+                            type: 'Campaign'
+                        })
+                    """, {
+                        "campaign_id": campaign_name,
+                        "start_date": str(row['Start Date']),
+                        "end_date": str(row['End Date']),
+                        "categories": row['Categories'],
+                        "demand_uplift": float(row['Demand Uplift'])
+                    })
+                    stats["campaigns"] += 1
+            
+            # Import Order Data
+            if 'Order Data' in analysis['sheets']:
+                logger.info("📋 Processing Order Data sheet...")
+                order_df = pd.read_excel(excel_file_path, sheet_name='Order Data')
+                
+                for _, row in order_df.iterrows():
+                    order_id = row['order_id']
+                    self.graph.query("""
+                        CREATE (o:Order {
+                            id: $order_id,
+                            customer_id: $customer_id,
+                            order_date: $order_date,
+                            delivery_date: $delivery_date,
+                            status: $status,
+                            type: 'Order'
+                        })
+                    """, {
+                        "order_id": order_id,
+                        "customer_id": row['customer_id'],
+                        "order_date": str(row['order_date']),
+                        "delivery_date": str(row['delivery_date']),
+                        "status": row['status']
+                    })
+                    stats["orders"] += 1
+                    
+                    # Create Order -> Customer relationship
+                    self.graph.query("""
+                        MATCH (o:Order {id: $order_id})
+                        MATCH (c:Customer {id: $customer_id})
+                        CREATE (o)-[:PLACED_BY]->(c)
+                    """, {"order_id": order_id, "customer_id": row['customer_id']})
+                    stats["relationships"] += 1
+            
+            logger.info(f"✅ Enhanced format import completed: {stats}")
+            
+            return {
+                "success": True,
+                "format": "enhanced_format",
+                "nodes_created": {
+                    "products": stats["products"],
+                    "categories": stats["categories"],
+                    "countries": stats["countries"],
+                    "plants": stats["plants"],
+                    "customers": stats["customers"],
+                    "orders": stats["orders"],
+                    "campaigns": stats["campaigns"],
+                    "regions": stats["regions"]
+                },
+                "relationships_created": {
+                    "total_relationships": stats["relationships"]
+                },
+                "message": "Enhanced format import completed"
+            }
+            
+        except Exception as e:
+            logger.error(f"❌ Error importing Enhanced format: {e}")
+            return {"error": str(e)}
     
     def _import_raw_relationships(self, excel_file_path: str, analysis: Dict) -> Dict[str, int]:
         """Import relationships from Raw format sheets"""
@@ -407,7 +657,10 @@ class EnhancedGraphImporterV2:
             # Get file stats
             file_stats = os.stat(excel_file_path)
             
-            # Create metadata node
+            # Create metadata node (flatten nested structures for Neo4j compatibility)
+            nodes_created = result.get('nodes_created', {})
+            relationships_created = result.get('relationships_created', {})
+            
             metadata = {
                 "filename": original_filename or os.path.basename(excel_file_path),
                 "file_path": excel_file_path,
@@ -415,13 +668,22 @@ class EnhancedGraphImporterV2:
                 "file_hash": file_hash,
                 "import_timestamp": datetime.datetime.now().isoformat(),
                 "import_strategy": analysis.get('import_strategy', 'unknown'),
-                "sheets_found": analysis.get('sheets', []),
+                "sheets_found": str(analysis.get('sheets', [])),  # Convert list to string
                 "total_sheets": len(analysis.get('sheets', [])),
-                "nodes_created": result.get('nodes_created', {}),
-                "relationships_created": result.get('relationships_created', {}),
                 "format_detected": result.get('format', 'unknown'),
                 "import_success": result.get('success', False),
-                "error_message": result.get('error', None)
+                "error_message": result.get('error', None),
+                # Flatten node counts
+                "products_created": nodes_created.get('products', 0),
+                "categories_created": nodes_created.get('categories', 0),
+                "countries_created": nodes_created.get('countries', 0),
+                "plants_created": nodes_created.get('plants', 0),
+                "customers_created": nodes_created.get('customers', 0),
+                "orders_created": nodes_created.get('orders', 0),
+                "campaigns_created": nodes_created.get('campaigns', 0),
+                "regions_created": nodes_created.get('regions', 0),
+                # Flatten relationship counts
+                "total_relationships": relationships_created.get('total_relationships', 0)
             }
             
             # Store in database

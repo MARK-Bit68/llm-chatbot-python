@@ -412,26 +412,28 @@ async def graph_visualization_endpoint():
         if not graph:
             raise HTTPException(status_code=500, detail="Graph database connection unavailable")
         
-        # Query nodes with basic information
+        # Query nodes with basic information (compatible with our import structure)
         nodes_query = """
         MATCH (n)
-        RETURN n.code as code,
+        RETURN n.id as id,
+               n.code as code,
                n.name as name,
-               n.group as group,
-               n.subgroup as subgroup,
+               n.category as category,
+               n.country as country,
+               n.region as region,
                labels(n) as labels
         """
         
         nodes_result = graph.query(nodes_query)
         
-        # Query relationships
+        # Query relationships (compatible with our import structure)
         edges_query = """
         MATCH (a)-[r]->(b)
-        WHERE a.code IS NOT NULL AND b.code IS NOT NULL
-        RETURN a.code as source,
-               b.code as target,
+        WHERE a.id IS NOT NULL AND b.id IS NOT NULL
+        RETURN a.id as source,
+               b.id as target,
                type(r) as type
-        LIMIT 100
+        LIMIT 1000
         """
         
         edges_result = graph.query(edges_query)
@@ -450,14 +452,15 @@ async def graph_visualization_endpoint():
                 node_types[node_type] = 0
             node_types[node_type] += 1
             
-            # Create node object
+            # Create node object (compatible with our import structure)
             node_obj = {
-                'id': record.get('code') or record.get('name') or str(hash(str(record))),
+                'id': record.get('id') or record.get('code') or record.get('name') or str(hash(str(record))),
                 'type': node_type,
-                'name': record.get('name') or record.get('code'),
+                'name': record.get('name') or record.get('code') or record.get('id'),
                 'code': record.get('code'),
-                'group': record.get('group'),
-                'subgroup': record.get('subgroup'),
+                'category': record.get('category'),
+                'country': record.get('country'),
+                'region': record.get('region'),
                 'properties': record
             }
             
@@ -488,7 +491,7 @@ async def graph_visualization_endpoint():
         
         visualization_data = {
             'nodes': nodes,
-            'edges': edges,
+            'links': edges,  # GraphVisualizer expects 'links', not 'edges'
             'stats': stats,
             'nodeTypes': node_types,
             'timestamp': datetime.now().isoformat()

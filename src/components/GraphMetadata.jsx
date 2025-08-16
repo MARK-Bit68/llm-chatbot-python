@@ -99,6 +99,7 @@ const GraphMetadata = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6 border border-gray-200 dark:border-gray-700"
+      data-testid="graph-metadata"
     >
       <div className="flex items-center space-x-2 mb-4">
         <Database className="h-6 w-6 text-blue-600" />
@@ -183,32 +184,73 @@ const GraphMetadata = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
             <div className="text-2xl font-bold text-blue-600">
-              {metadata.nodes_created?.products || 0}
+              {metadata.products_created || 0}
             </div>
             <div className="text-sm text-blue-600">Products</div>
           </div>
           
           <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
             <div className="text-2xl font-bold text-green-600">
-              {metadata.relationships_created?.total_relationships || 0}
+              {metadata.total_relationships || 0}
             </div>
             <div className="text-sm text-green-600">Relationships</div>
           </div>
           
           <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
             <div className="text-2xl font-bold text-purple-600">
-              {metadata.nodes_created?.categories || 0}
+              {metadata.categories_created || 0}
             </div>
             <div className="text-sm text-purple-600">Categories</div>
           </div>
           
           <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
             <div className="text-2xl font-bold text-orange-600">
-              {metadata.nodes_created?.countries || 0}
+              {metadata.countries_created || 0}
             </div>
             <div className="text-sm text-orange-600">Countries</div>
           </div>
         </div>
+        
+        {/* Additional node types for Enhanced format */}
+        {(metadata.customers_created > 0 || metadata.orders_created > 0 || metadata.campaigns_created > 0 || metadata.regions_created > 0) && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            {metadata.customers_created > 0 && (
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
+                <div className="text-2xl font-bold text-indigo-600">
+                  {metadata.customers_created}
+                </div>
+                <div className="text-sm text-indigo-600">Customers</div>
+              </div>
+            )}
+            
+            {metadata.orders_created > 0 && (
+              <div className="bg-pink-50 dark:bg-pink-900/20 p-4 rounded-lg">
+                <div className="text-2xl font-bold text-pink-600">
+                  {metadata.orders_created}
+                </div>
+                <div className="text-sm text-pink-600">Orders</div>
+              </div>
+            )}
+            
+            {metadata.campaigns_created > 0 && (
+              <div className="bg-teal-50 dark:bg-teal-900/20 p-4 rounded-lg">
+                <div className="text-2xl font-bold text-teal-600">
+                  {metadata.campaigns_created}
+                </div>
+                <div className="text-sm text-teal-600">Campaigns</div>
+              </div>
+            )}
+            
+            {metadata.regions_created > 0 && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-lg">
+                <div className="text-2xl font-bold text-amber-600">
+                  {metadata.regions_created}
+                </div>
+                <div className="text-sm text-amber-600">Regions</div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Connectivity Status */}

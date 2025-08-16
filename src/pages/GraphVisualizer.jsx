@@ -127,7 +127,7 @@ const GraphVisualizer = () => {
 
     console.log('🔧 Preparing graph data for visualization:', {
       nodesCount: graphData.nodes.length,
-      edgesCount: graphData.edges?.length || 0,
+              edgesCount: graphData.links?.length || 0,
       viewMode
     })
 
@@ -174,7 +174,7 @@ const GraphVisualizer = () => {
       const enhancedEdges = []
       const processedEdges = new Set()
       
-      ;(graphData.edges || []).slice(0, 100).forEach((edge, index) => {
+      ;(graphData.links || []).slice(0, 100).forEach((edge, index) => {
         const sourceId = edge.source || edge.source_id
         const targetId = edge.target || edge.target_id
         
@@ -381,8 +381,7 @@ const GraphVisualizer = () => {
   }
 
   return (
-    <Layout>
-      <div className="flex-1 overflow-hidden">
+    <div className="flex-1 overflow-hidden" data-testid="graph-visualizer">
       {/* Header */}
       <div className="bg-surface border-b border-white border-opacity-10 px-6 py-4">
         <div className="flex items-center justify-between">
@@ -940,7 +939,6 @@ const GraphVisualizer = () => {
         </div>
       </div>
     </div>
-    </Layout>
   )
 }
 
