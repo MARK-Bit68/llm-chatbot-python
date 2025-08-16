@@ -6,6 +6,8 @@ const ExcelUpload = () => {
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
@@ -27,10 +29,12 @@ const ExcelUpload = () => {
     }
 
     setUploading(true);
+    setUploadProgress('📤 Uploading file...');
     const formData = new FormData();
     formData.append('file', file);
 
     try {
+      setUploadProgress('🔍 Analyzing Excel structure...');
       const response = await fetch('/api/upload/excel', {
         method: 'POST',
         body: formData,
@@ -39,19 +43,29 @@ const ExcelUpload = () => {
       const result = await response.json();
 
       if (response.ok) {
+        setUploadProgress('✅ Processing complete!');
         setUploadResult(result);
+        
+        // Show analysis results if available
+        if (result.excel_analysis) {
+          setAnalysisResult(result.excel_analysis);
+        }
+        
         toast.success('Excel file uploaded and processed successfully!');
         
         // Refresh the page after a short delay to show updated graph
         setTimeout(() => {
+          setUploadProgress('🔄 Refreshing application...');
           window.location.reload();
-        }, 2000);
+        }, 3000);
       } else {
         toast.error(result.detail || 'Upload failed');
+        setUploadProgress('');
       }
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Upload failed. Please try again.');
+      setUploadProgress('');
     } finally {
       setUploading(false);
     }
@@ -151,9 +165,61 @@ const ExcelUpload = () => {
                 'Upload and Process Excel File'
               )}
             </button>
+            
+            {/* Progress Indicator */}
+            {uploadProgress && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="mt-4 text-sm text-blue-600 dark:text-blue-400"
+              >
+                {uploadProgress}
+              </motion.div>
+            )}
           </motion.div>
         )}
 
+        {/* Excel Analysis Result */}
+        {analysisResult && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-6 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg p-4"
+          >
+            <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-200 mb-3">
+              🔍 Excel Analysis Results
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="font-medium text-gray-700 dark:text-gray-300">Sheets Found:</p>
+                <p className="text-gray-600 dark:text-gray-400">{analysisResult.total_sheets}</p>
+              </div>
+              
+              <div>
+                <p className="font-medium text-gray-700 dark:text-gray-300">Sheet Names:</p>
+                <div className="text-gray-600 dark:text-gray-400 max-h-20 overflow-y-auto">
+                  {analysisResult.sheet_names?.map((name, idx) => (
+                    <div key={idx} className="text-xs">{name}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-3">
+              <p className="font-medium text-gray-700 dark:text-gray-300 mb-2">Suggested Mapping:</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                {Object.entries(analysisResult.suggested_mapping || {}).map(([sheet, type]) => (
+                  <div key={sheet} className="flex justify-between bg-white dark:bg-gray-800 p-2 rounded">
+                    <span className="truncate mr-2">{sheet}</span>
+                    <span className="text-blue-600 dark:text-blue-400 font-medium capitalize">{type.replace('_', ' ')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        )}
+        
         {/* Upload Result */}
         {uploadResult && (
           <motion.div
@@ -171,58 +237,74 @@ const ExcelUpload = () => {
                 <p className="text-gray-600 dark:text-gray-400">{uploadResult.filename}</p>
               </div>
               
-              {uploadResult.import_stats && (
-                <>
-                  <div>
-                    <p className="font-medium text-gray-700 dark:text-gray-300">Nodes Created:</p>
-                    <div className="text-gray-600 dark:text-gray-400">
-                      {Object.entries(uploadResult.import_stats.nodes_created || {}).map(([type, count]) => (
-                        <div key={type} className="flex justify-between">
-                          <span className="capitalize">{type}:</span>
-                          <span>{count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <p className="font-medium text-gray-700 dark:text-gray-300">Relationships Created:</p>
-                    <div className="text-gray-600 dark:text-gray-400">
-                      {Object.entries(uploadResult.import_stats.relationships_created || {}).map(([type, count]) => (
-                        <div key={type} className="flex justify-between">
-                          <span className="capitalize">{type.replace('_', ' ')}:</span>
-                          <span>{count}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  {uploadResult.import_stats.connectivity && (
-                    <div className="md:col-span-2">
-                      <p className="font-medium text-gray-700 dark:text-gray-300">Connectivity:</p>
-                      <div className="text-gray-600 dark:text-gray-400">
-                        <div className="flex justify-between">
-                          <span>Total Nodes:</span>
-                          <span>{uploadResult.import_stats.connectivity.total_nodes}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Connected Nodes:</span>
-                          <span>{uploadResult.import_stats.connectivity.connected_nodes}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Isolated Nodes:</span>
-                          <span>{uploadResult.import_stats.connectivity.isolated_nodes}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Connectivity:</span>
-                          <span>{uploadResult.import_stats.connectivity.connectivity_percentage.toFixed(1)}%</span>
-                        </div>
+              <div>
+                <p className="font-medium text-gray-700 dark:text-gray-300">Sheets Processed:</p>
+                <p className="text-gray-600 dark:text-gray-400">{uploadResult.sheets_processed || 0}</p>
+              </div>
+              
+              {uploadResult.nodes_created && (
+                <div>
+                  <p className="font-medium text-gray-700 dark:text-gray-300">Nodes Created:</p>
+                  <div className="text-gray-600 dark:text-gray-400">
+                    {Object.entries(uploadResult.nodes_created).map(([type, count]) => (
+                      <div key={type} className="flex justify-between">
+                        <span className="capitalize">{type}:</span>
+                        <span>{count}</span>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {uploadResult.relationships_created && (
+                <div>
+                  <p className="font-medium text-gray-700 dark:text-gray-300">Relationships Created:</p>
+                  <div className="text-gray-600 dark:text-gray-400">
+                    {Object.entries(uploadResult.relationships_created).map(([type, count]) => (
+                      <div key={type} className="flex justify-between">
+                        <span className="capitalize">{type.replace('_', ' ')}:</span>
+                        <span>{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {uploadResult.connectivity && (
+                <div className="md:col-span-2">
+                  <p className="font-medium text-gray-700 dark:text-gray-300">Graph Connectivity:</p>
+                  <div className="text-gray-600 dark:text-gray-400">
+                    <div className="flex justify-between">
+                      <span>Total Nodes:</span>
+                      <span>{uploadResult.connectivity.total_nodes}</span>
                     </div>
-                  )}
-                </>
+                    <div className="flex justify-between">
+                      <span>Connected Nodes:</span>
+                      <span>{uploadResult.connectivity.connected_nodes}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Isolated Nodes:</span>
+                      <span>{uploadResult.connectivity.isolated_nodes}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Connectivity:</span>
+                      <span>{uploadResult.connectivity.connectivity_percentage?.toFixed(1) || 0}%</span>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
+            
+            {uploadResult.errors && uploadResult.errors.length > 0 && (
+              <div className="mt-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                <p className="text-sm text-orange-800 dark:text-orange-200 font-medium mb-1">⚠️ Processing Warnings:</p>
+                <div className="text-xs text-orange-700 dark:text-orange-300 max-h-20 overflow-y-auto">
+                  {uploadResult.errors.map((error, idx) => (
+                    <div key={idx}>{error}</div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
               <p className="text-sm text-blue-800 dark:text-blue-200">
@@ -238,10 +320,11 @@ const ExcelUpload = () => {
             📋 Instructions
           </h3>
           <div className="text-sm text-gray-600 dark:text-gray-300 space-y-2">
-            <p>• Upload an Excel file with FMCG supply chain data</p>
-            <p>• The file should contain sheets with "Raw - Nodes", "Raw - Node Types", "Raw - Edges Group", etc.</p>
-            <p>• The system will create a fully connected graph with no isolated nodes</p>
+            <p>• Upload any Excel file with your data - the system will intelligently analyze it</p>
+            <p>• Supports any sheet structure - nodes, relationships, categories, and temporal data</p>
+            <p>• The system automatically detects data types and creates optimal graph structures</p>
             <p>• All existing graph data will be replaced with the new data</p>
+            <p>• Real-time analysis shows how your data will be mapped to the graph</p>
             <p>• The graph visualization will be updated automatically</p>
           </div>
         </div>

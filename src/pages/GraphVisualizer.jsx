@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { motion } from 'framer-motion'
-import ForceGraph3D from 'react-force-graph-3d'
-import ForceGraph2D from 'react-force-graph-2d'
 import { 
   Network, 
   TrendingUp, 
@@ -17,8 +15,13 @@ import {
   RotateCcw,
   ZoomIn,
   ZoomOut,
-  Layers
+  Layers,
+  Gamepad2,
+  Cpu,
+  Zap
 } from 'lucide-react'
+import GamingGraphVisualizer from '../components/GamingGraphVisualizer'
+import Layout from '../components/Layout'
 
 const GraphVisualizer = () => {
   const [graphData, setGraphData] = useState(null)
@@ -34,7 +37,8 @@ const GraphVisualizer = () => {
   })
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedNode, setSelectedNode] = useState(null)
-  const [viewMode, setViewMode] = useState('3D') // 3D, 2D, Force
+  const [viewMode, setViewMode] = useState('Gaming') // Gaming, 3D, 2D, Force
+  const [useGamingMode, setUseGamingMode] = useState(true)
   
   // Debug viewMode
   useEffect(() => {
@@ -376,18 +380,34 @@ const GraphVisualizer = () => {
   }
 
   return (
-    <div className="flex-1 overflow-hidden">
+    <Layout>
+      <div className="flex-1 overflow-hidden">
       {/* Header */}
       <div className="bg-surface border-b border-white border-opacity-10 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-brand-500 to-brand-600 rounded-lg flex items-center justify-center">
-                <Network className="w-6 h-6 text-white" />
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                useGamingMode 
+                  ? 'bg-gradient-to-r from-purple-500 to-blue-600' 
+                  : 'bg-gradient-to-r from-brand-500 to-brand-600'
+              }`}>
+                {useGamingMode ? (
+                  <Gamepad2 className="w-6 h-6 text-white" />
+                ) : (
+                  <Network className="w-6 h-6 text-white" />
+                )}
               </div>
               <div>
-                <h1 className="text-xl font-bold text-white">Graph Visualizer</h1>
-                <p className="text-sm text-dark-muted">Interactive 3D Supply Chain Network</p>
+                <h1 className="text-xl font-bold text-white">
+                  {useGamingMode ? 'Gaming Graph Explorer' : 'Graph Visualizer'}
+                </h1>
+                <p className="text-sm text-dark-muted">
+                  {useGamingMode 
+                    ? 'Immersive 3D Graph Navigation' 
+                    : 'Interactive 3D Supply Chain Network'
+                  }
+                </p>
               </div>
             </div>
           </div>
@@ -435,21 +455,51 @@ const GraphVisualizer = () => {
 
           {/* View Mode */}
           <div>
-            <label className="block text-sm font-medium text-white mb-2">View Mode</label>
-            <div className="grid grid-cols-3 gap-2">
-              {['3D', '2D', 'Force'].map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`px-3 py-2 text-sm rounded-lg transition-colors ${
-                    viewMode === mode
-                      ? 'bg-brand-500 text-white'
-                      : 'bg-surface-2 text-dark-muted hover:text-white'
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
+            <label className="block text-sm font-medium text-white mb-2">Visualization Engine</label>
+            <div className="space-y-2">
+              {/* Gaming Mode Toggle */}
+              <button
+                onClick={() => {
+                  setUseGamingMode(true)
+                  setViewMode('Gaming')
+                }}
+                className={`w-full px-3 py-3 text-sm rounded-lg transition-colors flex items-center space-x-2 ${
+                  useGamingMode
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white border border-purple-500'
+                    : 'bg-surface-2 text-dark-muted hover:text-white border border-gray-600'
+                }`}
+              >
+                <Gamepad2 className="w-4 h-4" />
+                <span className="font-medium">Gaming Engine</span>
+                {useGamingMode && <Zap className="w-4 h-4 text-yellow-400" />}
+              </button>
+              
+              {/* Legacy Modes */}
+              <div className="grid grid-cols-3 gap-1">
+                {['3D', '2D', 'Force'].map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => {
+                      setUseGamingMode(false)
+                      setViewMode(mode)
+                    }}
+                    className={`px-2 py-1 text-xs rounded transition-colors ${
+                      !useGamingMode && viewMode === mode
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-surface-2 text-dark-muted hover:text-white'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+              
+              {!useGamingMode && (
+                <div className="text-xs text-yellow-500 flex items-center space-x-1">
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+                  <span>Legacy Mode</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -571,10 +621,27 @@ const GraphVisualizer = () => {
           )}
         </div>
 
-        {/* 3D Graph Visualization Area */}
+        {/* Graph Visualization Area */}
         <div className="flex-1 relative">
           <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
-            {graphData3D && graphData3D.nodes && graphData3D.nodes.length > 0 ? (
+            {useGamingMode ? (
+              // Gaming Mode Visualization
+              <Suspense fallback={
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <h3 className="text-lg font-semibold text-white mb-2">Initializing Gaming Engine</h3>
+                    <p className="text-dark-muted">Loading 3D gaming visualization...</p>
+                  </div>
+                </div>
+              }>
+                <GamingGraphVisualizer 
+                  graphData={graphData}
+                  onNodeSelect={setSelectedNode}
+                />
+              </Suspense>
+            ) : graphData3D && graphData3D.nodes && graphData3D.nodes.length > 0 ? (
+              // Legacy Mode Visualization
               <div className="w-full h-full relative">
                 {/* Loading State */}
                 {!graphReady && !webglError && (
@@ -796,27 +863,70 @@ const GraphVisualizer = () => {
                 </div>
               </div>
             ) : (
+              // No Data State
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
-                  <div className="w-32 h-32 bg-gradient-to-r from-brand-500/20 to-brand-600/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <Network className="w-16 h-16 text-brand-500" />
+                  <div className="w-32 h-32 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    {useGamingMode ? (
+                      <Gamepad2 className="w-16 h-16 text-purple-500" />
+                    ) : (
+                      <Network className="w-16 h-16 text-brand-500" />
+                    )}
                   </div>
-                  <h3 className="text-2xl font-bold text-white mb-4">3D Graph Visualization</h3>
+                  <h3 className="text-2xl font-bold text-white mb-4">
+                    {useGamingMode ? 'Gaming Graph Explorer' : '3D Graph Visualization'}
+                  </h3>
                   <p className="text-dark-muted mb-6 max-w-md">
-                    Interactive 3D visualization of your supply chain network with revenue and profit data exploration.
+                    {useGamingMode ? (
+                      'Immersive gaming-style 3D exploration of your graph database with advanced navigation controls and real-time interaction.'
+                    ) : (
+                      'Interactive 3D visualization of your supply chain network with revenue and profit data exploration.'
+                    )}
                   </p>
-                  <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
-                    <div className="bg-surface-2 rounded-lg p-4">
-                      <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                      <p className="text-sm text-white font-medium">Revenue Analysis</p>
-                      <p className="text-xs text-dark-muted">Explore revenue patterns</p>
+                  
+                  {useGamingMode ? (
+                    <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
+                      <div className="bg-surface-2 rounded-lg p-4 border border-purple-500/20">
+                        <Cpu className="w-8 h-8 text-purple-500 mx-auto mb-2" />
+                        <p className="text-sm text-white font-medium">Gaming Engine</p>
+                        <p className="text-xs text-dark-muted">Advanced 3D rendering</p>
+                      </div>
+                      <div className="bg-surface-2 rounded-lg p-4 border border-blue-500/20">
+                        <Zap className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                        <p className="text-sm text-white font-medium">Real-time HUD</p>
+                        <p className="text-xs text-dark-muted">Gaming-style interface</p>
+                      </div>
                     </div>
-                    <div className="bg-surface-2 rounded-lg p-4">
-                      <DollarSign className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                      <p className="text-sm text-white font-medium">Profit Insights</p>
-                      <p className="text-xs text-dark-muted">Analyze profitability</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
+                      <div className="bg-surface-2 rounded-lg p-4">
+                        <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                        <p className="text-sm text-white font-medium">Revenue Analysis</p>
+                        <p className="text-xs text-dark-muted">Explore revenue patterns</p>
+                      </div>
+                      <div className="bg-surface-2 rounded-lg p-4">
+                        <DollarSign className="w-8 h-8 text-blue-500 mx-auto mb-2" />
+                        <p className="text-sm text-white font-medium">Profit Insights</p>
+                        <p className="text-xs text-dark-muted">Analyze profitability</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  
+                  {!useGamingMode && (
+                    <div className="mt-6">
+                      <button
+                        onClick={() => {
+                          setUseGamingMode(true)
+                          setViewMode('Gaming')
+                        }}
+                        className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
+                      >
+                        <Gamepad2 className="w-4 h-4" />
+                        <span>Try Gaming Engine</span>
+                        <Zap className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -824,6 +934,7 @@ const GraphVisualizer = () => {
         </div>
       </div>
     </div>
+    </Layout>
   )
 }
 
