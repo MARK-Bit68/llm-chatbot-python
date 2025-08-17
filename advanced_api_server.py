@@ -117,18 +117,25 @@ async def startup_check():
 @app.get("/health", summary="Comprehensive Health Check")
 async def health_check():
     """Comprehensive health check of all services"""
+    logger.info("🔍 Health check requested")
+    
     try:
         analytics_health = analytics_engine.health_check()
+        logger.info(f"📊 Analytics engine health: {analytics_health.get('overall_status', 'unknown')}")
     except Exception as e:
+        logger.error(f"❌ Analytics engine health check failed: {e}")
         analytics_health = {"overall_status": "unavailable", "error": str(e)}
     
     try:
         agent_status = ai_agent_service.get_agent_status()
+        logger.info(f"🤖 AI agent status: {agent_status.get('agent_available', 'unknown')}")
     except Exception as e:
+        logger.error(f"❌ AI agent status check failed: {e}")
         agent_status = {"agent_available": False, "error": str(e)}
     
     # Server is healthy if it can respond, even if backend services are unavailable
     overall_status = "healthy"
+    logger.info(f"✅ Overall health status: {overall_status}")
     
     return {
         "status": overall_status,

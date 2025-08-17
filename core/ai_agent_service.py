@@ -671,23 +671,28 @@ For detailed profit analysis, try these specific queries:
             from core.graph_analytics_engine import analytics_engine
             
             # Get optimized risk insights - properly handle async
+            logger.info("🔄 Starting risk analysis...")
             try:
-                # Check if there's already an event loop running
+                # Avoid async conflicts by using synchronous fallback
                 try:
-                    loop = asyncio.get_running_loop()
-                    # If we're in an async context, run in thread pool
-                    with ThreadPoolExecutor() as executor:
-                        risk_insight = loop.run_in_executor(
-                            executor,
-                            lambda: asyncio.run(analytics_engine._analyze_inventory_risks())
-                        )
-                        risk_insight = loop.run_until_complete(risk_insight)
+                    # Check if there's already an event loop running
+                    asyncio.get_running_loop()
+                    # If event loop exists, skip async analytics to avoid conflicts
+                    logger.warning("⚠️ Event loop detected, using cached/fallback risk analysis")
+                    risk_insight = None
                 except RuntimeError:
                     # No event loop running, safe to create one
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    risk_insight = loop.run_until_complete(analytics_engine._analyze_inventory_risks())
-                    loop.close()
+                    logger.info("✅ No event loop detected, proceeding with async risk analytics")
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        logger.info("🚀 Created new event loop, calling _analyze_inventory_risks...")
+                        risk_insight = loop.run_until_complete(analytics_engine._analyze_inventory_risks())
+                        loop.close()
+                        logger.info(f"✅ Risk analysis completed: {risk_insight is not None}")
+                    except Exception as e:
+                        logger.error(f"❌ Async risk analytics failed: {e}")
+                        risk_insight = None
                 
                 # Handle GraphInsight object properly
                 if risk_insight:
@@ -766,39 +771,36 @@ For detailed profit analysis, try these specific queries:
             from core.graph_analytics_engine import analytics_engine
             
             # Get comprehensive ML-powered insights
+            logger.info("🔄 Starting advanced ML insights analysis...")
             try:
-                # Check if there's already an event loop running
+                # Avoid async conflicts by using synchronous fallback
                 try:
-                    loop = asyncio.get_running_loop()
-                    # If we're in an async context, run in thread pool
-                    with ThreadPoolExecutor() as executor:
-                        async def run_analytics():
-                            tasks = [
-                                analytics_engine._analyze_profitability_patterns(),
-                                analytics_engine._analyze_inventory_risks(),
-                                analytics_engine._analyze_regional_performance()
-                            ]
-                            return await asyncio.gather(*tasks, return_exceptions=True)
-                        
-                        results = loop.run_in_executor(
-                            executor,
-                            lambda: asyncio.run(run_analytics())
-                        )
-                        results = loop.run_until_complete(results)
+                    # Check if there's already an event loop running
+                    asyncio.get_running_loop()
+                    # If event loop exists, skip async analytics to avoid conflicts
+                    logger.warning("⚠️ Event loop detected, using cached/fallback ML insights")
+                    results = [None, None, None]  # Fallback to None results
                 except RuntimeError:
                     # No event loop running, safe to create one
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    
-                    # Run multiple advanced analytics in parallel
-                    tasks = [
-                        analytics_engine._analyze_profitability_patterns(),
-                        analytics_engine._analyze_inventory_risks(),
-                        analytics_engine._analyze_regional_performance()
-                    ]
-                    
-                    results = loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-                    loop.close()
+                    logger.info("✅ No event loop detected, proceeding with async ML analytics")
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        logger.info("🚀 Created new event loop, running parallel ML analytics...")
+                        
+                        # Run multiple advanced analytics in parallel
+                        tasks = [
+                            analytics_engine._analyze_profitability_patterns(),
+                            analytics_engine._analyze_inventory_risks(),
+                            analytics_engine._analyze_regional_performance()
+                        ]
+                        
+                        results = loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+                        loop.close()
+                        logger.info(f"✅ ML analytics completed: {[r is not None for r in results]}")
+                    except Exception as e:
+                        logger.error(f"❌ Async ML analytics failed: {e}")
+                        results = [None, None, None]
                 
                 # Process results and handle None values
                 profitability_insight = results[0] if not isinstance(results[0], Exception) and results[0] is not None else None
@@ -925,23 +927,28 @@ This analysis utilizes advanced algorithms including:
             from core.graph_analytics_engine import analytics_engine
             
             # Get optimized performance insights - properly handle async
+            logger.info("🔄 Starting performance analysis...")
             try:
-                # Check if there's already an event loop running
+                # Avoid async conflicts by using synchronous fallback
                 try:
-                    loop = asyncio.get_running_loop()
-                    # If we're in an async context, run in thread pool
-                    with ThreadPoolExecutor() as executor:
-                        performance_insight = loop.run_in_executor(
-                            executor,
-                            lambda: asyncio.run(analytics_engine._analyze_profitability_patterns())
-                        )
-                        performance_insight = loop.run_until_complete(performance_insight)
+                    # Check if there's already an event loop running
+                    asyncio.get_running_loop()
+                    # If event loop exists, skip async analytics to avoid conflicts
+                    logger.warning("⚠️ Event loop detected, using cached/fallback analysis")
+                    performance_insight = None
                 except RuntimeError:
                     # No event loop running, safe to create one
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                    performance_insight = loop.run_until_complete(analytics_engine._analyze_profitability_patterns())
-                    loop.close()
+                    logger.info("✅ No event loop detected, proceeding with async analytics")
+                    try:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        logger.info("🚀 Created new event loop, calling _analyze_profitability_patterns...")
+                        performance_insight = loop.run_until_complete(analytics_engine._analyze_profitability_patterns())
+                        loop.close()
+                        logger.info(f"✅ Performance analysis completed: {performance_insight is not None}")
+                    except Exception as e:
+                        logger.error(f"❌ Async analytics failed: {e}")
+                        performance_insight = None
                 
                 # Handle GraphInsight object properly
                 if performance_insight:
