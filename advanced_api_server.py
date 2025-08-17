@@ -1,7 +1,7 @@
 # Advanced FastAPI Server with Extracted AI Logic
 # World-class graph analytics and AI capabilities
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, UploadFile, File
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -749,20 +749,33 @@ if os.path.exists(react_dist_path) and os.path.exists(os.path.join(react_dist_pa
         """Serve the React application root"""
         return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
     
-    # Serve React app for all other routes
-    @app.get("/{full_path:path}")
-    async def serve_react_app(full_path: str):
-        # Don't serve React for API routes
-        if full_path.startswith(("api/", "health", "docs")):
-            return {"error": "Route not found", "path": full_path}
-        
-        # Serve specific files if they exist
-        if full_path and "." in full_path.split("/")[-1]:
-            file_path = os.path.join(react_dist_path, full_path)
-            if os.path.exists(file_path) and os.path.isfile(file_path):
-                return FileResponse(file_path)
-        
-        # Default to React index.html for SPA routing
+    # Serve React app for specific SPA routes
+    @app.get("/chat")
+    async def serve_chat():
+        return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
+    
+    @app.get("/graph")
+    async def serve_graph():
+        return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
+    
+    @app.get("/analytics")
+    async def serve_analytics():
+        return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
+    
+    @app.get("/products")
+    async def serve_products():
+        return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
+    
+    @app.get("/upload")
+    async def serve_upload():
+        return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
+    
+    @app.get("/dashboard")
+    async def serve_dashboard():
+        return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
+    
+    @app.get("/settings")
+    async def serve_settings():
         return FileResponse(os.path.join(react_dist_path, "index.html"), media_type="text/html")
 
 else:
