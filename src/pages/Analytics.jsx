@@ -37,7 +37,7 @@ const Analytics = () => {
     async () => {
       try {
         // Try to fetch from real backend using advanced API
-        const response = await advancedAPI.get('/api/analytics/dashboard')
+        const response = await advancedAPI.get('/analytics/dashboard')
         const data = response.data
         
         // Transform backend data to match frontend expectations
