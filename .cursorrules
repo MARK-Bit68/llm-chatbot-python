@@ -84,3 +84,65 @@ IF YOU NEED CREDENTIALS TO RUN YOUR CODE, ESPECIALLY TEST CODE THAT IS AIMING TO
 - **Document test assumptions** and dependencies clearly
 - **Make tests repeatable** - they should produce the same results on each run
 
+
+
+## Railway Log Fetching
+
+### Installing timeout command (Optional)
+
+The `timeout` command is useful for preventing hanging commands:
+
+```bash
+# Install GNU coreutils (includes timeout as gtimeout)
+brew install coreutils
+
+# After installation, use gtimeout:
+gtimeout 10 railway logs
+```
+
+### Reliable Railway Logs Method (Recommended)
+
+The `railway logs` command often hangs indefinitely. Use this background process method instead:
+
+```bash
+# Method 1: Direct piping with gtimeout (RECOMMENDED)
+gtimeout 15 railway logs | tail -300  # Get last 300 lines
+gtimeout 20 railway logs | wc -l      # Count total lines available
+
+# Method 2: Save to file if needed for analysis
+gtimeout 15 railway logs > railway_logs_$(date +%Y%m%d_%H%M%S).txt
+tail -300 railway_logs_$(date +%Y%m%d_%H%M%S).txt
+
+# Method 3: Get different log types
+gtimeout 15 railway logs --deployment | tail -200  # Deployment logs
+gtimeout 15 railway logs --build | tail -100       # Build logs
+gtimeout 15 railway logs --json | tail -50         # JSON format
+```
+
+### Alternative: Using Existing Log Files
+
+If background process fails, use the most recent existing log file:
+
+```bash
+# Find and show last N lines from most recent log file
+ls -t railway_*logs*.txt | head -1 | xargs tail -2000
+```
+
+### JSON Logs (for structured parsing)
+
+```bash
+# For JSON formatted logs
+railway logs --json > railway_logs_$(date +%Y%m%d_%H%M%S).json &
+LOGS_PID=$!
+sleep 10
+kill $LOGS_PID 2>/dev/null
+tail -2000 railway_logs_$(date +%Y%m%d_%H%M%S).json
+```
+
+### Quick Last 10 Lines
+
+```bash
+# For quick checks, just get last 10 lines from existing logs
+tail -10 railway_deployment_logs_*.txt | tail -10
+```
+
