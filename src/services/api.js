@@ -49,7 +49,7 @@ export const sendChatMessage = async ({ message, session_id = 'default' }) => {
 export const fetchDashboardData = async () => {
   try {
     // Try FastAPI backend first
-    const response = await api.get('/api/dashboard')
+    const response = await api.get('/dashboard')
     
     // Transform FastAPI response to dashboard format
     const dashboard = response.data
@@ -94,7 +94,7 @@ export const fetchSKUs = async ({ page = 1, limit = 20, search = '', category = 
 export const fetchAnalytics = async ({ timeRange = '30d', metrics = [] } = {}) => {
   try {
     // Try to fetch from real backend first
-    const response = await api.get('/api/analytics/dashboard')
+    const response = await api.get('/analytics/dashboard')
     
     const data = response.data
     

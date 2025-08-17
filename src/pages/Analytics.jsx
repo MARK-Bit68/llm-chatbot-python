@@ -43,10 +43,10 @@ const Analytics = () => {
         // Transform backend data to match frontend expectations
         return {
           metrics: {
-            total_revenue: data.metrics.total_revenue,
-            total_profit: data.metrics.total_profit,
-            active_skus: data.metrics.active_skus,
-            efficiency_score: data.metrics.efficiency_score
+            total_revenue: data.metrics?.total_revenue,
+            total_profit: data.metrics?.total_profit,
+            active_skus: data.metrics?.active_skus,
+            efficiency_score: data.metrics?.efficiency_score
           },
           time_series: data.time_series,
           categories: data.categories,

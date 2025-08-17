@@ -174,7 +174,7 @@ const GraphVisualizer = () => {
       const enhancedEdges = []
       const processedEdges = new Set()
       
-      ;(graphData.links || []).slice(0, 100).forEach((edge, index) => {
+      ;(graphData.links || []).slice(0, 1000).forEach((edge, index) => {
         const sourceId = edge.source || edge.source_id
         const targetId = edge.target || edge.target_id
         
@@ -306,8 +306,13 @@ const GraphVisualizer = () => {
       setLoading(true)
       setError(null)
       
-      // Fetch graph data from the backend
-      const response = await fetch('/api/graph/visualization')
+      // Fetch graph data from the backend with cache-busting
+      const response = await fetch(`/api/graph/visualization?t=${Date.now()}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
       if (!response.ok) {
         throw new Error('Failed to fetch graph data')
       }
@@ -561,6 +566,86 @@ const GraphVisualizer = () => {
             </div>
           </div>
 
+          {/* Edge/Relationship Filters */}
+          {useGamingMode && (
+            <div className="border-t border-white border-opacity-10 pt-4">
+              <label className="block text-sm font-medium text-white mb-2">Relationships</label>
+              <div className="space-y-2">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    defaultChecked={true}
+                    onChange={(e) => {
+                      // This will be passed to Gaming component
+                      window.edgeFilters = { ...window.edgeFilters, showBelongsTo: e.target.checked }
+                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                    }}
+                    className="w-4 h-4 text-green-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-green-500"
+                  />
+                  <span className="text-xs text-white">Product → Category</span>
+                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    defaultChecked={true}
+                    onChange={(e) => {
+                      window.edgeFilters = { ...window.edgeFilters, showBrandedAs: e.target.checked }
+                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                    }}
+                    className="w-4 h-4 text-orange-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-orange-500"
+                  />
+                  <span className="text-xs text-white">Product → Brand</span>
+                  <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    defaultChecked={false}
+                    onChange={(e) => {
+                      window.edgeFilters = { ...window.edgeFilters, showSoldIn: e.target.checked }
+                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                    }}
+                    className="w-4 h-4 text-blue-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-white">Product → Country</span>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
+                  <span className="text-xs text-red-400">(Heavy)</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    defaultChecked={true}
+                    onChange={(e) => {
+                      window.edgeFilters = { ...window.edgeFilters, showPartOf: e.target.checked }
+                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                    }}
+                    className="w-4 h-4 text-cyan-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-cyan-500"
+                  />
+                  <span className="text-xs text-white">Country → Region</span>
+                  <div className="w-2 h-2 bg-cyan-500 rounded-full" />
+                </label>
+              </div>
+              
+              {/* Focus Mode Toggle */}
+              <div className="mt-3">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    defaultChecked={false}
+                    onChange={(e) => {
+                      window.edgeFilters = { ...window.edgeFilters, focusMode: e.target.checked ? 'selected' : 'none' }
+                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                    }}
+                    className="w-4 h-4 text-purple-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-xs text-white">Focus on Selected Node</span>
+                  <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Selected Node Details */}
           {selectedNode && (
             <div className="border-t border-white border-opacity-10 pt-4">
@@ -627,7 +712,7 @@ const GraphVisualizer = () => {
         </div>
 
         {/* Graph Visualization Area */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative min-h-screen">
           <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
             {useGamingMode ? (
               // Gaming Mode Visualization
@@ -644,6 +729,94 @@ const GraphVisualizer = () => {
                   graphData={graphData}
                   onNodeSelect={setSelectedNode}
                 />
+                
+                {/* Enhanced Hierarchical Visualization Guide */}
+                <div className="absolute top-4 right-4 bg-surface/95 backdrop-blur-sm rounded-lg p-4 max-w-sm border border-white/10">
+                  <h3 className="text-white font-semibold mb-3 flex items-center">
+                    <Gamepad2 className="w-4 h-4 mr-2 text-purple-400" />
+                    Graph Layout Guide
+                  </h3>
+                  
+                  <div className="space-y-3 text-sm text-dark-muted">
+                    <div>
+                      <div className="text-white font-medium mb-2">🎯 Hierarchical Structure</div>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                            <span>Products</span>
+                          </div>
+                          <span className="text-xs text-green-400">Center (Core)</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                            <span>Categories</span>
+                          </div>
+                          <span className="text-xs text-purple-400">Top Ring</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
+                            <span>Brands</span>
+                          </div>
+                          <span className="text-xs text-orange-400">Right Cluster</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                            <span>Countries</span>
+                          </div>
+                          <span className="text-xs text-blue-400">Left Side</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 bg-cyan-500 rounded-full mr-2"></div>
+                            <span>Regions</span>
+                          </div>
+                          <span className="text-xs text-cyan-400">Above Countries</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="w-2 h-2 bg-lime-500 rounded-full mr-2"></div>
+                            <span>Plants</span>
+                          </div>
+                          <span className="text-xs text-lime-400">Right Bottom</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <hr className="border-white/10" />
+                    
+                    <div>
+                      <div className="text-white font-medium mb-2">🔗 Relationship Flow</div>
+                      <div className="text-xs space-y-1">
+                        <div>Product → Category (Classification)</div>
+                        <div>Product → Brand (Branding)</div>
+                        <div>Product → Country (Geography)</div>
+                        <div>Country → Region (Hierarchy)</div>
+                      </div>
+                    </div>
+                    
+                    <hr className="border-white/10" />
+                    
+                    <div className="space-y-1">
+                      <div className="text-white font-medium">⚡ Navigation</div>
+                      <div>• <span className="text-yellow-400">Drag</span>: Rotate around center</div>
+                      <div>• <span className="text-yellow-400">Scroll</span>: Zoom to explore layers</div>
+                      <div>• <span className="text-yellow-400">Click</span>: Select & inspect</div>
+                      <div>• <span className="text-green-400">Tip</span>: Start at center (Products)</div>
+                    </div>
+                    
+                    <hr className="border-white/10" />
+                    
+                    <div className="text-xs text-dark-muted">
+                      <strong>Performance:</strong> 1434/6034 edges visible<br/>
+                      <strong>Layout:</strong> Intelligent hierarchy<br/>
+                      <strong>Optimization:</strong> LOD + Distance culling
+                    </div>
+                  </div>
+                </div>
               </Suspense>
             ) : graphData3D && graphData3D.nodes && graphData3D.nodes.length > 0 ? (
               // Legacy Mode Visualization

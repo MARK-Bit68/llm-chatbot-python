@@ -693,11 +693,11 @@ async def graph_visualization_endpoint():
         if not graph:
             raise HTTPException(status_code=500, detail="Graph database connection unavailable")
         
-        # Query nodes with basic information (compatible with our import structure)
+        # Query nodes with basic information (using actual node properties)
         nodes_query = """
         MATCH (n)
-        RETURN n.id as id,
-               n.code as code,
+        RETURN elementId(n) as id,
+               n.sku_code as sku_code,
                n.name as name,
                n.category as category,
                n.country as country,
@@ -707,14 +707,28 @@ async def graph_visualization_endpoint():
         
         nodes_result = graph.query(nodes_query)
         
-        # Query relationships (compatible with our import structure)
+        # Query relationships (using elementId for Neo4j compatibility) 
+        # Sample different relationship types for better visualization diversity
         edges_query = """
-        MATCH (a)-[r]->(b)
-        WHERE a.id IS NOT NULL AND b.id IS NOT NULL
-        RETURN a.id as source,
-               b.id as target,
-               type(r) as type
-        LIMIT 1000
+        MATCH (p:Product)-[r:BELONGS_TO]->(c:Category)
+        RETURN elementId(p) as source, elementId(c) as target, type(r) as type,
+               p.name as source_name, c.name as target_name
+        LIMIT 500
+        UNION ALL
+        MATCH (p:Product)-[r:BRANDED_AS]->(b:Brand)
+        RETURN elementId(p) as source, elementId(b) as target, type(r) as type,
+               p.name as source_name, b.name as target_name  
+        LIMIT 500
+        UNION ALL
+        MATCH (p:Product)-[r:SOLD_IN]->(ct:Country)
+        RETURN elementId(p) as source, elementId(ct) as target, type(r) as type,
+               p.name as source_name, ct.name as target_name
+        LIMIT 400
+        UNION ALL
+        MATCH (ct:Country)-[r:PART_OF]->(rg:Region)
+        RETURN elementId(ct) as source, elementId(rg) as target, type(r) as type,
+               ct.name as source_name, rg.name as target_name
+        LIMIT 100
         """
         
         edges_result = graph.query(edges_query)
@@ -724,7 +738,6 @@ async def graph_visualization_endpoint():
         node_types = {}
         
         for record in nodes_result:
-            node = record.get('n', {})
             labels = record.get('labels', [])
             node_type = labels[0] if labels else 'Unknown'
             
@@ -733,16 +746,24 @@ async def graph_visualization_endpoint():
                 node_types[node_type] = 0
             node_types[node_type] += 1
             
-            # Create node object (compatible with our import structure)
+            # Create node object (using correct field mappings)
             node_obj = {
-                'id': record.get('id') or record.get('code') or record.get('name') or str(hash(str(record))),
+                'id': record.get('id'),  # elementId from query
                 'type': node_type,
-                'name': record.get('name') or record.get('code') or record.get('id'),
-                'code': record.get('code'),
+                'name': record.get('name') or record.get('sku_code'),
+                'code': record.get('sku_code'),
                 'category': record.get('category'),
                 'country': record.get('country'),
                 'region': record.get('region'),
-                'properties': record
+                'properties': {
+                    'id': record.get('id'),
+                    'code': record.get('sku_code'),
+                    'name': record.get('name'),
+                    'category': record.get('category'),
+                    'country': record.get('country'),
+                    'region': record.get('region'),
+                    'labels': labels
+                }
             }
             
             nodes.append(node_obj)
