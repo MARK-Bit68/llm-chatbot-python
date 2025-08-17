@@ -26,7 +26,7 @@ import {
   Area
 } from 'recharts'
 import { fetchAnalytics } from '../services/api'
-import { advancedAPI } from '../services/advanced-api'
+import advancedAPI from '../services/advanced-api'
 
 const Analytics = () => {
   const [timeRange, setTimeRange] = useState('30d')
