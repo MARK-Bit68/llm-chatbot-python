@@ -23,7 +23,7 @@ from langchain import hub
 from llm import get_llm
 from solutions.graph import get_graph
 from solutions.tools.vector import get_sku_data
-from solutions.tools.cypher_supplygraph import enhanced_cypher_qa, get_dashboard_data, search_products, get_product_details
+from solutions.tools.cypher_ai_enhanced_sop import enhanced_cypher_qa, get_dashboard_data, search_products, get_product_details
 from solutions.tools.data_parser import parse_sku_data
 from monitoring import record_event, timeit
 
@@ -53,15 +53,16 @@ class AdvancedAIAgentService:
     def _initialize_ai_services(self):
         """Initialize AI services with your existing configuration"""
         try:
-            # Domain configuration for SupplyGraph dataset
+            # Domain configuration for AI Enhanced SOP dataset
             self.domain_config = {
-                "domain_name": "SupplyGraph benchmark dataset for supply chain planning",
+                "domain_name": "AI Enhanced SOP Dataset with 2000 SKUs and 110 comprehensive attributes",
                 "entity_type": "Product",
                 "entity_label": "Product", 
-                "entity_id_field": "code",
-                "domain_expertise": "supply chain planning, manufacturing capacity, inventory management, demand forecasting, production analysis, plant utilization, storage optimization, and supply chain network analysis",
+                "entity_id_field": "sku_code",
+                "domain_expertise": "FMCG product analytics, category performance, brand analysis, geographic revenue optimization, ABC classification, risk management, profitability analysis, supply chain efficiency, sustainability metrics, and multi-dimensional business intelligence",
                 "entity_plural": "Products",
-                "entity_singular": "Product"
+                "entity_singular": "Product",
+                "dataset_scope": "2000 products across 15 categories, 5 brands, 26 countries, 5 regions with financial, operational, demand, risk, and sustainability data"
             }
             
             # Initialize tools (from your existing code)
@@ -83,7 +84,7 @@ class AdvancedAIAgentService:
             Tool(
                 name="Simple Database Query",
                 func=self._simple_database_query,
-                description="Use this tool for basic database queries about product counts, product groups, or simple supply chain data. Input: a question about counts, groups, or basic data. Examples: 'How many products are there?', 'Show me product groups', 'What products are in Group S?'"
+                description="Use this tool for basic database queries about product counts, categories, brands, or simple business data. Input: a question about counts, categories, or basic data. Examples: 'How many products are there?', 'Show me product categories', 'What products are in Electronics category?', 'Show me BrandA products'"
             ),
             Tool(
                 name="Dashboard Data",
@@ -93,17 +94,17 @@ class AdvancedAIAgentService:
             Tool(
                 name="Risk Analysis",
                 func=self._optimized_risk_analysis,
-                description="Use this tool for inventory risk analysis, supply chain risks, or risk assessment. Input: a question about risks, inventory, or supply chain risks. Examples: 'Analyze inventory risks', 'Show me risk analysis', 'What are the supply chain risks?'"
+                description="Use this tool for product risk analysis, portfolio risks, or risk assessment. Input: a question about risks, product safety, or business risks. Examples: 'Analyze product risks', 'Show me high-risk products', 'What are the business risks?', 'Show products with high risk ratings'"
             ),
             Tool(
                 name="Performance Analytics",
                 func=self._optimized_performance_analysis,
-                description="Use this tool for performance analysis, profitability analysis, profit per unit, or performance metrics. Input: a question about performance, profit, or profitability. Examples: 'Show me performance analysis', 'Analyze profitability', 'Which SKU has highest profit?'"
+                description="Use this tool for performance analysis, profitability analysis, revenue optimization, or financial metrics. Input: a question about performance, profit, revenue, or margins. Examples: 'Show me performance analysis', 'Analyze profitability', 'Which SKU has highest revenue?', 'Compare category performance', 'Show top margin products'"
             ),
             Tool(
                 name="Advanced Analytics & ML Insights",
                 func=self._advanced_ml_insights,
-                description="Use this tool for machine learning insights, advanced analytics, pattern detection, or complex supply chain analysis. Input: a question about ML insights, advanced analytics, or patterns. Examples: 'Generate supply chain insights using machine learning', 'Show me ML-powered analytics', 'Detect patterns using AI'"
+                description="Use this tool for machine learning insights, advanced analytics, pattern detection, or complex business intelligence analysis. Input: a question about ML insights, advanced analytics, or patterns. Examples: 'Generate business insights using machine learning', 'Show me ML-powered analytics', 'Detect patterns using AI', 'Advanced category analysis', 'Predictive insights'"
             )
         ]
         
@@ -223,9 +224,15 @@ class AdvancedAIAgentService:
             # Create a custom prompt that matches our tool format
             custom_prompt = PromptTemplate(
                 input_variables=["input", "agent_scratchpad"],
-                template="""You are an expert supply chain analyst with access to a comprehensive FMCG (Fast Moving Consumer Goods) dataset. You have access to the following tools:
+                template="""You are an expert business analyst with access to a comprehensive AI Enhanced SOP dataset containing 2000 SKUs with 110 detailed attributes. This FMCG dataset includes financial, operational, demand, risk, and sustainability data across 15 categories, 5 brands, and 26 countries. You have access to the following tools:
 
 {tools}
+
+Dataset Overview:
+- 2000 products across 15 categories (Electronics, Automotive, Pharmaceuticals, etc.)
+- 5 major brands (BrandA-E) with global presence
+- 26 countries across 5 regions (Asia Pacific, Europe, North America, etc.)
+- Comprehensive attributes: revenue, margins, risk ratings, ABC classification, sustainability metrics
 
 Use the following format:
 
@@ -533,9 +540,10 @@ I was analyzing your request but reached the processing limit. Here are some sug
                 return cached_result
             
             # Import the canned query functions
-            from solutions.tools.cypher_supplygraph import (
-                get_product_overview, get_products_by_group, get_products_by_subgroup,
-                get_products_by_plant, get_products_by_storage, get_product_details
+            from solutions.tools.cypher_ai_enhanced_sop import (
+                get_product_overview, get_products_by_category, get_products_by_brand,
+                get_products_by_country, get_products_by_region, get_product_details,
+                get_top_revenue_products, get_category_performance, get_brand_performance
             )
             
             question_lower = question.lower()
@@ -544,86 +552,63 @@ I was analyzing your request but reached the processing limit. Here are some sug
             if "how many products" in question_lower or "total products" in question_lower:
                 logger.info("📊 Querying total product count")
                 results = get_product_overview()
-                result = f"# 📊 Product Count\n\n**Total Products**: {len(results)}\n\n**Product Overview**:\n" + "\n".join([f"- {r['product_code']} (Group: {r['group']}, SubGroup: {r['subgroup']})" for r in results[:10]])
+                result = f"# 📊 Product Count\n\n**Total Products**: {len(results)}\n\n**Sample Products**:\n" + "\n".join([f"- {r['sku_code']} - {r['product_name']} (Category: {r['category']}, Brand: {r['brand']})" for r in results[:10]])
                 self._cache_result(question, "Simple Database Query", result)
                 return result
             
-            elif "product groups" in question_lower or "groups" in question_lower:
-                logger.info("📊 Querying product groups")
-                results = get_product_overview()
-                groups = {}
-                for r in results:
-                    group = r['group']
-                    if group not in groups:
-                        groups[group] = []
-                    groups[group].append(r['product_code'])
-                
-                group_summary = "\n".join([f"- **Group {g}**: {len(products)} products" for g, products in groups.items()])
-                result = f"# 📊 Product Groups\n\n{group_summary}"
+            elif "categories" in question_lower or "product categories" in question_lower:
+                logger.info("📊 Querying product categories")
+                results = get_category_performance()
+                category_summary = "\n".join([f"- **{r['category']}**: {r['product_count']} products, ${r['total_revenue']:,.0f} revenue" for r in results])
+                result = f"# 📊 Product Categories\n\n{category_summary}"
                 self._cache_result(question, "Simple Database Query", result)
                 return result
             
-            elif "group s" in question_lower or "group s" in question_lower:
-                logger.info("📊 Querying Group S products")
-                results = get_products_by_group("S")
-                result = f"# 📊 Group S Products\n\n**Total**: {len(results)} products\n\n" + "\n".join([f"- {r['product_code']} (SubGroup: {r['subgroup']})" for r in results])
+            elif "electronics" in question_lower:
+                logger.info("📊 Querying Electronics products")
+                results = get_products_by_category("Electronics")
+                result = f"# 📊 Electronics Products\n\n**Total**: {len(results)} products\n\n**Top Products by Revenue**:\n" + "\n".join([f"- {r['sku_code']} - {r['product_name']} (${r['revenue']:,.0f})" for r in results[:10]])
                 self._cache_result(question, "Simple Database Query", result)
                 return result
             
-            elif "group p" in question_lower:
-                logger.info("📊 Querying Group P products")
-                results = get_products_by_group("P")
-                result = f"# 📊 Group P Products\n\n**Total**: {len(results)} products\n\n" + "\n".join([f"- {r['product_code']} (SubGroup: {r['subgroup']})" for r in results])
+            elif "automotive" in question_lower:
+                logger.info("📊 Querying Automotive products")
+                results = get_products_by_category("Automotive")
+                result = f"# 📊 Automotive Products\n\n**Total**: {len(results)} products\n\n**Top Products by Revenue**:\n" + "\n".join([f"- {r['sku_code']} - {r['product_name']} (${r['revenue']:,.0f})" for r in results[:10]])
                 self._cache_result(question, "Simple Database Query", result)
                 return result
             
-            elif "subgroup" in question_lower:
-                logger.info("📊 Querying subgroups")
-                results = get_product_overview()
-                subgroups = {}
-                for r in results:
-                    subgroup = r['subgroup']
-                    if subgroup not in subgroups:
-                        subgroups[subgroup] = []
-                    subgroups[subgroup].append(r['product_code'])
-                
-                subgroup_summary = "\n".join([f"- **{sg}**: {len(products)} products" for sg, products in subgroups.items()])
-                result = f"# 📊 Product SubGroups\n\n{subgroup_summary}"
+            elif "brands" in question_lower or "brand" in question_lower:
+                logger.info("📊 Querying brand performance")
+                results = get_brand_performance()
+                brand_summary = "\n".join([f"- **{r['brand']}**: {r['product_count']} products, ${r['total_revenue']:,.0f} revenue" for r in results])
+                result = f"# 📊 Brand Performance\n\n{brand_summary}"
                 self._cache_result(question, "Simple Database Query", result)
                 return result
             
-            elif any(profit_term in question_lower for profit_term in ["profit", "gross profit", "highest profit", "best profit"]):
-                logger.info("💰 Querying profit data")
-                # For now, return a structured response about profit analysis
-                result = f"""# 💰 Profit Analysis
+            elif any(profit_term in question_lower for profit_term in ["profit", "gross profit", "highest profit", "best profit", "revenue", "top revenue"]):
+                logger.info("💰 Querying profit/revenue data")
+                results = get_top_revenue_products(10)
+                result = f"""# 💰 Top Revenue Products
 
-Based on your query about **"{question}"**, here's what I can tell you about profit analysis:
+Based on your query about **"{question}"**, here are the top revenue-generating products:
 
-## 📊 **Profit Data Overview**
-- **Analysis Type**: Gross profit per unit analysis
-- **Data Source**: SupplyGraph benchmark dataset
-- **Scope**: All product categories and SKUs
+## 🎯 **Top 10 Products by Annual Revenue**
+""" + "\n".join([f"{i+1}. **{r['product_name']}** ({r['sku_code']}) - ${r['revenue']:,.0f}\n   - Category: {r['category']}, Brand: {r['brand']}\n   - Margin: {r.get('margin', 0):.1f}%, Class: {r.get('abc_class', 'N/A')}" for i, r in enumerate(results)]) + f"""
 
-## 🎯 **Key Insights**
-- Profit data is available across all product groups (S, P, etc.)
-- Analysis includes gross profit per unit metrics
-- Data covers manufacturing and supply chain costs
+## 📊 **Key Insights**
+- Total products analyzed: {len(results)}
+- Revenue range: ${results[-1]['revenue']:,.0f} - ${results[0]['revenue']:,.0f}
+- Categories represented: {len(set(r['category'] for r in results))}
 
-## 💡 **Recommendations**
-For detailed profit analysis, try these specific queries:
-- "Show me profit data for Group S products"
-- "Analyze profit trends across all categories"
-- "Compare profit margins between product groups"
-- "Show me the top 10 most profitable SKUs"
-
-*Note: For comprehensive profit analysis with specific numbers, please ask for detailed analytics.*"""
+*Data from AI Enhanced SOP Dataset with comprehensive financial metrics*"""
                 self._cache_result(question, "Simple Database Query", result)
                 return result
             
             else:
                 logger.info("📊 Using product overview as fallback")
                 results = get_product_overview()
-                result = f"# 📊 SupplyGraph Overview\n\n**Total Products**: {len(results)}\n\n**Sample Products**:\n" + "\n".join([f"- {r['product_code']} (Group: {r['group']}, SubGroup: {r['subgroup']})" for r in results[:5]])
+                result = f"# 📊 AI Enhanced SOP Overview\n\n**Total Products**: {len(results)}\n\n**Sample Products**:\n" + "\n".join([f"- {r['sku_code']} - {r['product_name']} (Category: {r['category']}, Brand: {r['brand']})" for r in results[:5]])
             
             # Cache the result
             self._cache_result(question, "Simple Database Query", result)
@@ -673,26 +658,27 @@ For detailed profit analysis, try these specific queries:
             # Get optimized risk insights - properly handle async
             logger.info("🔄 Starting risk analysis...")
             try:
-                # Avoid async conflicts by using synchronous fallback
+                # Handle async properly using thread executor
                 try:
-                    # Check if there's already an event loop running
-                    asyncio.get_running_loop()
-                    # If event loop exists, skip async analytics to avoid conflicts
-                    logger.warning("⚠️ Event loop detected, using cached/fallback risk analysis")
-                    risk_insight = None
-                except RuntimeError:
-                    # No event loop running, safe to create one
-                    logger.info("✅ No event loop detected, proceeding with async risk analytics")
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        logger.info("🚀 Created new event loop, calling _analyze_inventory_risks...")
-                        risk_insight = loop.run_until_complete(analytics_engine._analyze_inventory_risks())
-                        loop.close()
+                    # Use ThreadPoolExecutor to run async code in separate thread
+                    logger.info("🚀 Using ThreadPoolExecutor for async risk analytics...")
+                    with ThreadPoolExecutor() as executor:
+                        def run_async_risk_analytics():
+                            # Create fresh event loop in this thread
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                result = new_loop.run_until_complete(analytics_engine._analyze_inventory_risks())
+                                return result
+                            finally:
+                                new_loop.close()
+                        
+                        future = executor.submit(run_async_risk_analytics)
+                        risk_insight = future.result(timeout=30)  # 30 second timeout
                         logger.info(f"✅ Risk analysis completed: {risk_insight is not None}")
-                    except Exception as e:
-                        logger.error(f"❌ Async risk analytics failed: {e}")
-                        risk_insight = None
+                except Exception as e:
+                    logger.error(f"❌ ThreadPoolExecutor risk analytics failed: {e}")
+                    risk_insight = None
                 
                 # Handle GraphInsight object properly
                 if risk_insight:
@@ -773,34 +759,33 @@ For detailed profit analysis, try these specific queries:
             # Get comprehensive ML-powered insights
             logger.info("🔄 Starting advanced ML insights analysis...")
             try:
-                # Avoid async conflicts by using synchronous fallback
+                # Handle async properly using thread executor  
                 try:
-                    # Check if there's already an event loop running
-                    asyncio.get_running_loop()
-                    # If event loop exists, skip async analytics to avoid conflicts
-                    logger.warning("⚠️ Event loop detected, using cached/fallback ML insights")
-                    results = [None, None, None]  # Fallback to None results
-                except RuntimeError:
-                    # No event loop running, safe to create one
-                    logger.info("✅ No event loop detected, proceeding with async ML analytics")
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        logger.info("🚀 Created new event loop, running parallel ML analytics...")
+                    # Use ThreadPoolExecutor to run async code in separate thread
+                    logger.info("🚀 Using ThreadPoolExecutor for parallel ML analytics...")
+                    with ThreadPoolExecutor() as executor:
+                        def run_parallel_ml_analytics():
+                            # Create fresh event loop in this thread
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                # Run multiple advanced analytics in parallel
+                                tasks = [
+                                    analytics_engine._analyze_profitability_patterns(),
+                                    analytics_engine._analyze_inventory_risks(),
+                                    analytics_engine._analyze_regional_performance()
+                                ]
+                                results = new_loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+                                return results
+                            finally:
+                                new_loop.close()
                         
-                        # Run multiple advanced analytics in parallel
-                        tasks = [
-                            analytics_engine._analyze_profitability_patterns(),
-                            analytics_engine._analyze_inventory_risks(),
-                            analytics_engine._analyze_regional_performance()
-                        ]
-                        
-                        results = loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-                        loop.close()
+                        future = executor.submit(run_parallel_ml_analytics)
+                        results = future.result(timeout=60)  # 60 second timeout for parallel ops
                         logger.info(f"✅ ML analytics completed: {[r is not None for r in results]}")
-                    except Exception as e:
-                        logger.error(f"❌ Async ML analytics failed: {e}")
-                        results = [None, None, None]
+                except Exception as e:
+                    logger.error(f"❌ ThreadPoolExecutor ML analytics failed: {e}")
+                    results = [None, None, None]
                 
                 # Process results and handle None values
                 profitability_insight = results[0] if not isinstance(results[0], Exception) and results[0] is not None else None
@@ -929,26 +914,27 @@ This analysis utilizes advanced algorithms including:
             # Get optimized performance insights - properly handle async
             logger.info("🔄 Starting performance analysis...")
             try:
-                # Avoid async conflicts by using synchronous fallback
+                # Handle async properly using thread executor
                 try:
-                    # Check if there's already an event loop running
-                    asyncio.get_running_loop()
-                    # If event loop exists, skip async analytics to avoid conflicts
-                    logger.warning("⚠️ Event loop detected, using cached/fallback analysis")
-                    performance_insight = None
-                except RuntimeError:
-                    # No event loop running, safe to create one
-                    logger.info("✅ No event loop detected, proceeding with async analytics")
-                    try:
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        logger.info("🚀 Created new event loop, calling _analyze_profitability_patterns...")
-                        performance_insight = loop.run_until_complete(analytics_engine._analyze_profitability_patterns())
-                        loop.close()
+                    # Use ThreadPoolExecutor to run async code in separate thread
+                    logger.info("🚀 Using ThreadPoolExecutor for async analytics...")
+                    with ThreadPoolExecutor() as executor:
+                        def run_async_analytics():
+                            # Create fresh event loop in this thread
+                            new_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(new_loop)
+                            try:
+                                result = new_loop.run_until_complete(analytics_engine._analyze_profitability_patterns())
+                                return result
+                            finally:
+                                new_loop.close()
+                        
+                        future = executor.submit(run_async_analytics)
+                        performance_insight = future.result(timeout=30)  # 30 second timeout
                         logger.info(f"✅ Performance analysis completed: {performance_insight is not None}")
-                    except Exception as e:
-                        logger.error(f"❌ Async analytics failed: {e}")
-                        performance_insight = None
+                except Exception as e:
+                    logger.error(f"❌ ThreadPoolExecutor analytics failed: {e}")
+                    performance_insight = None
                 
                 # Handle GraphInsight object properly
                 if performance_insight:
