@@ -56,8 +56,7 @@ const Analytics = () => {
         }
       } catch (error) {
         console.error('Error fetching analytics from backend:', error)
-        // Fallback to mock data
-        return fetchAnalytics({ timeRange, metrics: selectedMetrics })
+        throw new Error('Failed to fetch analytics data from backend')
       }
     },
     {
@@ -139,27 +138,27 @@ const Analytics = () => {
           { 
             title: 'Total Revenue', 
             value: analyticsData?.metrics?.total_revenue ? 
-              `$${(analyticsData.metrics.total_revenue / 1000000000).toFixed(1)}B` : '$3.3B', 
+              `$${(analyticsData.metrics.total_revenue / 1000000000).toFixed(1)}B` : 'Loading...', 
             change: '+9.1%', 
             icon: TrendingUp 
           },
           { 
             title: 'Gross Profit', 
             value: analyticsData?.metrics?.total_profit ? 
-              `$${(analyticsData.metrics.total_profit / 1000000000).toFixed(1)}B` : '$1.2B', 
+              `$${(analyticsData.metrics.total_profit / 1000000000).toFixed(1)}B` : 'Loading...', 
             change: '+12.3%', 
             icon: BarChart3 
           },
           { 
             title: 'Active SKUs', 
-            value: analyticsData?.metrics?.active_skus?.toString() || '2000', 
+            value: analyticsData?.metrics?.active_skus?.toString() || 'Loading...', 
             change: '+5.1%', 
             icon: PieChartIcon 
           },
           { 
             title: 'Efficiency Score', 
             value: analyticsData?.metrics?.efficiency_score ? 
-              `${analyticsData.metrics.efficiency_score}%` : '94.2%', 
+              `${analyticsData.metrics.efficiency_score}%` : 'Loading...', 
             change: '+2.6%', 
             icon: Activity 
           },
