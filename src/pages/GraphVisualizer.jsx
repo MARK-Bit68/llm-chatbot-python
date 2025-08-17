@@ -41,6 +41,24 @@ const GraphVisualizer = () => {
   const [viewMode, setViewMode] = useState('Gaming') // Gaming, 3D, 2D, Force
   const [useGamingMode, setUseGamingMode] = useState(true)
   
+  // Edge filtering state for Gaming mode - START WITH NOTHING for guided experience
+  const [edgeFilters, setEdgeFilters] = useState({
+    showBelongsTo: false,     // Product → Category (start hidden)
+    showBrandedAs: false,     // Product → Brand (start hidden)
+    showSoldIn: false,        // Product → Country (start hidden)
+    showPartOf: false,        // Country → Region (start hidden)
+    focusMode: 'none'         // none, selected
+  })
+  
+  // Tutorial state for guided experience
+  const [tutorialStep, setTutorialStep] = useState(0)
+  const [showTutorial, setShowTutorial] = useState(true)
+  
+  // Debug edge filters
+  useEffect(() => {
+    console.log('📊 Main EdgeFilters State:', edgeFilters)
+  }, [edgeFilters])
+  
   // Debug viewMode
   useEffect(() => {
     console.log('🎯 Current viewMode:', viewMode)
@@ -574,11 +592,9 @@ const GraphVisualizer = () => {
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    defaultChecked={true}
+                    checked={edgeFilters.showBelongsTo}
                     onChange={(e) => {
-                      // This will be passed to Gaming component
-                      window.edgeFilters = { ...window.edgeFilters, showBelongsTo: e.target.checked }
-                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                      setEdgeFilters(prev => ({ ...prev, showBelongsTo: e.target.checked }))
                     }}
                     className="w-4 h-4 text-green-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-green-500"
                   />
@@ -588,10 +604,9 @@ const GraphVisualizer = () => {
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    defaultChecked={true}
+                    checked={edgeFilters.showBrandedAs}
                     onChange={(e) => {
-                      window.edgeFilters = { ...window.edgeFilters, showBrandedAs: e.target.checked }
-                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                      setEdgeFilters(prev => ({ ...prev, showBrandedAs: e.target.checked }))
                     }}
                     className="w-4 h-4 text-orange-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-orange-500"
                   />
@@ -601,10 +616,9 @@ const GraphVisualizer = () => {
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    defaultChecked={false}
+                    checked={edgeFilters.showSoldIn}
                     onChange={(e) => {
-                      window.edgeFilters = { ...window.edgeFilters, showSoldIn: e.target.checked }
-                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                      setEdgeFilters(prev => ({ ...prev, showSoldIn: e.target.checked }))
                     }}
                     className="w-4 h-4 text-blue-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-blue-500"
                   />
@@ -615,10 +629,9 @@ const GraphVisualizer = () => {
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    defaultChecked={true}
+                    checked={edgeFilters.showPartOf}
                     onChange={(e) => {
-                      window.edgeFilters = { ...window.edgeFilters, showPartOf: e.target.checked }
-                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                      setEdgeFilters(prev => ({ ...prev, showPartOf: e.target.checked }))
                     }}
                     className="w-4 h-4 text-cyan-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-cyan-500"
                   />
@@ -632,10 +645,9 @@ const GraphVisualizer = () => {
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
                     type="checkbox"
-                    defaultChecked={false}
+                    checked={edgeFilters.focusMode === 'selected'}
                     onChange={(e) => {
-                      window.edgeFilters = { ...window.edgeFilters, focusMode: e.target.checked ? 'selected' : 'none' }
-                      window.dispatchEvent(new CustomEvent('edgeFilterChange'))
+                      setEdgeFilters(prev => ({ ...prev, focusMode: e.target.checked ? 'selected' : 'none' }))
                     }}
                     className="w-4 h-4 text-purple-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-purple-500"
                   />
@@ -728,7 +740,107 @@ const GraphVisualizer = () => {
                 <GamingGraphVisualizer 
                   graphData={graphData}
                   onNodeSelect={setSelectedNode}
+                  edgeFilters={edgeFilters}
+                  selectedNode={selectedNode}
                 />
+                
+                {/* Guided Tutorial Overlay */}
+                {showTutorial && (
+                  <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50 pointer-events-auto">
+                    <div className="bg-gradient-to-r from-purple-900 to-blue-900 rounded-xl p-6 max-w-md mx-4 border border-purple-500/30">
+                      {tutorialStep === 0 && (
+                        <div className="text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">🎯 Welcome to Graph Explorer!</h3>
+                          <p className="text-purple-200 mb-4">
+                            You're looking at 2000 products with no relationships visible yet. 
+                            Let's light up the graph step by step!
+                          </p>
+                          <button
+                            onClick={() => setTutorialStep(1)}
+                            className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg transition-colors"
+                          >
+                            Start Tutorial →
+                          </button>
+                          <button
+                            onClick={() => setShowTutorial(false)}
+                            className="ml-2 text-purple-300 hover:text-white transition-colors"
+                          >
+                            Skip
+                          </button>
+                        </div>
+                      )}
+                      
+                      {tutorialStep === 1 && (
+                        <div className="text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">🟢 Step 1: Categories</h3>
+                          <p className="text-purple-200 mb-4">
+                            Click "Product → Category" in the left panel to see how products connect to their business categories.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setEdgeFilters(prev => ({ ...prev, showBelongsTo: true }))
+                              setTutorialStep(2)
+                            }}
+                            className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors"
+                          >
+                            Show Categories ✨
+                          </button>
+                        </div>
+                      )}
+                      
+                      {tutorialStep === 2 && (
+                        <div className="text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">🟠 Step 2: Brands</h3>
+                          <p className="text-purple-200 mb-4">
+                            Now add brand relationships to see how products connect to their brands.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setEdgeFilters(prev => ({ ...prev, showBrandedAs: true }))
+                              setTutorialStep(3)
+                            }}
+                            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg transition-colors"
+                          >
+                            Show Brands ✨
+                          </button>
+                        </div>
+                      )}
+                      
+                      {tutorialStep === 3 && (
+                        <div className="text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">🔷 Step 3: Geography</h3>
+                          <p className="text-purple-200 mb-4">
+                            Add regional hierarchy to understand the geographic structure.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setEdgeFilters(prev => ({ ...prev, showPartOf: true }))
+                              setTutorialStep(4)
+                            }}
+                            className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg transition-colors"
+                          >
+                            Show Regions ✨
+                          </button>
+                        </div>
+                      )}
+                      
+                      {tutorialStep === 4 && (
+                        <div className="text-center">
+                          <h3 className="text-xl font-bold text-white mb-4">🎉 Excellent!</h3>
+                          <p className="text-purple-200 mb-4">
+                            You now see the core relationships! Use the checkboxes in the left panel to explore different combinations.
+                          </p>
+                          <button
+                            onClick={() => setShowTutorial(false)}
+                            className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg transition-colors"
+                          >
+                            Start Exploring! 🚀
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Enhanced Hierarchical Visualization Guide */}
                 <div className="absolute top-4 right-4 bg-surface/95 backdrop-blur-sm rounded-lg p-4 max-w-sm border border-white/10">

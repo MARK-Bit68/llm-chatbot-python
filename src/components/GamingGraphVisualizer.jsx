@@ -156,6 +156,71 @@ const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
   )
 }
 
+// Floating Group Label Component
+const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) => {
+  const labelRef = useRef()
+  
+  // Don't render if too far away or if config is invalid
+  if (!config || !config.center || distance > 600) return null
+  
+  // Calculate label position (above the group center)
+  const labelPosition = useMemo(() => ({
+    x: config.center.x || 0,
+    y: (config.center.y || 0) + (config.radius || 50) * 0.8 + 30,
+    z: config.center.z || 0
+  }), [config])
+  
+  // Fade based on distance
+  const opacity = useMemo(() => Math.max(0.3, 1 - (distance / 600)), [distance])
+  
+  // Animate gentle floating
+  useFrame((state) => {
+    if (labelRef.current && labelPosition) {
+      labelRef.current.position.y = labelPosition.y + Math.sin(state.clock.elapsedTime * 0.5) * 3
+    }
+  })
+  
+  return (
+    <group ref={labelRef} position={[labelPosition.x, labelPosition.y, labelPosition.z]}>
+      <Html
+        center
+        style={{
+          pointerEvents: 'none',
+          userSelect: 'none'
+        }}
+      >
+        <div 
+          className="bg-black/70 border rounded-lg px-3 py-2 text-center"
+          style={{
+            borderColor: (config.color || '#6B7280') + '40',
+            opacity: opacity
+          }}
+        >
+          <div 
+            className="font-bold text-sm mb-1"
+            style={{ color: config.color || '#6B7280' }}
+          >
+            {config.description || nodeType}
+          </div>
+          <div className="text-gray-300 text-xs">
+            {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
+          </div>
+        </div>
+      </Html>
+      
+      {/* Subtle glow effect */}
+      <mesh position={[0, -15, 0]} scale={[2, 0.5, 2]}>
+        <sphereGeometry args={[(config.radius || 50) * 0.6, 16, 16]} />
+        <meshBasicMaterial 
+          color={config.color || '#6B7280'}
+          transparent
+          opacity={opacity * 0.05}
+        />
+      </mesh>
+    </group>
+  )
+}
+
 // Gaming-style Graph Edge Component
 const GraphEdge = ({ edge, visible, distance }) => {
   const lineRef = useRef()
@@ -422,9 +487,8 @@ const GameCameraControls = ({ onCameraChange, autoRotate = false }) => {
 }
 
 // Main Gaming Graph Visualizer Component
-const GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {
-  const [selectedNode, setSelectedNode] = useState(null)
-  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 0, z: 300 })
+const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalEdgeFilters, selectedNode: externalSelectedNode }) => {
+  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 50, z: 500 }) // Start zoomed out
   const [showMinimap, setShowMinimap] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
@@ -435,27 +499,23 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {
     showEntities: true
   })
   
-  // Edge filtering controls - initialize global state
-  const [edgeFilters, setEdgeFilters] = useState({
-    showBelongsTo: true,      // Product → Category
-    showBrandedAs: true,      // Product → Brand  
-    showSoldIn: false,        // Product → Country (initially off - too many)
-    showPartOf: true,         // Country → Region
-    edgeDensity: 'medium',    // low, medium, high
-    focusMode: 'none'         // none, selected, type
-  })
+  // Use external edge filters from props, fallback to defaults
+  const edgeFilters = externalEdgeFilters || {
+    showBelongsTo: true,
+    showBrandedAs: true,
+    showSoldIn: false,
+    showPartOf: true,
+    focusMode: 'none'
+  }
   
-  // Initialize global edge filters for checkbox communication
-  useEffect(() => {
-    window.edgeFilters = edgeFilters
-    
-    const handleEdgeFilterChange = () => {
-      setEdgeFilters({...window.edgeFilters})
-    }
-    
-    window.addEventListener('edgeFilterChange', handleEdgeFilterChange)
-    return () => window.removeEventListener('edgeFilterChange', handleEdgeFilterChange)
-  }, [])
+  // Debug edge filters - removed console spam
+  // useEffect(() => {
+  //   console.log('🔧 Edge Filters:', edgeFilters)
+  //   console.log('🔧 External Edge Filters:', externalEdgeFilters)
+  // }, [edgeFilters, externalEdgeFilters])
+  
+  // Use external selected node from props
+  const selectedNode = externalSelectedNode
   const [autoRotate, setAutoRotate] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   
@@ -597,7 +657,12 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {
       target: nodes.find(n => n.id === edge.target)
     })).filter(edge => edge.source && edge.target)
     
-    return { nodes, edges }
+    return { 
+      nodes, 
+      edges, 
+      layoutConfig,  // Include layout config for group labels
+      nodesByType    // Include node counts by type
+    }
   }, [graphData])
   
   // Calculate node distance from camera
@@ -610,14 +675,13 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {
   }, [cameraPosition])
   
   const handleNodeSelect = useCallback((node) => {
-    setSelectedNode(node)
     if (onNodeSelect) onNodeSelect(node)
   }, [onNodeSelect])
   
   const handleReset = useCallback(() => {
     setCameraPosition({ x: 0, y: 0, z: 300 })
-    setSelectedNode(null)
-  }, [])
+    if (onNodeSelect) onNodeSelect(null)
+  }, [onNodeSelect])
   
   // Filter nodes based on current filters
   const filteredNodes = useMemo(() => {
@@ -690,6 +754,8 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {
           const edgeType = edge.type
           let showEdge = false
           
+          // Debug edge types - removed console spam
+          
           switch (edgeType) {
             case 'BELONGS_TO':
               showEdge = edgeFilters.showBelongsTo
@@ -704,7 +770,7 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {
               showEdge = edgeFilters.showPartOf
               break
             default:
-              showEdge = true
+              showEdge = false // Unknown edge types hidden by default
           }
           
           if (!showEdge) return null
@@ -730,6 +796,32 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect }) => {
             />
           )
         })}
+        
+        {/* Render Group Labels - Temporarily disabled for debugging */}
+        {false && processedData.layoutConfig && processedData.nodesByType && 
+          Object.entries(processedData.layoutConfig).map(([nodeType, config]) => {
+            const nodeCount = processedData.nodesByType[nodeType]?.length || 0
+            if (nodeCount === 0 || !config || !config.center) return null
+            
+            try {
+              const labelDistance = calculateDistance(config.center)
+              
+              return (
+                <GroupLabel
+                  key={`label-${nodeType}`}
+                  config={config}
+                  nodeType={nodeType}
+                  nodeCount={nodeCount}
+                  distance={labelDistance}
+                  cameraPosition={cameraPosition}
+                />
+              )
+            } catch (error) {
+              console.warn('Error rendering group label for', nodeType, error)
+              return null
+            }
+          })
+        }
         
         {/* Performance Stats */}
         <Stats />
