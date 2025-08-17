@@ -1,11 +1,31 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import numpy as np
+
+# Optional plotly import with fallback
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    PLOTLY_AVAILABLE = True
+except ImportError:
+    px = None
+    go = None
+    PLOTLY_AVAILABLE = False
+    st.warning("Plotly not available. Interactive plots will be disabled.")
 from langchain_neo4j import Neo4jGraph
 import os
 import json
+
+def create_plotly_chart(chart_func, *args, **kwargs):
+    """Create a plotly chart with fallback if plotly is not available"""
+    if not PLOTLY_AVAILABLE:
+        st.warning("Interactive chart not available. Plotly is not installed.")
+        return None
+    try:
+        return chart_func(*args, **kwargs)
+    except Exception as e:
+        st.error(f"Error creating chart: {e}")
+        return None
 
 def get_neo4j_config(key, default=""):
     """Get Neo4j config from environment variables or secrets file"""

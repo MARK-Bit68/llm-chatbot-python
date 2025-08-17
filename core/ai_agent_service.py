@@ -672,11 +672,22 @@ For detailed profit analysis, try these specific queries:
             
             # Get optimized risk insights - properly handle async
             try:
-                # Create new event loop for async execution
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                risk_insight = loop.run_until_complete(analytics_engine._analyze_inventory_risks())
-                loop.close()
+                # Check if there's already an event loop running
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're in an async context, run in thread pool
+                    with ThreadPoolExecutor() as executor:
+                        risk_insight = loop.run_in_executor(
+                            executor,
+                            lambda: asyncio.run(analytics_engine._analyze_inventory_risks())
+                        )
+                        risk_insight = loop.run_until_complete(risk_insight)
+                except RuntimeError:
+                    # No event loop running, safe to create one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    risk_insight = loop.run_until_complete(analytics_engine._analyze_inventory_risks())
+                    loop.close()
                 
                 # Handle GraphInsight object properly
                 if risk_insight:
@@ -756,49 +767,68 @@ For detailed profit analysis, try these specific queries:
             
             # Get comprehensive ML-powered insights
             try:
-                # Create new event loop for async execution
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+                # Check if there's already an event loop running
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're in an async context, run in thread pool
+                    with ThreadPoolExecutor() as executor:
+                        async def run_analytics():
+                            tasks = [
+                                analytics_engine._analyze_profitability_patterns(),
+                                analytics_engine._analyze_inventory_risks(),
+                                analytics_engine._analyze_regional_performance()
+                            ]
+                            return await asyncio.gather(*tasks, return_exceptions=True)
+                        
+                        results = loop.run_in_executor(
+                            executor,
+                            lambda: asyncio.run(run_analytics())
+                        )
+                        results = loop.run_until_complete(results)
+                except RuntimeError:
+                    # No event loop running, safe to create one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    
+                    # Run multiple advanced analytics in parallel
+                    tasks = [
+                        analytics_engine._analyze_profitability_patterns(),
+                        analytics_engine._analyze_inventory_risks(),
+                        analytics_engine._analyze_regional_performance()
+                    ]
+                    
+                    results = loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+                    loop.close()
                 
-                # Run multiple advanced analytics in parallel
-                tasks = [
-                    analytics_engine._analyze_profitability_patterns(),
-                    analytics_engine._analyze_inventory_risks(),
-                    analytics_engine._analyze_regional_performance()
-                ]
-                
-                results = loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
-                loop.close()
-                
-                # Process results
-                profitability_insight = results[0] if not isinstance(results[0], Exception) else None
-                risk_insight = results[1] if not isinstance(results[1], Exception) else None
-                regional_insight = results[2] if not isinstance(results[2], Exception) else None
+                # Process results and handle None values
+                profitability_insight = results[0] if not isinstance(results[0], Exception) and results[0] is not None else None
+                risk_insight = results[1] if not isinstance(results[1], Exception) and results[1] is not None else None
+                regional_insight = results[2] if not isinstance(results[2], Exception) and results[2] is not None else None
                 
                 # Build comprehensive ML insights
                 insights_summary = []
                 
-                if profitability_insight:
+                if profitability_insight and hasattr(profitability_insight, 'metrics') and profitability_insight.metrics:
                     insights_summary.append(f"💰 **Profitability Analysis**: {profitability_insight.description}")
                     insights_summary.append(f"   - Groups: {profitability_insight.metrics.get('total_groups', 'N/A')}")
                     insights_summary.append(f"   - Products: {profitability_insight.metrics.get('total_products', 'N/A')}")
                 
-                if risk_insight:
+                if risk_insight and hasattr(risk_insight, 'metrics') and risk_insight.metrics:
                     insights_summary.append(f"⚠️ **Risk Assessment**: {risk_insight.description}")
                     insights_summary.append(f"   - Plants: {risk_insight.metrics.get('total_plants', 'N/A')}")
                     insights_summary.append(f"   - Products: {risk_insight.metrics.get('total_products', 'N/A')}")
                 
-                if regional_insight:
+                if regional_insight and hasattr(regional_insight, 'metrics') and regional_insight.metrics:
                     insights_summary.append(f"🌍 **Regional Performance**: {regional_insight.description}")
                     insights_summary.append(f"   - Locations: {regional_insight.metrics.get('total_storage_locations', 'N/A')}")
                 
                 # Combine recommendations
                 all_recommendations = []
-                if profitability_insight:
+                if profitability_insight and hasattr(profitability_insight, 'recommendations'):
                     all_recommendations.extend(profitability_insight.recommendations)
-                if risk_insight:
+                if risk_insight and hasattr(risk_insight, 'recommendations'):
                     all_recommendations.extend(risk_insight.recommendations)
-                if regional_insight:
+                if regional_insight and hasattr(regional_insight, 'recommendations'):
                     all_recommendations.extend(regional_insight.recommendations)
                 
                 # Remove duplicates while preserving order
@@ -812,9 +842,9 @@ For detailed profit analysis, try these specific queries:
 
 ## 🎯 **Key Strategic Insights**
 
-- **Network Complexity**: {profitability_insight.metrics.get('total_groups', 'N/A')} product groups across {risk_insight.metrics.get('total_plants', 'N/A')} production plants
-- **Distribution Efficiency**: {regional_insight.metrics.get('total_storage_locations', 'N/A')} storage locations optimizing regional coverage
-- **Risk Profile**: Medium risk level with {risk_insight.metrics.get('total_products', 'N/A')} products requiring monitoring
+- **Network Complexity**: {profitability_insight.metrics.get('total_groups', 'N/A') if profitability_insight and hasattr(profitability_insight, 'metrics') and profitability_insight.metrics else 'N/A'} product groups across {risk_insight.metrics.get('total_plants', 'N/A') if risk_insight and hasattr(risk_insight, 'metrics') and risk_insight.metrics else 'N/A'} production plants
+- **Distribution Efficiency**: {regional_insight.metrics.get('total_storage_locations', 'N/A') if regional_insight and hasattr(regional_insight, 'metrics') and regional_insight.metrics else 'N/A'} storage locations optimizing regional coverage
+- **Risk Profile**: Medium risk level with {risk_insight.metrics.get('total_products', 'N/A') if risk_insight and hasattr(risk_insight, 'metrics') and risk_insight.metrics else 'N/A'} products requiring monitoring
 
 ## 🚀 **AI-Generated Recommendations**
 
@@ -823,7 +853,7 @@ For detailed profit analysis, try these specific queries:
 ## 🔬 **Machine Learning Analysis**
 
 This comprehensive analysis leverages:
-- **Graph Analytics**: Network topology analysis across {profitability_insight.metrics.get('total_products', 'N/A')} products
+- **Graph Analytics**: Network topology analysis across {profitability_insight.metrics.get('total_products', 'N/A') if profitability_insight and hasattr(profitability_insight, 'metrics') and profitability_insight.metrics else 'N/A'} products
 - **Pattern Recognition**: Identified optimization opportunities across multiple dimensions
 - **Predictive Modeling**: Risk assessment and performance forecasting
 - **Clustering Analysis**: Product group optimization and regional distribution patterns
@@ -896,11 +926,22 @@ This analysis utilizes advanced algorithms including:
             
             # Get optimized performance insights - properly handle async
             try:
-                # Create new event loop for async execution
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                performance_insight = loop.run_until_complete(analytics_engine._analyze_profitability_patterns())
-                loop.close()
+                # Check if there's already an event loop running
+                try:
+                    loop = asyncio.get_running_loop()
+                    # If we're in an async context, run in thread pool
+                    with ThreadPoolExecutor() as executor:
+                        performance_insight = loop.run_in_executor(
+                            executor,
+                            lambda: asyncio.run(analytics_engine._analyze_profitability_patterns())
+                        )
+                        performance_insight = loop.run_until_complete(performance_insight)
+                except RuntimeError:
+                    # No event loop running, safe to create one
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                    performance_insight = loop.run_until_complete(analytics_engine._analyze_profitability_patterns())
+                    loop.close()
                 
                 # Handle GraphInsight object properly
                 if performance_insight:

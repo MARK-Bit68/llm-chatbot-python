@@ -248,10 +248,10 @@ class AdvancedGraphAnalyticsEngine:
             query = """
             MATCH (n)-[r]->(m)
             RETURN 
-                id(n) as source_id,
+                elementId(n) as source_id,
                 labels(n) as source_labels,
                 n.code as source_product,
-                id(m) as target_id,
+                elementId(m) as target_id,
                 labels(m) as target_labels,
                 m.code as target_product,
                 type(r) as relationship_type,
