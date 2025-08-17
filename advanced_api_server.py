@@ -398,8 +398,8 @@ async def analytics_dashboard_endpoint():
         RETURN sum(p.annual_revenue) as total_revenue, sum(p.annual_profit) as total_profit
         """
         revenue_result = graph.query(revenue_query)
-        total_revenue = revenue_result[0]['total_revenue'] if revenue_result else 0
-        total_profit = revenue_result[0]['total_profit'] if revenue_result else 0
+        total_revenue = float(revenue_result[0]['total_revenue'] or 0) if revenue_result else 0
+        total_profit = float(revenue_result[0]['total_profit'] or 0) if revenue_result else 0
         
         # Get category performance
         category_query = """
@@ -481,25 +481,25 @@ async def analytics_dashboard_endpoint():
         efficiency_metrics = [
             {
                 'metric': 'Inventory Turnover',
-                'value': round(efficiency.get('avg_turnover', 8.5), 1),
+                'value': round(float(efficiency.get('avg_turnover', 8.5) or 8.5), 1),
                 'target': 8.0,
                 'status': 'good'
             },
             {
                 'metric': 'Fill Rate',
-                'value': round(efficiency.get('avg_fill_rate', 94.2), 1),
+                'value': round(float(efficiency.get('avg_fill_rate', 94.2) or 94.2), 1),
                 'target': 95.0,
                 'status': 'warning'
             },
             {
                 'metric': 'Cost Efficiency',
-                'value': round(efficiency.get('avg_cost_efficiency', 87.3), 1),
+                'value': round(float(efficiency.get('avg_cost_efficiency', 87.3) or 87.3), 1),
                 'target': 85.0,
                 'status': 'good'
             },
             {
                 'metric': 'Lead Time Performance',
-                'value': round(efficiency.get('avg_lead_time', 91.8), 1),
+                'value': round(float(efficiency.get('avg_lead_time', 91.8) or 91.8), 1),
                 'target': 90.0,
                 'status': 'good'
             }
