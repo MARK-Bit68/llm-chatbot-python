@@ -26,6 +26,7 @@ import {
   Area
 } from 'recharts'
 import { fetchAnalytics } from '../services/api'
+import { advancedAPI } from '../services/advanced-api'
 
 const Analytics = () => {
   const [timeRange, setTimeRange] = useState('30d')
@@ -33,7 +34,32 @@ const Analytics = () => {
 
   const { data: analyticsData, isLoading } = useQuery(
     ['analytics', timeRange, selectedMetrics],
-    () => fetchAnalytics({ timeRange, metrics: selectedMetrics }),
+    async () => {
+      try {
+        // Try to fetch from real backend using advanced API
+        const response = await advancedAPI.get('/api/analytics/dashboard')
+        const data = response.data
+        
+        // Transform backend data to match frontend expectations
+        return {
+          metrics: {
+            total_revenue: data.metrics.total_revenue,
+            total_profit: data.metrics.total_profit,
+            active_skus: data.metrics.active_skus,
+            efficiency_score: data.metrics.efficiency_score
+          },
+          time_series: data.time_series,
+          categories: data.categories,
+          regions: data.regions,
+          efficiency: data.efficiency,
+          insights: data.insights
+        }
+      } catch (error) {
+        console.error('Error fetching analytics from backend:', error)
+        // Fallback to mock data
+        return fetchAnalytics({ timeRange, metrics: selectedMetrics })
+      }
+    },
     {
       refetchInterval: 60000, // Refresh every minute
     }
@@ -112,25 +138,28 @@ const Analytics = () => {
         {[
           { 
             title: 'Total Revenue', 
-            value: '$3.3B', // Real data from backend
+            value: analyticsData?.metrics?.total_revenue ? 
+              `$${(analyticsData.metrics.total_revenue / 1000000000).toFixed(1)}B` : '$3.3B', 
             change: '+9.1%', 
             icon: TrendingUp 
           },
           { 
             title: 'Gross Profit', 
-            value: '$1.2B', // Real data from backend
+            value: analyticsData?.metrics?.total_profit ? 
+              `$${(analyticsData.metrics.total_profit / 1000000000).toFixed(1)}B` : '$1.2B', 
             change: '+12.3%', 
             icon: BarChart3 
           },
           { 
             title: 'Active SKUs', 
-            value: '2000', // Real data from backend
+            value: analyticsData?.metrics?.active_skus?.toString() || '2000', 
             change: '+5.1%', 
             icon: PieChartIcon 
           },
           { 
             title: 'Efficiency Score', 
-            value: '94.2%', 
+            value: analyticsData?.metrics?.efficiency_score ? 
+              `${analyticsData.metrics.efficiency_score}%` : '94.2%', 
             change: '+2.6%', 
             icon: Activity 
           },
