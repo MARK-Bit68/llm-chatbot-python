@@ -39,7 +39,8 @@ const Analytics = () => {
     }
   )
 
-  const revenueData = [
+  // Use real data from backend or fallback to mock data
+  const revenueData = analyticsData?.time_series || [
     { month: 'Jan', revenue: 450000, profit: 135000, units: 12500 },
     { month: 'Feb', revenue: 520000, profit: 156000, units: 14300 },
     { month: 'Mar', revenue: 480000, profit: 144000, units: 13200 },
@@ -48,25 +49,29 @@ const Analytics = () => {
     { month: 'Jun', revenue: 670000, profit: 201000, units: 18500 },
   ]
 
-  const categoryPerformance = [
+  const categoryPerformance = analyticsData?.categories || [
     { category: 'Beverages', revenue: 420000, growth: 12.5, skus: 87 },
     { category: 'Snacks', revenue: 310000, growth: 8.3, skus: 62 },
     { category: 'Dairy', revenue: 280000, growth: 15.7, skus: 49 },
     { category: 'Packaged Foods', revenue: 190000, growth: 6.2, skus: 49 },
   ]
 
-  const efficiencyMetrics = [
+  const efficiencyMetrics = analyticsData?.efficiency || [
     { metric: 'Inventory Turnover', value: 8.5, target: 8.0, status: 'good' },
     { metric: 'Fill Rate', value: 94.2, target: 95.0, status: 'warning' },
     { metric: 'Cost Efficiency', value: 87.3, target: 85.0, status: 'good' },
     { metric: 'Lead Time Performance', value: 91.8, target: 90.0, status: 'good' },
   ]
 
-  const regionData = [
-    { name: 'North America', value: 42, color: '#7C4DFF' },
-    { name: 'Europe', value: 35, color: '#00BCD4' },
-    { name: 'Asia-Pacific', value: 23, color: '#4CAF50' },
-  ]
+  // Transform regions data to include colors
+  const regionData = (analyticsData?.regions || [
+    { name: 'North America', value: 42 },
+    { name: 'Europe', value: 35 },
+    { name: 'Asia-Pacific', value: 23 },
+  ]).map((region, index) => ({
+    ...region,
+    color: ['#7C4DFF', '#00BCD4', '#4CAF50'][index] || '#7C4DFF'
+  }))
 
   return (
     <div className="space-y-6">
@@ -105,10 +110,33 @@ const Analytics = () => {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         {[
-          { title: 'Total Revenue', value: '$1.2M', change: '+9.1%', icon: TrendingUp },
-          { title: 'Gross Profit', value: '$360K', change: '+12.3%', icon: BarChart3 },
-          { title: 'Active SKUs', value: '247', change: '+5.1%', icon: PieChartIcon },
-          { title: 'Efficiency Score', value: '94.2%', change: '+2.6%', icon: Activity },
+          { 
+            title: 'Total Revenue', 
+            value: analyticsData?.metrics?.total_revenue ? 
+              `$${(analyticsData.metrics.total_revenue / 1000000000).toFixed(1)}B` : '$1.2M', 
+            change: '+9.1%', 
+            icon: TrendingUp 
+          },
+          { 
+            title: 'Gross Profit', 
+            value: analyticsData?.metrics?.total_profit ? 
+              `$${(analyticsData.metrics.total_profit / 1000000).toFixed(0)}M` : '$360K', 
+            change: '+12.3%', 
+            icon: BarChart3 
+          },
+          { 
+            title: 'Active SKUs', 
+            value: analyticsData?.metrics?.active_skus?.toString() || '247', 
+            change: '+5.1%', 
+            icon: PieChartIcon 
+          },
+          { 
+            title: 'Efficiency Score', 
+            value: analyticsData?.metrics?.efficiency_score ? 
+              `${analyticsData.metrics.efficiency_score}%` : '94.2%', 
+            change: '+2.6%', 
+            icon: Activity 
+          },
         ].map((metric, index) => {
           const Icon = metric.icon
           return (

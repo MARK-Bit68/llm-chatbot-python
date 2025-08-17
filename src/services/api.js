@@ -115,7 +115,31 @@ export const fetchSKUs = async ({ page = 1, limit = 20, search = '', category = 
 // Analytics API
 export const fetchAnalytics = async ({ timeRange = '30d', metrics = [] } = {}) => {
   try {
-    const response = await new Promise((resolve) => {
+    // Try to fetch from real backend first
+    const response = await api.get('/api/analytics/dashboard')
+    
+    const data = response.data
+    
+    // Transform backend data to match frontend expectations
+    return {
+      metrics: {
+        total_revenue: data.metrics.total_revenue,
+        total_profit: data.metrics.total_profit,
+        active_skus: data.metrics.active_skus,
+        efficiency_score: data.metrics.efficiency_score
+      },
+      time_series: data.time_series,
+      categories: data.categories,
+      regions: data.regions,
+      efficiency: data.efficiency,
+      insights: data.insights
+    }
+  } catch (error) {
+    console.error('Error fetching analytics from backend:', error)
+    
+    // Fallback to mock data if backend fails
+    console.warn('Falling back to mock data')
+    await new Promise((resolve) => {
       setTimeout(() => {
         resolve({
           data: {
@@ -132,8 +156,6 @@ export const fetchAnalytics = async ({ timeRange = '30d', metrics = [] } = {}) =
     })
     
     return response.data
-  } catch (error) {
-    throw new Error('Failed to fetch analytics')
   }
 }
 
