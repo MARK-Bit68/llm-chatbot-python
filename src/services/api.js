@@ -56,17 +56,17 @@ export const sendChatMessage = async ({ message, session_id = 'default' }) => {
 export const fetchDashboardData = async () => {
   try {
     // Try FastAPI backend first
-    const response = await api.get('/graph/overview')
+    const response = await api.get('/api/dashboard')
     
     // Transform FastAPI response to dashboard format
-    const overview = response.data
-    console.log('FastAPI response:', overview) // Debug log
+    const dashboard = response.data
+    console.log('Dashboard API response:', dashboard) // Debug log
     
     return {
-      totalSKUs: overview.node_statistics?.node_types?.Product || overview.node_statistics?.total_nodes || 500,
-      totalRevenue: '$1.2M',
+      totalSKUs: dashboard.totalProducts || 2000,
+      totalRevenue: dashboard.totalRevenue || '$3.3B',
       supplyIssues: 23,
-      performanceScore: '94%',
+      performanceScore: dashboard.performanceScore || '94%',
       recentActivity: [
         { id: 1, action: 'Graph analytics updated', timestamp: new Date() },
         { id: 2, action: 'FastAPI backend operational', timestamp: new Date() },
@@ -74,11 +74,11 @@ export const fetchDashboardData = async () => {
       ]
     }
   } catch (error) {
-    console.warn('FastAPI unavailable, using mock data:', error)
+    console.warn('Dashboard API unavailable, using mock data:', error)
     // Fallback to mock data
     return {
-      totalSKUs: 500,
-      totalRevenue: '$1.2M',
+      totalSKUs: 2000,
+      totalRevenue: '$3.3B',
       supplyIssues: 23,
       performanceScore: '94%',
       recentActivity: [

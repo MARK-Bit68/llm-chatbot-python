@@ -443,11 +443,24 @@ async def dashboard_endpoint():
     - Key recommendations
     """
     try:
+        from solutions.graph import get_graph
+        
+        # Get database connection
+        graph = get_graph()
+        
         # Get graph overview
         overview = await analytics_engine.get_graph_overview()
         
         # Get supply chain insights
         insights = await analytics_engine.detect_supply_chain_patterns()
+        
+        # Calculate real revenue from database
+        revenue_result = graph.query("MATCH (p:Product) RETURN sum(p.annual_revenue) as total_revenue")
+        total_revenue = revenue_result[0]['total_revenue'] if revenue_result else 0
+        
+        # Calculate real profit from database
+        profit_result = graph.query("MATCH (p:Product) RETURN sum(p.annual_profit) as total_profit")
+        total_profit = profit_result[0]['total_profit'] if profit_result else 0
         
         # Aggregate key metrics
         total_products = overview.get("node_statistics", {}).get("node_types", {}).get("Product", 0)
@@ -472,12 +485,24 @@ async def dashboard_endpoint():
             avg_confidence = sum(i.confidence for i in insights) / len(insights)
             performance_score = min(95.0, performance_score + (avg_confidence * 10))
         
+        # Format revenue for display
+        if total_revenue >= 1000000000:  # Billions
+            formatted_revenue = f"${total_revenue/1000000000:.1f}B"
+        elif total_revenue >= 1000000:  # Millions
+            formatted_revenue = f"${total_revenue/1000000:.1f}M"
+        elif total_revenue >= 1000:  # Thousands
+            formatted_revenue = f"${total_revenue/1000:.1f}K"
+        else:
+            formatted_revenue = f"${total_revenue:,.0f}"
+        
         dashboard_data = {
             "totalProducts": total_products,
             "totalGroups": total_groups,
             "totalPlants": total_plants,
             "totalStorageLocations": total_storage,
             "totalCategories": len(overview.get("node_statistics", {}).get("node_types", {})),
+            "totalRevenue": formatted_revenue,
+            "totalProfit": total_profit,
             "performanceScore": f"{performance_score:.1f}%",
             "insights_generated": len(insights),
             "graph_density": overview.get("advanced_metrics", {}).get("density", 0),
