@@ -246,6 +246,100 @@ async def get_graph_overview_react():
         logger.error(f"Graph overview error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/products", summary="Get All Products")
+async def get_products_endpoint(
+    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(20, ge=1, le=100, description="Items per page"),
+    search: str = Query("", description="Search term for product codes"),
+    category: str = Query("", description="Filter by product category")
+):
+    """
+    Get paginated list of all products with optional filtering:
+    - Supports pagination with page and limit parameters
+    - Search by product code or name
+    - Filter by product category
+    - Returns total count for pagination
+    """
+    try:
+        from solutions.graph import get_graph
+        
+        # Get database connection
+        graph = get_graph()
+        
+        # Build query based on filters
+        if category:
+            query = """
+            MATCH (p:Product)-[:BELONGS_TO]->(c:Category {name: $category})
+            OPTIONAL MATCH (p)-[:BRANDED_AS]->(b:Brand)
+            OPTIONAL MATCH (p)-[:SOLD_IN]->(ct:Country)
+            RETURN p.sku_code as code, p.name as name, c.name as category, 
+                   b.name as brand, ct.name as country
+            ORDER BY p.sku_code
+            """
+            params = {"category": category}
+        else:
+            query = """
+            MATCH (p:Product)
+            OPTIONAL MATCH (p)-[:BELONGS_TO]->(c:Category)
+            OPTIONAL MATCH (p)-[:BRANDED_AS]->(b:Brand)
+            OPTIONAL MATCH (p)-[:SOLD_IN]->(ct:Country)
+            RETURN p.sku_code as code, p.name as name, c.name as category, 
+                   b.name as brand, ct.name as country
+            ORDER BY p.sku_code
+            """
+            params = {}
+        
+        # Execute query
+        result = graph.query(query, params)
+        
+        if not result:
+            return {
+                "products": [],
+                "total": 0,
+                "page": page,
+                "limit": limit,
+                "totalPages": 0
+            }
+        
+        # Apply search filter if provided
+        if search:
+            result = [r for r in result if search.lower() in r.get('code', '').lower() or search.lower() in r.get('name', '').lower()]
+        
+        # Get total count before pagination
+        total = len(result)
+        
+        # Apply pagination
+        paginated_products = result[(page - 1) * limit:page * limit]
+        
+        # Transform to match frontend expectations
+        products = []
+        for row in paginated_products:
+            product = {
+                "code": row.get('code', ''),
+                "name": row.get('name', ''),
+                "category": row.get('category', ''),
+                "brand": row.get('brand', ''),
+                "country": row.get('country', ''),
+                "group": row.get('category', ''),  # Map category to group for frontend compatibility
+                "subgroup": row.get('brand', ''),  # Map brand to subgroup for frontend compatibility
+                "plants": [],  # Will be populated if needed
+                "storage_locations": [],  # Will be populated if needed
+                "time_series": []  # Will be populated if needed
+            }
+            products.append(product)
+        
+        return {
+            "products": products,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "totalPages": (total + limit - 1) // limit
+        }
+        
+    except Exception as e:
+        logger.error(f"Products endpoint error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/analytics/insights", summary="Advanced Supply Chain Insights")
 async def supply_chain_insights_endpoint(background_tasks: BackgroundTasks):
     """

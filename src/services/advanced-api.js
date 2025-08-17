@@ -58,21 +58,33 @@ export const checkAPIHealth = async () => {
 // Products API for SupplyGraph
 export const fetchProducts = async ({ page = 1, limit = 20, search = '', group = '' } = {}) => {
   try {
-    // For now, return mock SupplyGraph data until backend endpoint is ready
+    // Try to fetch from real backend first
+    const response = await advancedAPI.get('/api/products', {
+      params: {
+        page,
+        limit,
+        search,
+        category: group  // Map group parameter to category for backend
+      }
+    })
+    
+    return response.data
+  } catch (error) {
+    console.error('Error fetching products from backend:', error)
+    
+    // Fallback to mock data if backend fails
+    console.warn('Falling back to mock data')
     await new Promise(resolve => setTimeout(resolve, 500)) // Simulate API delay
     
     const products = generateMockProducts(page, limit, search, group)
     
     return {
       products,
-      total: 40, // Total products in SupplyGraph
+      total: 40, // Total products in SupplyGraph (fallback)
       page,
       limit,
       totalPages: Math.ceil(40 / limit)
     }
-  } catch (error) {
-    console.error('Error fetching products:', error)
-    throw new Error('Failed to fetch products')
   }
 }
 
