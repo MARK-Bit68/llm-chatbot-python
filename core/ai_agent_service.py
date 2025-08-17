@@ -624,19 +624,42 @@ Based on your query about **"{question}"**, here are the top revenue-generating 
             logger.info(f"🔍 Safe Dashboard Data: '{query}'")
             
             # Use direct database query instead of HTTP request to avoid timeouts
-            from solutions.tools.cypher_supplygraph import get_dashboard_data
+            from solutions.graph import get_graph
             
-            data = get_dashboard_data()
+            graph = get_graph()
+            
+            # Get real data from current database schema
+            product_count = graph.query("MATCH (p:Product) RETURN count(p) as count")[0]['count']
+            category_count = graph.query("MATCH (c:Category) RETURN count(c) as count")[0]['count']
+            brand_count = graph.query("MATCH (b:Brand) RETURN count(b) as count")[0]['count']
+            country_count = graph.query("MATCH (ct:Country) RETURN count(ct) as count")[0]['count']
+            
+            # Get total revenue and profit
+            revenue_result = graph.query("MATCH (p:Product) RETURN sum(p.annual_revenue) as total_revenue")
+            total_revenue = revenue_result[0]['total_revenue'] if revenue_result else 0
+            
+            profit_result = graph.query("MATCH (p:Product) RETURN sum(p.annual_profit) as total_profit")
+            total_profit = profit_result[0]['total_profit'] if profit_result else 0
+            
+            data = {
+                'totalProducts': product_count,
+                'totalCategories': category_count,
+                'totalBrands': brand_count,
+                'totalCountries': country_count,
+                'totalRevenue': total_revenue,
+                'totalProfit': total_profit
+            }
             
             return f"""# 📊 Dashboard Overview
 
 **Total Products**: {data.get('totalProducts', 'N/A')}
-**Total Groups**: {data.get('totalGroups', 'N/A')}
-**Total Plants**: {data.get('totalPlants', 'N/A')}
-**Total Storage Locations**: {data.get('totalStorageLocations', 'N/A')}
 **Total Categories**: {data.get('totalCategories', 'N/A')}
+**Total Brands**: {data.get('totalBrands', 'N/A')}
+**Total Countries**: {data.get('totalCountries', 'N/A')}
+**Total Revenue**: ${data.get('totalRevenue', 0):,.0f}M
+**Total Profit**: ${data.get('totalProfit', 0):,.0f}M
 
-*Data from SupplyGraph database*"""
+*Data from FMCG Supply Chain Database*"""
             
         except Exception as e:
             logger.error(f"❌ Error in safe dashboard data: {e}")
