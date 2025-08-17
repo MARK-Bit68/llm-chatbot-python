@@ -139,7 +139,7 @@ export const fetchAnalytics = async ({ timeRange = '30d', metrics = [] } = {}) =
     
     // Fallback to mock data if backend fails
     console.warn('Falling back to mock data')
-    await new Promise((resolve) => {
+    const mockResponse = await new Promise((resolve) => {
       setTimeout(() => {
         resolve({
           data: {
@@ -155,7 +155,7 @@ export const fetchAnalytics = async ({ timeRange = '30d', metrics = [] } = {}) =
       }, 1200)
     })
     
-    return response.data
+    return mockResponse.data
   }
 }
 
