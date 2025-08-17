@@ -160,18 +160,19 @@ const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
 const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) => {
   const labelRef = useRef()
   
-  // Don't render if too far away or if config is invalid
-  if (!config || !config.center || distance > 600) return null
+  // Don't render if config is invalid or if too close (labels are for overview)
+  if (!config || !config.center || distance < 200) return null
   
   // Calculate label position (above the group center)
   const labelPosition = useMemo(() => ({
     x: config.center.x || 0,
-    y: (config.center.y || 0) + (config.radius || 50) * 0.8 + 30,
+    y: (config.center.y || 0) + (config.radius || 50) * 1.2 + 50, // Higher positioning for better visibility
     z: config.center.z || 0
   }), [config])
   
-  // Fade based on distance
-  const opacity = useMemo(() => Math.max(0.3, 1 - (distance / 600)), [distance])
+  // Scale based on distance - labels should be more visible when zoomed out
+  const scale = useMemo(() => Math.max(0.8, Math.min(2.0, distance / 400)), [distance])
+  const opacity = useMemo(() => Math.max(0.6, Math.min(1.0, distance / 300)), [distance])
   
   // Animate gentle floating
   useFrame((state) => {
@@ -190,33 +191,28 @@ const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) =
         }}
       >
         <div 
-          className="bg-black/70 border rounded-lg px-3 py-2 text-center"
+          className="text-center"
           style={{
-            borderColor: (config.color || '#6B7280') + '40',
-            opacity: opacity
+            opacity: opacity * 0.8,
+            transform: `scale(${Math.min(scale, 1.2)})`,
+            transformOrigin: 'center'
           }}
         >
           <div 
-            className="font-bold text-sm mb-1"
-            style={{ color: config.color || '#6B7280' }}
+            className="font-bold text-lg mb-1 drop-shadow-lg"
+            style={{ 
+              color: config.color || '#6B7280',
+              textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+            }}
           >
             {config.description || nodeType}
           </div>
-          <div className="text-gray-300 text-xs">
+          <div className="text-gray-300 text-sm font-medium drop-shadow-md">
             {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
           </div>
         </div>
       </Html>
       
-      {/* Subtle glow effect */}
-      <mesh position={[0, -15, 0]} scale={[2, 0.5, 2]}>
-        <sphereGeometry args={[(config.radius || 50) * 0.6, 16, 16]} />
-        <meshBasicMaterial 
-          color={config.color || '#6B7280'}
-          transparent
-          opacity={opacity * 0.05}
-        />
-      </mesh>
     </group>
   )
 }
@@ -456,6 +452,7 @@ const GamingHUD = ({
   )
 }
 
+
 // Enhanced Camera Controls
 const GameCameraControls = ({ onCameraChange, autoRotate = false }) => {
   const { camera, gl } = useThree()
@@ -487,17 +484,25 @@ const GameCameraControls = ({ onCameraChange, autoRotate = false }) => {
 }
 
 // Main Gaming Graph Visualizer Component
-const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalEdgeFilters, selectedNode: externalSelectedNode }) => {
-  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 50, z: 500 }) // Start zoomed out
+const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalEdgeFilters, selectedNode: externalSelectedNode, nodeFilters: externalNodeFilters }) => {
+  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 150, z: 800 }) // Start zoomed out for hierarchical view
   const [showMinimap, setShowMinimap] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
-  const [filters, setFilters] = useState({
+  // Use external node filters from props, fallback to defaults
+  const filters = externalNodeFilters || {
     showProducts: true,
     showPlants: true,
     showStorage: true,
-    showGroups: true,
-    showEntities: true
-  })
+    showRevenue: true,
+    showProfit: true,
+    showGroups: true
+  }
+  
+  // Debug filter changes
+  useEffect(() => {
+    console.log('🔧 GamingGraphVisualizer - Filters changed:', filters)
+    console.log('🔧 External filters:', externalNodeFilters)
+  }, [filters, externalNodeFilters])
   
   // Use external edge filters from props, fallback to defaults
   const edgeFilters = externalEdgeFilters || {
@@ -679,20 +684,24 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
   }, [onNodeSelect])
   
   const handleReset = useCallback(() => {
-    setCameraPosition({ x: 0, y: 0, z: 300 })
+    setCameraPosition({ x: 0, y: 150, z: 800 }) // Reset to hierarchical overview
     if (onNodeSelect) onNodeSelect(null)
   }, [onNodeSelect])
   
-  // Filter nodes based on current filters
+  // Filter nodes based on current filters - matching actual data types
   const filteredNodes = useMemo(() => {
     return processedData.nodes.filter(node => {
       switch (node.type) {
         case 'Product': return filters.showProducts
-        case 'Plant': return filters.showPlants
+        case 'Plant': 
+        case 'ManufacturingPlant': return filters.showPlants
         case 'StorageLocation': return filters.showStorage
-        case 'Group': return filters.showGroups
-        case 'Entity': return filters.showEntities
-        default: return true
+        case 'Category': return filters.showRevenue || filters.showGroups // Categories are part of grouping system
+        case 'Brand': return filters.showProfit || filters.showGroups // Brands are part of grouping system  
+        case 'Country':
+        case 'Region': return filters.showGroups // Geographic entities
+        case 'Metadata': return filters.showGroups // Metadata entities
+        default: return filters.showGroups // Unknown types show with groups
       }
     })
   }, [processedData.nodes, filters])
@@ -711,7 +720,7 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
       {/* 3D Canvas */}
       <Canvas
         className="absolute inset-0"
-        camera={{ position: [0, 0, 300], fov: 75 }}
+        camera={{ position: [0, 150, 800], fov: 75 }}
         gl={{ antialias: true, alpha: false }}
         onCreated={({ gl }) => {
           gl.setClearColor('#0a0a0a')
@@ -797,8 +806,8 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
           )
         })}
         
-        {/* Render Group Labels - Temporarily disabled for debugging */}
-        {false && processedData.layoutConfig && processedData.nodesByType && 
+        {/* Render Group Labels */}
+        {processedData.layoutConfig && processedData.nodesByType && 
           Object.entries(processedData.layoutConfig).map(([nodeType, config]) => {
             const nodeCount = processedData.nodesByType[nodeType]?.length || 0
             if (nodeCount === 0 || !config || !config.center) return null
@@ -862,8 +871,9 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
                   <input
                     type="checkbox"
                     checked={value}
-                    onChange={(e) => setFilters(prev => ({ ...prev, [key]: e.target.checked }))}
-                    className="w-4 h-4 text-purple-500 bg-gray-900 border-purple-500/30 rounded focus:ring-purple-500"
+                    disabled={true}
+                    className="w-4 h-4 text-purple-500 bg-gray-900 border-purple-500/30 rounded focus:ring-purple-500 opacity-50"
+                    title="Use filters in the left panel"
                   />
                   <span className="text-white text-sm">
                     {key.replace('show', '').replace(/([A-Z])/g, ' $1').trim()}

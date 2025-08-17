@@ -50,19 +50,13 @@ const GraphVisualizer = () => {
     focusMode: 'none'         // none, selected
   })
   
-  // Tutorial state for guided experience
+  // Tutorial state for guided experience - remember user preference
   const [tutorialStep, setTutorialStep] = useState(0)
-  const [showTutorial, setShowTutorial] = useState(true)
+  const [showTutorial, setShowTutorial] = useState(() => {
+    const skipped = localStorage.getItem('graphTutorialSkipped')
+    return !skipped
+  })
   
-  // Debug edge filters
-  useEffect(() => {
-    console.log('📊 Main EdgeFilters State:', edgeFilters)
-  }, [edgeFilters])
-  
-  // Debug viewMode
-  useEffect(() => {
-    console.log('🎯 Current viewMode:', viewMode)
-  }, [viewMode])
   
   // Add error handling for 3D component
   const [forceGraph3DError, setForceGraph3DError] = useState(false)
@@ -139,15 +133,8 @@ const GraphVisualizer = () => {
   // Prepare graph data for visualization with focus on dense parts
   const prepareGraphData = useCallback(() => {
     if (!graphData || !graphData.nodes) {
-      console.log('❌ No graph data available')
       return null
     }
-
-    console.log('🔧 Preparing graph data for visualization:', {
-      nodesCount: graphData.nodes.length,
-              edgesCount: graphData.links?.length || 0,
-      viewMode
-    })
 
     try {
       // Simple and robust node processing
@@ -231,12 +218,6 @@ const GraphVisualizer = () => {
         links: enhancedEdges
       }
 
-      console.log('✅ Prepared robust graph data:', {
-        nodesCount: result.nodes.length,
-        linksCount: result.links.length,
-        sampleNode: result.nodes[0],
-        sampleLink: result.links[0]
-      })
 
       return result
     } catch (error) {
@@ -263,7 +244,6 @@ const GraphVisualizer = () => {
   // Graph interaction handlers
   const handleNodeClick = useCallback((node) => {
     setSelectedNode(node)
-    console.log('Node clicked:', node)
   }, [])
 
   // Handle WebGL errors
@@ -274,7 +254,6 @@ const GraphVisualizer = () => {
 
   // Handle graph ready
   const handleGraphReady = useCallback(() => {
-    console.log('✅ ForceGraph3D is ready')
     setGraphReady(true)
   }, [])
 
@@ -742,6 +721,7 @@ const GraphVisualizer = () => {
                   onNodeSelect={setSelectedNode}
                   edgeFilters={edgeFilters}
                   selectedNode={selectedNode}
+                  nodeFilters={filters}
                 />
                 
                 {/* Guided Tutorial Overlay */}
@@ -762,7 +742,10 @@ const GraphVisualizer = () => {
                             Start Tutorial →
                           </button>
                           <button
-                            onClick={() => setShowTutorial(false)}
+                            onClick={() => {
+                              localStorage.setItem('graphTutorialSkipped', 'true')
+                              setShowTutorial(false)
+                            }}
                             className="ml-2 text-purple-300 hover:text-white transition-colors"
                           >
                             Skip
@@ -831,7 +814,10 @@ const GraphVisualizer = () => {
                             You now see the core relationships! Use the checkboxes in the left panel to explore different combinations.
                           </p>
                           <button
-                            onClick={() => setShowTutorial(false)}
+                            onClick={() => {
+                              localStorage.setItem('graphTutorialCompleted', 'true')
+                              setShowTutorial(false)
+                            }}
                             className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg transition-colors"
                           >
                             Start Exploring! 🚀
@@ -968,12 +954,6 @@ const GraphVisualizer = () => {
                 )}
                 {(() => {
                   try {
-                    console.log('🎯 Rendering graph with viewMode:', viewMode, 'data:', {
-                      nodes: graphData3D.nodes.length,
-                      links: graphData3D.links.length,
-                      sampleNode: graphData3D.nodes[0],
-                      sampleLink: graphData3D.links[0]
-                    })
                     
                     // Different visualization based on view mode
                     if (viewMode === '3D' && !forceGraph3DError) {
