@@ -1,0 +1,1944 @@
+{
+  "analysis": {
+    "file_info": {
+      "filename": "AI_Enhanced_SOP_Dataset_2000SKUs.xlsx",
+      "sheet_count": 4,
+      "sheet_names": [
+        "SOP_Dataset",
+        "Dataset_Summary",
+        "Category_Analysis",
+        "Country_Analysis"
+      ]
+    },
+    "sheets": {
+      "SOP_Dataset": {
+        "row_count": 2000,
+        "column_count": 110,
+        "columns": [
+          "SKU Code",
+          "Product_Name",
+          "Category",
+          "Subcategory",
+          "Brand",
+          "UOM",
+          "Country",
+          "Region",
+          "Market_Tier",
+          "GDP_Per_Capita_USD",
+          "Currency_Exchange_Rate",
+          "Unit Price ($)",
+          "Unit Cost ($)",
+          "Gross_Margin_Pct",
+          "Contribution_Margin_Pct",
+          "Manufacturing Plant",
+          "Manufacturing Capacity",
+          "Capacity Utilization",
+          "Historical_Demand_Avg_Units_Month",
+          "Demand_Volatility_Pct",
+          "Forecast_Accuracy_Pct",
+          "Forecast_Bias_Pct",
+          "Demand_M01",
+          "Demand_M02",
+          "Demand_M03",
+          "Demand_M04",
+          "Demand_M05",
+          "Demand_M06",
+          "Demand_M07",
+          "Demand_M08",
+          "Demand_M09",
+          "Demand_M10",
+          "Demand_M11",
+          "Demand_M12",
+          "Forecast_M01",
+          "Forecast_M02",
+          "Forecast_M03",
+          "Forecast_M04",
+          "Forecast_M05",
+          "Forecast_M06",
+          "Forecast_M07",
+          "Forecast_M08",
+          "Forecast_M09",
+          "Forecast_M10",
+          "Forecast_M11",
+          "Forecast_M12",
+          "Lead Time (days)",
+          "Safety Stock",
+          "Reorder Point",
+          "Max Inventory",
+          "Min Order Quantity",
+          "Service Level",
+          "Fill_Rate_Pct",
+          "Inventory_Turns",
+          "Days_Sales_Outstanding",
+          "Regional Demand Multiplier",
+          "Market_Share_Pct",
+          "Customer_Segment",
+          "Weight_kg",
+          "Package_Size",
+          "Shelf_Life_Days",
+          "Temperature_Controlled",
+          "Hazardous_Material",
+          "ABC_Classification",
+          "XYZ_Classification",
+          "Price_Tier",
+          "Volume_Category",
+          "Strategic_Importance",
+          "Life_Cycle_Stage",
+          "Supplier_Count",
+          "Supplier_Reliability_Score",
+          "Lead_Time_Variability_Days",
+          "Quality_Score",
+          "Logistics_Cost_Per_Unit_USD",
+          "Supplier_Risk_Rating",
+          "Logistics_Risk_Rating",
+          "Demand_Risk_Rating",
+          "Regulatory_Risk_Rating",
+          "Overall_Risk_Rating",
+          "Business_Continuity_Score",
+          "Carbon_Footprint_kg_CO2",
+          "Water_Usage_Liters",
+          "Recyclability_Score",
+          "Sustainable_Packaging",
+          "Environmental_Compliance_Score",
+          "Revenue_Contribution_Pct",
+          "Profit_Contribution_Pct",
+          "Customer_Satisfaction_Score",
+          "Net_Promoter_Score",
+          "Return_Rate_Pct",
+          "Innovation_Index",
+          "Technology_Adoption_Score",
+          "Digital_Readiness_Score",
+          "Automation_Level_Pct",
+          "Competitive_Intensity",
+          "Market_Growth_Rate_Pct",
+          "Price_Elasticity",
+          "Substitution_Risk",
+          "Complexity_Score",
+          "Operational_Efficiency_Score",
+          "Process_Maturity_Level",
+          "Change_Management_Score",
+          "Demand_Trend_12M",
+          "Seasonal_Index",
+          "Annual_Revenue_USD",
+          "Annual_Profit_USD",
+          "Economic_Order_Quantity",
+          "Inventory_Value_USD",
+          "Perfect_Order_Rate_Pct",
+          "Cash_to_Cash_Cycle_Days"
+        ],
+        "data_types": {
+          "SKU Code": "object",
+          "Product_Name": "object",
+          "Category": "object",
+          "Subcategory": "object",
+          "Brand": "object",
+          "UOM": "object",
+          "Country": "object",
+          "Region": "object",
+          "Market_Tier": "object",
+          "GDP_Per_Capita_USD": "int64",
+          "Currency_Exchange_Rate": "float64",
+          "Unit Price ($)": "float64",
+          "Unit Cost ($)": "float64",
+          "Gross_Margin_Pct": "float64",
+          "Contribution_Margin_Pct": "float64",
+          "Manufacturing Plant": "object",
+          "Manufacturing Capacity": "float64",
+          "Capacity Utilization": "float64",
+          "Historical_Demand_Avg_Units_Month": "int64",
+          "Demand_Volatility_Pct": "float64",
+          "Forecast_Accuracy_Pct": "float64",
+          "Forecast_Bias_Pct": "float64",
+          "Demand_M01": "int64",
+          "Demand_M02": "int64",
+          "Demand_M03": "int64",
+          "Demand_M04": "int64",
+          "Demand_M05": "int64",
+          "Demand_M06": "int64",
+          "Demand_M07": "int64",
+          "Demand_M08": "int64",
+          "Demand_M09": "int64",
+          "Demand_M10": "int64",
+          "Demand_M11": "int64",
+          "Demand_M12": "int64",
+          "Forecast_M01": "int64",
+          "Forecast_M02": "int64",
+          "Forecast_M03": "int64",
+          "Forecast_M04": "int64",
+          "Forecast_M05": "int64",
+          "Forecast_M06": "int64",
+          "Forecast_M07": "int64",
+          "Forecast_M08": "int64",
+          "Forecast_M09": "int64",
+          "Forecast_M10": "int64",
+          "Forecast_M11": "int64",
+          "Forecast_M12": "int64",
+          "Lead Time (days)": "int64",
+          "Safety Stock": "int64",
+          "Reorder Point": "int64",
+          "Max Inventory": "int64",
+          "Min Order Quantity": "int64",
+          "Service Level": "float64",
+          "Fill_Rate_Pct": "float64",
+          "Inventory_Turns": "float64",
+          "Days_Sales_Outstanding": "int64",
+          "Regional Demand Multiplier": "float64",
+          "Market_Share_Pct": "float64",
+          "Customer_Segment": "object",
+          "Weight_kg": "float64",
+          "Package_Size": "object",
+          "Shelf_Life_Days": "int64",
+          "Temperature_Controlled": "bool",
+          "Hazardous_Material": "bool",
+          "ABC_Classification": "object",
+          "XYZ_Classification": "object",
+          "Price_Tier": "object",
+          "Volume_Category": "object",
+          "Strategic_Importance": "float64",
+          "Life_Cycle_Stage": "object",
+          "Supplier_Count": "int64",
+          "Supplier_Reliability_Score": "float64",
+          "Lead_Time_Variability_Days": "int64",
+          "Quality_Score": "float64",
+          "Logistics_Cost_Per_Unit_USD": "float64",
+          "Supplier_Risk_Rating": "float64",
+          "Logistics_Risk_Rating": "float64",
+          "Demand_Risk_Rating": "int64",
+          "Regulatory_Risk_Rating": "float64",
+          "Overall_Risk_Rating": "float64",
+          "Business_Continuity_Score": "float64",
+          "Carbon_Footprint_kg_CO2": "float64",
+          "Water_Usage_Liters": "float64",
+          "Recyclability_Score": "float64",
+          "Sustainable_Packaging": "bool",
+          "Environmental_Compliance_Score": "float64",
+          "Revenue_Contribution_Pct": "float64",
+          "Profit_Contribution_Pct": "float64",
+          "Customer_Satisfaction_Score": "float64",
+          "Net_Promoter_Score": "int64",
+          "Return_Rate_Pct": "float64",
+          "Innovation_Index": "float64",
+          "Technology_Adoption_Score": "float64",
+          "Digital_Readiness_Score": "float64",
+          "Automation_Level_Pct": "float64",
+          "Competitive_Intensity": "float64",
+          "Market_Growth_Rate_Pct": "float64",
+          "Price_Elasticity": "float64",
+          "Substitution_Risk": "float64",
+          "Complexity_Score": "float64",
+          "Operational_Efficiency_Score": "float64",
+          "Process_Maturity_Level": "int64",
+          "Change_Management_Score": "float64",
+          "Demand_Trend_12M": "int64",
+          "Seasonal_Index": "float64",
+          "Annual_Revenue_USD": "float64",
+          "Annual_Profit_USD": "float64",
+          "Economic_Order_Quantity": "float64",
+          "Inventory_Value_USD": "float64",
+          "Perfect_Order_Rate_Pct": "float64",
+          "Cash_to_Cash_Cycle_Days": "float64"
+        },
+        "null_counts": {
+          "SKU Code": 0,
+          "Product_Name": 0,
+          "Category": 0,
+          "Subcategory": 0,
+          "Brand": 0,
+          "UOM": 0,
+          "Country": 0,
+          "Region": 0,
+          "Market_Tier": 0,
+          "GDP_Per_Capita_USD": 0,
+          "Currency_Exchange_Rate": 0,
+          "Unit Price ($)": 0,
+          "Unit Cost ($)": 0,
+          "Gross_Margin_Pct": 0,
+          "Contribution_Margin_Pct": 0,
+          "Manufacturing Plant": 0,
+          "Manufacturing Capacity": 0,
+          "Capacity Utilization": 0,
+          "Historical_Demand_Avg_Units_Month": 0,
+          "Demand_Volatility_Pct": 0,
+          "Forecast_Accuracy_Pct": 0,
+          "Forecast_Bias_Pct": 0,
+          "Demand_M01": 0,
+          "Demand_M02": 0,
+          "Demand_M03": 0,
+          "Demand_M04": 0,
+          "Demand_M05": 0,
+          "Demand_M06": 0,
+          "Demand_M07": 0,
+          "Demand_M08": 0,
+          "Demand_M09": 0,
+          "Demand_M10": 0,
+          "Demand_M11": 0,
+          "Demand_M12": 0,
+          "Forecast_M01": 0,
+          "Forecast_M02": 0,
+          "Forecast_M03": 0,
+          "Forecast_M04": 0,
+          "Forecast_M05": 0,
+          "Forecast_M06": 0,
+          "Forecast_M07": 0,
+          "Forecast_M08": 0,
+          "Forecast_M09": 0,
+          "Forecast_M10": 0,
+          "Forecast_M11": 0,
+          "Forecast_M12": 0,
+          "Lead Time (days)": 0,
+          "Safety Stock": 0,
+          "Reorder Point": 0,
+          "Max Inventory": 0,
+          "Min Order Quantity": 0,
+          "Service Level": 0,
+          "Fill_Rate_Pct": 0,
+          "Inventory_Turns": 0,
+          "Days_Sales_Outstanding": 0,
+          "Regional Demand Multiplier": 0,
+          "Market_Share_Pct": 0,
+          "Customer_Segment": 0,
+          "Weight_kg": 0,
+          "Package_Size": 0,
+          "Shelf_Life_Days": 0,
+          "Temperature_Controlled": 0,
+          "Hazardous_Material": 0,
+          "ABC_Classification": 0,
+          "XYZ_Classification": 0,
+          "Price_Tier": 0,
+          "Volume_Category": 0,
+          "Strategic_Importance": 0,
+          "Life_Cycle_Stage": 0,
+          "Supplier_Count": 0,
+          "Supplier_Reliability_Score": 0,
+          "Lead_Time_Variability_Days": 0,
+          "Quality_Score": 0,
+          "Logistics_Cost_Per_Unit_USD": 0,
+          "Supplier_Risk_Rating": 0,
+          "Logistics_Risk_Rating": 0,
+          "Demand_Risk_Rating": 0,
+          "Regulatory_Risk_Rating": 0,
+          "Overall_Risk_Rating": 0,
+          "Business_Continuity_Score": 0,
+          "Carbon_Footprint_kg_CO2": 0,
+          "Water_Usage_Liters": 0,
+          "Recyclability_Score": 0,
+          "Sustainable_Packaging": 0,
+          "Environmental_Compliance_Score": 0,
+          "Revenue_Contribution_Pct": 0,
+          "Profit_Contribution_Pct": 0,
+          "Customer_Satisfaction_Score": 0,
+          "Net_Promoter_Score": 0,
+          "Return_Rate_Pct": 0,
+          "Innovation_Index": 0,
+          "Technology_Adoption_Score": 0,
+          "Digital_Readiness_Score": 0,
+          "Automation_Level_Pct": 0,
+          "Competitive_Intensity": 0,
+          "Market_Growth_Rate_Pct": 0,
+          "Price_Elasticity": 0,
+          "Substitution_Risk": 0,
+          "Complexity_Score": 0,
+          "Operational_Efficiency_Score": 0,
+          "Process_Maturity_Level": 0,
+          "Change_Management_Score": 0,
+          "Demand_Trend_12M": 0,
+          "Seasonal_Index": 0,
+          "Annual_Revenue_USD": 0,
+          "Annual_Profit_USD": 0,
+          "Economic_Order_Quantity": 0,
+          "Inventory_Value_USD": 0,
+          "Perfect_Order_Rate_Pct": 0,
+          "Cash_to_Cash_Cycle_Days": 0
+        },
+        "sample_data": {
+          "SKU Code": {
+            "sample_values": [
+              "SKU_0001",
+              "SKU_0002",
+              "SKU_0003",
+              "SKU_0004",
+              "SKU_0005"
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Product_Name": {
+            "sample_values": [
+              "BrandA Dairy Product 1",
+              "BrandA Dairy Product 2",
+              "BrandA Dairy Product 3",
+              "BrandA Dairy Product 4",
+              "BrandA Dairy Product 5"
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Category": {
+            "sample_values": [
+              "Food & Beverages",
+              "Food & Beverages",
+              "Food & Beverages",
+              "Food & Beverages",
+              "Food & Beverages"
+            ],
+            "unique_count": 10,
+            "non_null_count": 2000
+          },
+          "Subcategory": {
+            "sample_values": [
+              "Dairy",
+              "Dairy",
+              "Dairy",
+              "Dairy",
+              "Dairy"
+            ],
+            "unique_count": 20,
+            "non_null_count": 2000
+          },
+          "Brand": {
+            "sample_values": [
+              "BrandA",
+              "BrandA",
+              "BrandA",
+              "BrandA",
+              "BrandA"
+            ],
+            "unique_count": 5,
+            "non_null_count": 2000
+          },
+          "UOM": {
+            "sample_values": [
+              "Pallet",
+              "Each",
+              "Each",
+              "Kg",
+              "Each"
+            ],
+            "unique_count": 6,
+            "non_null_count": 2000
+          },
+          "Country": {
+            "sample_values": [
+              "USA",
+              "Germany",
+              "China",
+              "Japan",
+              "UK"
+            ],
+            "unique_count": 25,
+            "non_null_count": 2000
+          },
+          "Region": {
+            "sample_values": [
+              "North America",
+              "Europe",
+              "Asia Pacific",
+              "Asia Pacific",
+              "Europe"
+            ],
+            "unique_count": 5,
+            "non_null_count": 2000
+          },
+          "Market_Tier": {
+            "sample_values": [
+              "Tier 1",
+              "Tier 1",
+              "Tier 2",
+              "Tier 1",
+              "Tier 1"
+            ],
+            "unique_count": 3,
+            "non_null_count": 2000
+          },
+          "GDP_Per_Capita_USD": {
+            "sample_values": [
+              70000,
+              53000,
+              12000,
+              39000,
+              46000
+            ],
+            "unique_count": 20,
+            "non_null_count": 2000
+          },
+          "Currency_Exchange_Rate": {
+            "sample_values": [
+              1.0,
+              0.85,
+              0.14,
+              0.01,
+              0.78
+            ],
+            "unique_count": 16,
+            "non_null_count": 2000
+          },
+          "Unit Price ($)": {
+            "sample_values": [
+              26.23,
+              44.17,
+              17.54,
+              20.32,
+              39.64
+            ],
+            "unique_count": 1837,
+            "non_null_count": 2000
+          },
+          "Unit Cost ($)": {
+            "sample_values": [
+              17.97,
+              27.33,
+              11.79,
+              9.62,
+              16.87
+            ],
+            "unique_count": 1687,
+            "non_null_count": 2000
+          },
+          "Gross_Margin_Pct": {
+            "sample_values": [
+              31.5,
+              38.1,
+              32.8,
+              52.7,
+              57.4
+            ],
+            "unique_count": 301,
+            "non_null_count": 2000
+          },
+          "Contribution_Margin_Pct": {
+            "sample_values": [
+              19.6,
+              23.8,
+              22.2,
+              46.3,
+              43.9
+            ],
+            "unique_count": 368,
+            "non_null_count": 2000
+          },
+          "Manufacturing Plant": {
+            "sample_values": [
+              "Plant_NA_02",
+              "Plant_NA_02",
+              "Plant_EU_01",
+              "Plant_APAC_01",
+              "Plant_EU_02"
+            ],
+            "unique_count": 10,
+            "non_null_count": 2000
+          },
+          "Manufacturing Capacity": {
+            "sample_values": [
+              49613.72443656412,
+              82730.83416079753,
+              57668.55205204058,
+              56649.6687127363,
+              73329.20734420212
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Capacity Utilization": {
+            "sample_values": [
+              0.6427133821956725,
+              0.8216913147786482,
+              0.6846483018151581,
+              0.9070805751747844,
+              0.7659608401805638
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Historical_Demand_Avg_Units_Month": {
+            "sample_values": [
+              2670,
+              3658,
+              1446,
+              3928,
+              556
+            ],
+            "unique_count": 1618,
+            "non_null_count": 2000
+          },
+          "Demand_Volatility_Pct": {
+            "sample_values": [
+              16.7,
+              10.1,
+              11.2,
+              8.9,
+              12.2
+            ],
+            "unique_count": 245,
+            "non_null_count": 2000
+          },
+          "Forecast_Accuracy_Pct": {
+            "sample_values": [
+              82.38,
+              91.79,
+              72.33,
+              88.52,
+              72.45
+            ],
+            "unique_count": 1364,
+            "non_null_count": 2000
+          },
+          "Forecast_Bias_Pct": {
+            "sample_values": [
+              -13.97,
+              9.11,
+              11.92,
+              5.91,
+              -0.25
+            ],
+            "unique_count": 1499,
+            "non_null_count": 2000
+          },
+          "Demand_M01": {
+            "sample_values": [
+              2050,
+              3750,
+              1493,
+              4364,
+              502
+            ],
+            "unique_count": 1623,
+            "non_null_count": 2000
+          },
+          "Demand_M02": {
+            "sample_values": [
+              2110,
+              3322,
+              1775,
+              4003,
+              532
+            ],
+            "unique_count": 1624,
+            "non_null_count": 2000
+          },
+          "Demand_M03": {
+            "sample_values": [
+              2073,
+              4438,
+              1321,
+              4287,
+              562
+            ],
+            "unique_count": 1609,
+            "non_null_count": 2000
+          },
+          "Demand_M04": {
+            "sample_values": [
+              2968,
+              4013,
+              1560,
+              3870,
+              626
+            ],
+            "unique_count": 1623,
+            "non_null_count": 2000
+          },
+          "Demand_M05": {
+            "sample_values": [
+              2767,
+              3519,
+              1598,
+              4017,
+              540
+            ],
+            "unique_count": 1603,
+            "non_null_count": 2000
+          },
+          "Demand_M06": {
+            "sample_values": [
+              2957,
+              3074,
+              1283,
+              3916,
+              508
+            ],
+            "unique_count": 1627,
+            "non_null_count": 2000
+          },
+          "Demand_M07": {
+            "sample_values": [
+              2263,
+              3397,
+              1550,
+              3477,
+              624
+            ],
+            "unique_count": 1619,
+            "non_null_count": 2000
+          },
+          "Demand_M08": {
+            "sample_values": [
+              3411,
+              3371,
+              1332,
+              4346,
+              516
+            ],
+            "unique_count": 1624,
+            "non_null_count": 2000
+          },
+          "Demand_M09": {
+            "sample_values": [
+              3333,
+              3903,
+              1467,
+              3669,
+              565
+            ],
+            "unique_count": 1629,
+            "non_null_count": 2000
+          },
+          "Demand_M10": {
+            "sample_values": [
+              2666,
+              3719,
+              1454,
+              3282,
+              490
+            ],
+            "unique_count": 1646,
+            "non_null_count": 2000
+          },
+          "Demand_M11": {
+            "sample_values": [
+              2691,
+              4013,
+              1387,
+              4322,
+              487
+            ],
+            "unique_count": 1645,
+            "non_null_count": 2000
+          },
+          "Demand_M12": {
+            "sample_values": [
+              2754,
+              3387,
+              1132,
+              3584,
+              725
+            ],
+            "unique_count": 1649,
+            "non_null_count": 2000
+          },
+          "Forecast_M01": {
+            "sample_values": [
+              2972,
+              2861,
+              1521,
+              4877,
+              706
+            ],
+            "unique_count": 1624,
+            "non_null_count": 2000
+          },
+          "Forecast_M02": {
+            "sample_values": [
+              3328,
+              3608,
+              1232,
+              4936,
+              683
+            ],
+            "unique_count": 1650,
+            "non_null_count": 2000
+          },
+          "Forecast_M03": {
+            "sample_values": [
+              3274,
+              3616,
+              1150,
+              4907,
+              620
+            ],
+            "unique_count": 1652,
+            "non_null_count": 2000
+          },
+          "Forecast_M04": {
+            "sample_values": [
+              3149,
+              3304,
+              1062,
+              4020,
+              569
+            ],
+            "unique_count": 1666,
+            "non_null_count": 2000
+          },
+          "Forecast_M05": {
+            "sample_values": [
+              3664,
+              3519,
+              1335,
+              3443,
+              574
+            ],
+            "unique_count": 1671,
+            "non_null_count": 2000
+          },
+          "Forecast_M06": {
+            "sample_values": [
+              3062,
+              3117,
+              1365,
+              5039,
+              608
+            ],
+            "unique_count": 1667,
+            "non_null_count": 2000
+          },
+          "Forecast_M07": {
+            "sample_values": [
+              3345,
+              3103,
+              1017,
+              4209,
+              700
+            ],
+            "unique_count": 1657,
+            "non_null_count": 2000
+          },
+          "Forecast_M08": {
+            "sample_values": [
+              3520,
+              2937,
+              1254,
+              5179,
+              757
+            ],
+            "unique_count": 1689,
+            "non_null_count": 2000
+          },
+          "Forecast_M09": {
+            "sample_values": [
+              3723,
+              2410,
+              1100,
+              5211,
+              753
+            ],
+            "unique_count": 1698,
+            "non_null_count": 2000
+          },
+          "Forecast_M10": {
+            "sample_values": [
+              4301,
+              2466,
+              1293,
+              5052,
+              655
+            ],
+            "unique_count": 1707,
+            "non_null_count": 2000
+          },
+          "Forecast_M11": {
+            "sample_values": [
+              3459,
+              2336,
+              1051,
+              4091,
+              862
+            ],
+            "unique_count": 1712,
+            "non_null_count": 2000
+          },
+          "Forecast_M12": {
+            "sample_values": [
+              4024,
+              2979,
+              1287,
+              4283,
+              810
+            ],
+            "unique_count": 1692,
+            "non_null_count": 2000
+          },
+          "Lead Time (days)": {
+            "sample_values": [
+              84,
+              50,
+              43,
+              49,
+              45
+            ],
+            "unique_count": 96,
+            "non_null_count": 2000
+          },
+          "Safety Stock": {
+            "sample_values": [
+              475,
+              670,
+              399,
+              949,
+              94
+            ],
+            "unique_count": 894,
+            "non_null_count": 2000
+          },
+          "Reorder Point": {
+            "sample_values": [
+              680,
+              1701,
+              371,
+              1437,
+              188
+            ],
+            "unique_count": 1164,
+            "non_null_count": 2000
+          },
+          "Max Inventory": {
+            "sample_values": [
+              7030,
+              7268,
+              2773,
+              7639,
+              1376
+            ],
+            "unique_count": 1814,
+            "non_null_count": 2000
+          },
+          "Min Order Quantity": {
+            "sample_values": [
+              489,
+              447,
+              758,
+              637,
+              861
+            ],
+            "unique_count": 785,
+            "non_null_count": 2000
+          },
+          "Service Level": {
+            "sample_values": [
+              0.927,
+              0.891,
+              0.9,
+              0.961,
+              0.922
+            ],
+            "unique_count": 149,
+            "non_null_count": 2000
+          },
+          "Fill_Rate_Pct": {
+            "sample_values": [
+              90.4,
+              94.6,
+              98.4,
+              92.9,
+              95.5
+            ],
+            "unique_count": 91,
+            "non_null_count": 2000
+          },
+          "Inventory_Turns": {
+            "sample_values": [
+              10.7,
+              14.0,
+              5.5,
+              5.9,
+              8.6
+            ],
+            "unique_count": 111,
+            "non_null_count": 2000
+          },
+          "Days_Sales_Outstanding": {
+            "sample_values": [
+              40,
+              44,
+              50,
+              63,
+              44
+            ],
+            "unique_count": 60,
+            "non_null_count": 2000
+          },
+          "Regional Demand Multiplier": {
+            "sample_values": [
+              0.9455591640077322,
+              1.049408486653882,
+              1.308168975209167,
+              1.367079376275427,
+              1.231095068636552
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Market_Share_Pct": {
+            "sample_values": [
+              14.41,
+              22.72,
+              22.48,
+              21.74,
+              16.06
+            ],
+            "unique_count": 1351,
+            "non_null_count": 2000
+          },
+          "Customer_Segment": {
+            "sample_values": [
+              "Premium",
+              "Institutional",
+              "Retail",
+              "B2B",
+              "B2B"
+            ],
+            "unique_count": 8,
+            "non_null_count": 2000
+          },
+          "Weight_kg": {
+            "sample_values": [
+              1.662533293532373,
+              13.6793992442933,
+              44.36561257082936,
+              45.67070357256792,
+              2.360670087625021
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Package_Size": {
+            "sample_values": [
+              "Family",
+              "Medium",
+              "Large",
+              "Small",
+              "Small"
+            ],
+            "unique_count": 6,
+            "non_null_count": 2000
+          },
+          "Shelf_Life_Days": {
+            "sample_values": [
+              431,
+              662,
+              657,
+              932,
+              791
+            ],
+            "unique_count": 913,
+            "non_null_count": 2000
+          },
+          "Temperature_Controlled": {
+            "sample_values": [
+              false,
+              true,
+              false,
+              false,
+              true
+            ],
+            "unique_count": 2,
+            "non_null_count": 2000
+          },
+          "Hazardous_Material": {
+            "sample_values": [
+              true,
+              true,
+              true,
+              true,
+              true
+            ],
+            "unique_count": 2,
+            "non_null_count": 2000
+          },
+          "ABC_Classification": {
+            "sample_values": [
+              "A",
+              "C",
+              "A",
+              "B",
+              "B"
+            ],
+            "unique_count": 3,
+            "non_null_count": 2000
+          },
+          "XYZ_Classification": {
+            "sample_values": [
+              "X",
+              "Z",
+              "Y",
+              "X",
+              "Y"
+            ],
+            "unique_count": 3,
+            "non_null_count": 2000
+          },
+          "Price_Tier": {
+            "sample_values": [
+              "Economy",
+              "Luxury",
+              "Economy",
+              "Premium",
+              "Luxury"
+            ],
+            "unique_count": 4,
+            "non_null_count": 2000
+          },
+          "Volume_Category": {
+            "sample_values": [
+              "Low",
+              "Medium",
+              "Low",
+              "High",
+              "High"
+            ],
+            "unique_count": 4,
+            "non_null_count": 2000
+          },
+          "Strategic_Importance": {
+            "sample_values": [
+              7.976195410250031,
+              8.362132893302437,
+              1.757259684955439,
+              5.513646652184796,
+              9.400926772715346
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Life_Cycle_Stage": {
+            "sample_values": [
+              "Decline",
+              "Decline",
+              "Decline",
+              "Growth",
+              "Growth"
+            ],
+            "unique_count": 4,
+            "non_null_count": 2000
+          },
+          "Supplier_Count": {
+            "sample_values": [
+              2,
+              1,
+              4,
+              1,
+              4
+            ],
+            "unique_count": 4,
+            "non_null_count": 2000
+          },
+          "Supplier_Reliability_Score": {
+            "sample_values": [
+              6.98,
+              6.52,
+              8.93,
+              5.97,
+              9.28
+            ],
+            "unique_count": 495,
+            "non_null_count": 2000
+          },
+          "Lead_Time_Variability_Days": {
+            "sample_values": [
+              4,
+              6,
+              8,
+              8,
+              5
+            ],
+            "unique_count": 13,
+            "non_null_count": 2000
+          },
+          "Quality_Score": {
+            "sample_values": [
+              93.37,
+              92.15,
+              93.49,
+              94.83,
+              94.58
+            ],
+            "unique_count": 1054,
+            "non_null_count": 2000
+          },
+          "Logistics_Cost_Per_Unit_USD": {
+            "sample_values": [
+              3.73,
+              4.05,
+              0.89,
+              2.63,
+              4.42
+            ],
+            "unique_count": 1014,
+            "non_null_count": 2000
+          },
+          "Supplier_Risk_Rating": {
+            "sample_values": [
+              1.6,
+              4.7,
+              2.0,
+              9.4,
+              4.2
+            ],
+            "unique_count": 109,
+            "non_null_count": 2000
+          },
+          "Logistics_Risk_Rating": {
+            "sample_values": [
+              9.5,
+              7.8,
+              9.3,
+              7.3,
+              7.8
+            ],
+            "unique_count": 91,
+            "non_null_count": 2000
+          },
+          "Demand_Risk_Rating": {
+            "sample_values": [
+              1,
+              1,
+              1,
+              0,
+              1
+            ],
+            "unique_count": 4,
+            "non_null_count": 2000
+          },
+          "Regulatory_Risk_Rating": {
+            "sample_values": [
+              9.7,
+              3.1,
+              8.9,
+              6.1,
+              1.1
+            ],
+            "unique_count": 138,
+            "non_null_count": 2000
+          },
+          "Overall_Risk_Rating": {
+            "sample_values": [
+              5.6,
+              4.1,
+              5.3,
+              5.9,
+              3.6
+            ],
+            "unique_count": 70,
+            "non_null_count": 2000
+          },
+          "Business_Continuity_Score": {
+            "sample_values": [
+              5.44,
+              6.11,
+              5.51,
+              9.45,
+              9.72
+            ],
+            "unique_count": 490,
+            "non_null_count": 2000
+          },
+          "Carbon_Footprint_kg_CO2": {
+            "sample_values": [
+              12.22,
+              1.62,
+              4.24,
+              1.91,
+              2.18
+            ],
+            "unique_count": 1353,
+            "non_null_count": 2000
+          },
+          "Water_Usage_Liters": {
+            "sample_values": [
+              67.9,
+              65.1,
+              135.4,
+              126.9,
+              18.7
+            ],
+            "unique_count": 1263,
+            "non_null_count": 2000
+          },
+          "Recyclability_Score": {
+            "sample_values": [
+              3.7,
+              4.1,
+              8.7,
+              9.9,
+              3.3
+            ],
+            "unique_count": 71,
+            "non_null_count": 2000
+          },
+          "Sustainable_Packaging": {
+            "sample_values": [
+              true,
+              false,
+              true,
+              true,
+              false
+            ],
+            "unique_count": 2,
+            "non_null_count": 2000
+          },
+          "Environmental_Compliance_Score": {
+            "sample_values": [
+              7.59,
+              7.36,
+              8.99,
+              8.01,
+              9.83
+            ],
+            "unique_count": 301,
+            "non_null_count": 2000
+          },
+          "Revenue_Contribution_Pct": {
+            "sample_values": [
+              0.1,
+              0.68,
+              0.02,
+              0.76,
+              1.74
+            ],
+            "unique_count": 200,
+            "non_null_count": 2000
+          },
+          "Profit_Contribution_Pct": {
+            "sample_values": [
+              0.82,
+              2.36,
+              0.41,
+              0.24,
+              1.59
+            ],
+            "unique_count": 250,
+            "non_null_count": 2000
+          },
+          "Customer_Satisfaction_Score": {
+            "sample_values": [
+              3.78,
+              3.65,
+              4.1,
+              4.16,
+              4.6
+            ],
+            "unique_count": 201,
+            "non_null_count": 2000
+          },
+          "Net_Promoter_Score": {
+            "sample_values": [
+              61,
+              75,
+              33,
+              65,
+              -9
+            ],
+            "unique_count": 100,
+            "non_null_count": 2000
+          },
+          "Return_Rate_Pct": {
+            "sample_values": [
+              4.32,
+              4.46,
+              3.59,
+              2.63,
+              3.11
+            ],
+            "unique_count": 746,
+            "non_null_count": 2000
+          },
+          "Innovation_Index": {
+            "sample_values": [
+              6.28,
+              4.63,
+              9.95,
+              2.4,
+              6.79
+            ],
+            "unique_count": 826,
+            "non_null_count": 2000
+          },
+          "Technology_Adoption_Score": {
+            "sample_values": [
+              9.76,
+              3.45,
+              4.23,
+              9.87,
+              6.21
+            ],
+            "unique_count": 657,
+            "non_null_count": 2000
+          },
+          "Digital_Readiness_Score": {
+            "sample_values": [
+              7.64,
+              5.52,
+              4.11,
+              9.03,
+              7.27
+            ],
+            "unique_count": 582,
+            "non_null_count": 2000
+          },
+          "Automation_Level_Pct": {
+            "sample_values": [
+              39.32,
+              37.28,
+              54.57,
+              80.23,
+              85.9
+            ],
+            "unique_count": 1724,
+            "non_null_count": 2000
+          },
+          "Competitive_Intensity": {
+            "sample_values": [
+              3.666461551336742,
+              7.266738455558095,
+              2.60940438299196,
+              3.252262244642776,
+              4.474923740206968
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Market_Growth_Rate_Pct": {
+            "sample_values": [
+              -1.69,
+              9.25,
+              2.33,
+              -4.22,
+              14.22
+            ],
+            "unique_count": 1245,
+            "non_null_count": 2000
+          },
+          "Price_Elasticity": {
+            "sample_values": [
+              -1.97,
+              -1.73,
+              -0.66,
+              -1.45,
+              -0.37
+            ],
+            "unique_count": 181,
+            "non_null_count": 2000
+          },
+          "Substitution_Risk": {
+            "sample_values": [
+              4.810613326357327,
+              9.979664365440478,
+              7.488459318269164,
+              5.833741844769899,
+              2.762120213103668
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Complexity_Score": {
+            "sample_values": [
+              4.55,
+              3.4,
+              3.77,
+              3.94,
+              1.62
+            ],
+            "unique_count": 792,
+            "non_null_count": 2000
+          },
+          "Operational_Efficiency_Score": {
+            "sample_values": [
+              7.17,
+              9.91,
+              8.17,
+              9.31,
+              6.4
+            ],
+            "unique_count": 399,
+            "non_null_count": 2000
+          },
+          "Process_Maturity_Level": {
+            "sample_values": [
+              3,
+              4,
+              3,
+              4,
+              2
+            ],
+            "unique_count": 4,
+            "non_null_count": 2000
+          },
+          "Change_Management_Score": {
+            "sample_values": [
+              9.08,
+              5.26,
+              6.84,
+              6.08,
+              5.19
+            ],
+            "unique_count": 489,
+            "non_null_count": 2000
+          },
+          "Demand_Trend_12M": {
+            "sample_values": [
+              96,
+              -20,
+              -13,
+              -1,
+              61
+            ],
+            "unique_count": 379,
+            "non_null_count": 2000
+          },
+          "Seasonal_Index": {
+            "sample_values": [
+              1.66,
+              1.44,
+              1.57,
+              1.33,
+              1.49
+            ],
+            "unique_count": 169,
+            "non_null_count": 2000
+          },
+          "Annual_Revenue_USD": {
+            "sample_values": [
+              840409.2,
+              1938886.32,
+              304354.08,
+              957803.52,
+              264478.08
+            ],
+            "unique_count": 1999,
+            "non_null_count": 2000
+          },
+          "Annual_Profit_USD": {
+            "sample_values": [
+              164720.2,
+              461454.94,
+              67566.61,
+              443463.03,
+              116105.88
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Economic_Order_Quantity": {
+            "sample_values": [
+              230.6596477970731,
+              228.1209454476308,
+              102.3665021545563,
+              321.078846671072,
+              118.2569314568136
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          },
+          "Inventory_Value_USD": {
+            "sample_values": [
+              126329.1,
+              198634.44,
+              32693.67,
+              73487.18,
+              23213.12
+            ],
+            "unique_count": 1998,
+            "non_null_count": 2000
+          },
+          "Perfect_Order_Rate_Pct": {
+            "sample_values": [
+              80.76,
+              83.28,
+              88.69,
+              85.78,
+              87.51
+            ],
+            "unique_count": 1214,
+            "non_null_count": 2000
+          },
+          "Cash_to_Cash_Cycle_Days": {
+            "sample_values": [
+              34.98876404494382,
+              53.60634226353199,
+              64.5311203319502,
+              72.34266802443992,
+              73.24460431654677
+            ],
+            "unique_count": 2000,
+            "non_null_count": 2000
+          }
+        }
+      },
+      "Dataset_Summary": {
+        "row_count": 13,
+        "column_count": 2,
+        "columns": [
+          "Metric",
+          "Value"
+        ],
+        "data_types": {
+          "Metric": "object",
+          "Value": "object"
+        },
+        "null_counts": {
+          "Metric": 0,
+          "Value": 0
+        },
+        "sample_data": {
+          "Metric": {
+            "sample_values": [
+              "Total SKUs",
+              "Total Categories",
+              "Total Countries",
+              "Total Regions",
+              "Total Manufacturing Plants"
+            ],
+            "unique_count": 13,
+            "non_null_count": 13
+          },
+          "Value": {
+            "sample_values": [
+              2000,
+              10,
+              25,
+              5,
+              10
+            ],
+            "unique_count": 11,
+            "non_null_count": 13
+          }
+        }
+      },
+      "Category_Analysis": {
+        "row_count": 10,
+        "column_count": 7,
+        "columns": [
+          "Category",
+          "SKU_Count",
+          "Total_Revenue",
+          "Avg_Revenue",
+          "Avg_Risk",
+          "Avg_Carbon",
+          "Avg_Service_Level"
+        ],
+        "data_types": {
+          "Category": "object",
+          "SKU_Count": "int64",
+          "Total_Revenue": "float64",
+          "Avg_Revenue": "float64",
+          "Avg_Risk": "float64",
+          "Avg_Carbon": "float64",
+          "Avg_Service_Level": "float64"
+        },
+        "null_counts": {
+          "Category": 0,
+          "SKU_Count": 0,
+          "Total_Revenue": 0,
+          "Avg_Revenue": 0,
+          "Avg_Risk": 0,
+          "Avg_Carbon": 0,
+          "Avg_Service_Level": 0
+        },
+        "sample_data": {
+          "Category": {
+            "sample_values": [
+              "Automotive",
+              "Chemicals",
+              "Electronics",
+              "Food & Beverages",
+              "Health & Wellness"
+            ],
+            "unique_count": 10,
+            "non_null_count": 10
+          },
+          "SKU_Count": {
+            "sample_values": [
+              200,
+              200,
+              200,
+              200,
+              200
+            ],
+            "unique_count": 1,
+            "non_null_count": 10
+          },
+          "Total_Revenue": {
+            "sample_values": [
+              555970525.92,
+              356125220.88,
+              616919450.64,
+              143545665.12,
+              169323922.56
+            ],
+            "unique_count": 10,
+            "non_null_count": 10
+          },
+          "Avg_Revenue": {
+            "sample_values": [
+              2779852.63,
+              1780626.1,
+              3084597.25,
+              717728.33,
+              846619.61
+            ],
+            "unique_count": 10,
+            "non_null_count": 10
+          },
+          "Avg_Risk": {
+            "sample_values": [
+              4.27,
+              5.22,
+              4.53,
+              4.42,
+              4.57
+            ],
+            "unique_count": 9,
+            "non_null_count": 10
+          },
+          "Avg_Carbon": {
+            "sample_values": [
+              23.64,
+              22.97,
+              8.16,
+              8.64,
+              7.89
+            ],
+            "unique_count": 10,
+            "non_null_count": 10
+          },
+          "Avg_Service_Level": {
+            "sample_values": [
+              0.91,
+              0.92,
+              0.92,
+              0.92,
+              0.92
+            ],
+            "unique_count": 2,
+            "non_null_count": 10
+          }
+        }
+      },
+      "Country_Analysis": {
+        "row_count": 34,
+        "column_count": 6,
+        "columns": [
+          "Country",
+          "Region",
+          "SKU_Count",
+          "Total_Revenue",
+          "Avg_Market_Share",
+          "GDP_Per_Capita"
+        ],
+        "data_types": {
+          "Country": "object",
+          "Region": "object",
+          "SKU_Count": "int64",
+          "Total_Revenue": "float64",
+          "Avg_Market_Share": "float64",
+          "GDP_Per_Capita": "int64"
+        },
+        "null_counts": {
+          "Country": 9,
+          "Region": 0,
+          "SKU_Count": 0,
+          "Total_Revenue": 0,
+          "Avg_Market_Share": 0,
+          "GDP_Per_Capita": 0
+        },
+        "sample_data": {
+          "Country": {
+            "sample_values": [
+              "Argentina",
+              "Australia",
+              "Brazil",
+              "Canada",
+              "China"
+            ],
+            "unique_count": 25,
+            "non_null_count": 25
+          },
+          "Region": {
+            "sample_values": [
+              "Asia Pacific",
+              "Latin America",
+              "Asia Pacific",
+              "Latin America",
+              "North America"
+            ],
+            "unique_count": 5,
+            "non_null_count": 34
+          },
+          "SKU_Count": {
+            "sample_values": [
+              2,
+              78,
+              80,
+              80,
+              80
+            ],
+            "unique_count": 5,
+            "non_null_count": 34
+          },
+          "Total_Revenue": {
+            "sample_values": [
+              3502536.6,
+              134816909.4,
+              166849403.28,
+              149915768.4,
+              178789818.84
+            ],
+            "unique_count": 34,
+            "non_null_count": 34
+          },
+          "Avg_Market_Share": {
+            "sample_values": [
+              9.96,
+              11.32,
+              13.37,
+              12.45,
+              11.72
+            ],
+            "unique_count": 32,
+            "non_null_count": 34
+          },
+          "GDP_Per_Capita": {
+            "sample_values": [
+              10000,
+              10000,
+              55000,
+              9000,
+              52000
+            ],
+            "unique_count": 20,
+            "non_null_count": 34
+          }
+        }
+      }
+    }
+  },
+  "relationships": {
+    "entities": [
+      {
+        "sheet": "SOP_Dataset",
+        "id_columns": [
+          "SKU Code"
+        ],
+        "categorical_columns": [
+          "Category",
+          "Subcategory",
+          "Brand",
+          "UOM",
+          "Country",
+          "Region",
+          "Market_Tier",
+          "GDP_Per_Capita_USD",
+          "Currency_Exchange_Rate",
+          "Gross_Margin_Pct",
+          "Contribution_Margin_Pct",
+          "Manufacturing Plant",
+          "Demand_Volatility_Pct",
+          "Forecast_Accuracy_Pct",
+          "Forecast_Bias_Pct",
+          "Lead Time (days)",
+          "Safety Stock",
+          "Reorder Point",
+          "Min Order Quantity",
+          "Service Level",
+          "Fill_Rate_Pct",
+          "Inventory_Turns",
+          "Days_Sales_Outstanding",
+          "Market_Share_Pct",
+          "Customer_Segment",
+          "Package_Size",
+          "Shelf_Life_Days",
+          "Temperature_Controlled",
+          "Hazardous_Material",
+          "ABC_Classification",
+          "XYZ_Classification",
+          "Price_Tier",
+          "Volume_Category",
+          "Life_Cycle_Stage",
+          "Supplier_Count",
+          "Supplier_Reliability_Score",
+          "Lead_Time_Variability_Days",
+          "Quality_Score",
+          "Logistics_Cost_Per_Unit_USD",
+          "Supplier_Risk_Rating",
+          "Logistics_Risk_Rating",
+          "Demand_Risk_Rating",
+          "Regulatory_Risk_Rating",
+          "Overall_Risk_Rating",
+          "Business_Continuity_Score",
+          "Carbon_Footprint_kg_CO2",
+          "Water_Usage_Liters",
+          "Recyclability_Score",
+          "Sustainable_Packaging",
+          "Environmental_Compliance_Score",
+          "Revenue_Contribution_Pct",
+          "Profit_Contribution_Pct",
+          "Customer_Satisfaction_Score",
+          "Net_Promoter_Score",
+          "Return_Rate_Pct",
+          "Innovation_Index",
+          "Technology_Adoption_Score",
+          "Digital_Readiness_Score",
+          "Market_Growth_Rate_Pct",
+          "Price_Elasticity",
+          "Complexity_Score",
+          "Operational_Efficiency_Score",
+          "Process_Maturity_Level",
+          "Change_Management_Score",
+          "Demand_Trend_12M",
+          "Seasonal_Index",
+          "Perfect_Order_Rate_Pct"
+        ],
+        "numerical_columns": [
+          "Unit Price ($)",
+          "Unit Cost ($)",
+          "Gross_Margin_Pct",
+          "Contribution_Margin_Pct",
+          "Min Order Quantity",
+          "Weight_kg",
+          "Price_Tier",
+          "Volume_Category",
+          "Logistics_Cost_Per_Unit_USD",
+          "Profit_Contribution_Pct",
+          "Price_Elasticity",
+          "Annual_Profit_USD",
+          "Economic_Order_Quantity"
+        ],
+        "total_rows": 2000
+      },
+      {
+        "sheet": "Dataset_Summary",
+        "id_columns": [],
+        "categorical_columns": [],
+        "numerical_columns": [],
+        "total_rows": 13
+      },
+      {
+        "sheet": "Category_Analysis",
+        "id_columns": [
+          "SKU_Count"
+        ],
+        "categorical_columns": [
+          "SKU_Count",
+          "Avg_Service_Level"
+        ],
+        "numerical_columns": [],
+        "total_rows": 10
+      },
+      {
+        "sheet": "Country_Analysis",
+        "id_columns": [
+          "SKU_Count"
+        ],
+        "categorical_columns": [
+          "Region",
+          "SKU_Count",
+          "GDP_Per_Capita"
+        ],
+        "numerical_columns": [],
+        "total_rows": 34
+      }
+    ],
+    "relationships": [],
+    "recommendations": []
+  },
+  "timestamp": "2025-08-16T18:36:25.595590"
+}
