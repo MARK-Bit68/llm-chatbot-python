@@ -526,20 +526,39 @@ async def get_graph_metadata():
             LIMIT 1
         """)
         
+        # Check if there's any data in the database
+        data_check = graph.query("""
+            MATCH (n)
+            WHERE NOT n:Metadata
+            RETURN count(n) as node_count
+            LIMIT 1
+        """)
+        
+        has_data = data_check[0]['node_count'] > 0 if data_check else False
+        
         if metadata_result:
             metadata = metadata_result[0]['m']
             return {
                 "success": True,
                 "metadata": metadata,
-                "has_data": True
+                "has_data": True,
+                "message": f"Data imported from {metadata.get('filename', 'unknown file')}"
             }
         else:
-            return {
-                "success": True,
-                "metadata": None,
-                "has_data": False,
-                "message": "No import metadata found"
-            }
+            if has_data:
+                return {
+                    "success": True,
+                    "metadata": None,
+                    "has_data": True,
+                    "message": "Graph data exists but import metadata not found"
+                }
+            else:
+                return {
+                    "success": True,
+                    "metadata": None,
+                    "has_data": False,
+                    "message": "No graph data has been imported yet"
+                }
             
     except Exception as e:
         logger.error(f"Error retrieving metadata: {e}")

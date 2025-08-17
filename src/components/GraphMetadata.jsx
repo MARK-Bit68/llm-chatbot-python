@@ -19,11 +19,18 @@ const GraphMetadata = () => {
       
       console.log('📋 Metadata API response:', data);
       
-      if (data.success && data.has_data && data.metadata) {
-        setMetadata(data.metadata);
+      if (data.success && data.has_data) {
+        if (data.metadata) {
+          setMetadata(data.metadata);
+        } else {
+          // Data exists but no metadata - show a message
+          setMetadata(null);
+          setError(null);
+        }
       } else if (data.success && !data.has_data) {
-        // No metadata found - this is normal for fresh installations
+        // No data found - this is normal for fresh installations
         setMetadata(null);
+        setError(null);
       } else {
         setError('Failed to fetch metadata');
       }
@@ -70,12 +77,12 @@ const GraphMetadata = () => {
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6"
+        className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6"
       >
         <div className="flex items-center space-x-2">
-          <Info className="h-5 w-5 text-yellow-600" />
-          <span className="text-yellow-800 dark:text-yellow-200">
-            No graph data has been imported yet. Upload an Excel file to get started.
+          <Info className="h-5 w-5 text-blue-600" />
+          <span className="text-blue-800 dark:text-blue-200">
+            Graph data is available but import metadata was not preserved. The data was successfully imported and is ready for use.
           </span>
         </div>
       </motion.div>

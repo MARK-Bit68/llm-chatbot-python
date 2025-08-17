@@ -700,14 +700,39 @@ class EnhancedGraphImporterV2:
                 "total_relationships": relationships_created.get('total_relationships', 0)
             }
             
-            # Store in database
-            self.graph.query("""
-                MERGE (m:Metadata {id: 'current_import'})
-                SET m = $metadata
-                SET m.last_updated = datetime()
-            """, {"metadata": metadata})
-            
-            logger.info(f"📋 Stored import metadata for: {metadata['filename']}")
+            # Store in database with better error handling
+            try:
+                self.graph.query("""
+                    MERGE (m:Metadata {id: 'current_import'})
+                    SET m = $metadata
+                    SET m.last_updated = datetime()
+                """, {"metadata": metadata})
+                
+                # Verify metadata was stored
+                stored_metadata = self.graph.query("""
+                    MATCH (m:Metadata {id: 'current_import'})
+                    RETURN m
+                    LIMIT 1
+                """)
+                
+                if stored_metadata:
+                    logger.info(f"📋 Stored import metadata for: {metadata['filename']}")
+                    logger.info(f"📋 Metadata verification: {len(stored_metadata)} metadata nodes found")
+                else:
+                    logger.error(f"❌ Failed to store metadata for: {metadata['filename']}")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error storing metadata: {e}")
+                # Try alternative storage method
+                try:
+                    self.graph.query("""
+                        CREATE (m:Metadata {id: 'current_import'})
+                        SET m = $metadata
+                        SET m.last_updated = datetime()
+                    """, {"metadata": metadata})
+                    logger.info(f"📋 Stored import metadata (alternative method) for: {metadata['filename']}")
+                except Exception as e2:
+                    logger.error(f"❌ Alternative metadata storage also failed: {e2}")
             
         except Exception as e:
             logger.error(f"❌ Error storing metadata: {e}")
