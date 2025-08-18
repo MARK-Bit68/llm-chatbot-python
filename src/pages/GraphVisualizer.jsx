@@ -1054,8 +1054,7 @@ const GraphVisualizer = () => {
           </div>
         </div>
       </div>
-    </div>
-  )
+    )
 }
 
 export default GraphVisualizer
