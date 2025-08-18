@@ -43,11 +43,12 @@ const GraphVisualizer = () => {
   
   // Edge filtering state for Gaming mode - START WITH NOTHING for guided experience
   const [edgeFilters, setEdgeFilters] = useState({
-    showBelongsTo: false,     // Product → Category (start hidden)
-    showBrandedAs: false,     // Product → Brand (start hidden)
-    showSoldIn: false,        // Product → Country (start hidden)
-    showPartOf: false,        // Country → Region (start hidden)
-    focusMode: 'none'         // none, selected
+    showBelongsTo: false,        // Product → Category (start hidden)
+    showBrandedAs: false,        // Product → Brand (start hidden)
+    showSoldIn: false,           // Product → Country (start hidden)
+    showPartOf: false,           // Country → Region (start hidden)
+    showManufacturedAt: false,   // Product → Plant (start hidden)
+    focusMode: 'none'            // none, selected
   })
   
   // Tutorial state for guided experience - remember user preference
@@ -444,7 +445,7 @@ const GraphVisualizer = () => {
 
       <div className="flex h-full">
         {/* Controls Panel - Made narrower for larger visualization */}
-        <div className="w-72 bg-surface border-r border-white border-opacity-10 p-4 space-y-6">
+        <div className="w-60 bg-surface border-r border-white border-opacity-10 p-4 space-y-6">
           {/* Search */}
           <div>
             <label className="block text-sm font-medium text-white mb-2">Search Nodes</label>
@@ -579,6 +580,7 @@ const GraphVisualizer = () => {
                   />
                   <span className="text-xs text-white">Product → Category</span>
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
+                  <span className="text-xs text-gray-400">Portfolio Analysis</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
@@ -591,6 +593,7 @@ const GraphVisualizer = () => {
                   />
                   <span className="text-xs text-white">Product → Brand</span>
                   <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                  <span className="text-xs text-gray-400">Brand Strategy</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
@@ -601,9 +604,9 @@ const GraphVisualizer = () => {
                     }}
                     className="w-4 h-4 text-blue-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-blue-500"
                   />
-                  <span className="text-xs text-white">Product → Country</span>
+                  <span className="text-xs text-white">Product → Market</span>
                   <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  <span className="text-xs text-red-400">(Heavy)</span>
+                  <span className="text-xs text-gray-400">Market Presence</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
@@ -616,6 +619,20 @@ const GraphVisualizer = () => {
                   />
                   <span className="text-xs text-white">Country → Region</span>
                   <div className="w-2 h-2 bg-cyan-500 rounded-full" />
+                  <span className="text-xs text-gray-400">Geographic Hierarchy</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={edgeFilters.showManufacturedAt}
+                    onChange={(e) => {
+                      setEdgeFilters(prev => ({ ...prev, showManufacturedAt: e.target.checked }))
+                    }}
+                    className="w-4 h-4 text-purple-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-xs text-white">Product → Plant</span>
+                  <div className="w-2 h-2 bg-purple-500 rounded-full" />
+                  <span className="text-xs text-gray-400">Supply Chain</span>
                 </label>
               </div>
               
@@ -985,7 +1002,7 @@ const GraphVisualizer = () => {
                             onNodeHover={handleNodeHover}
                             onEngineStop={handleGraphReady}
                             onWebGlContextLost={handleWebGLError}
-                            width={windowDimensions.width - 288}
+                            width={windowDimensions.width - 320}
                             height={windowDimensions.height - 100}
                           />
                         )
@@ -1016,7 +1033,7 @@ const GraphVisualizer = () => {
                            onNodeClick={handleNodeClick}
                            onBackgroundClick={handleBackgroundClick}
                            onNodeHover={handleNodeHover}
-                           width={windowDimensions.width - 288}
+                           width={windowDimensions.width - 320}
                            height={windowDimensions.height - 100}
                          />
                        )
@@ -1046,7 +1063,7 @@ const GraphVisualizer = () => {
                           onNodeClick={handleNodeClick}
                           onBackgroundClick={handleBackgroundClick}
                           onNodeHover={handleNodeHover}
-                          width={windowDimensions.width - 288}
+                          width={windowDimensions.width - 320}
                           height={windowDimensions.height - 100}
                         />
                       )

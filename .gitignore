@@ -29,3 +29,4 @@ test-error.png
 test-results-*.png
 ADVANCED_DEPLOYMENT_GUIDE.md
 CLAUDE.md
+.playwright-mcp/

@@ -156,23 +156,73 @@ const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
   )
 }
 
-// Floating Group Label Component
+// Dynamic Group Label Component with Smart Positioning
 const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) => {
   const labelRef = useRef()
+  const lineRef = useRef()
   
   // Don't render if config is invalid or if too close (labels are for overview)
   if (!config || !config.center || distance < 200) return null
   
-  // Calculate label position (above the group center)
-  const labelPosition = useMemo(() => ({
-    x: config.center.x || 0,
-    y: (config.center.y || 0) + (config.radius || 50) * 1.2 + 50, // Higher positioning for better visibility
-    z: config.center.z || 0
-  }), [config])
+  // Smart label positioning to avoid overlaps based on node type
+  const labelPosition = useMemo(() => {
+    const baseRadius = config.radius || 50
+    const baseHeight = config.center.y || 0
+    
+    // Position labels at different heights and distances to avoid overlaps
+    const positionMap = {
+      'Product': { 
+        x: config.center.x, 
+        y: baseHeight + baseRadius * 0.8 + 40, 
+        z: config.center.z 
+      },
+      'Category': { 
+        x: config.center.x - baseRadius * 0.3, 
+        y: baseHeight + baseRadius * 1.5 + 60, 
+        z: config.center.z + baseRadius * 0.2 
+      },
+      'Brand': { 
+        x: config.center.x + baseRadius * 1.2, 
+        y: baseHeight + baseRadius * 0.9 + 50, 
+        z: config.center.z - baseRadius * 0.1 
+      },
+      'Country': { 
+        x: config.center.x - baseRadius * 0.8, 
+        y: baseHeight + baseRadius * 0.6 + 45, 
+        z: config.center.z + baseRadius * 0.3 
+      },
+      'Region': { 
+        x: config.center.x - baseRadius * 1.1, 
+        y: baseHeight + baseRadius * 1.3 + 65, 
+        z: config.center.z + baseRadius * 0.4 
+      },
+      'Plant': { 
+        x: config.center.x + baseRadius * 0.9, 
+        y: baseHeight - baseRadius * 0.2 + 35, 
+        z: config.center.z - baseRadius * 0.2 
+      },
+      'ManufacturingPlant': { 
+        x: config.center.x + baseRadius * 1.1, 
+        y: baseHeight - baseRadius * 0.8 + 30, 
+        z: config.center.z - baseRadius * 0.3 
+      },
+      'Metadata': { 
+        x: config.center.x, 
+        y: baseHeight - baseRadius * 1.5 - 30, 
+        z: config.center.z + baseRadius * 0.1 
+      }
+    }
+    
+    return positionMap[nodeType] || {
+      x: config.center.x,
+      y: baseHeight + baseRadius + 50,
+      z: config.center.z
+    }
+  }, [config, nodeType])
   
   // Scale based on distance - labels should be more visible when zoomed out
-  const scale = useMemo(() => Math.max(0.8, Math.min(2.0, distance / 400)), [distance])
-  const opacity = useMemo(() => Math.max(0.6, Math.min(1.0, distance / 300)), [distance])
+  const scale = useMemo(() => Math.max(0.7, Math.min(1.5, distance / 500)), [distance])
+  const opacity = useMemo(() => Math.max(0.7, Math.min(1.0, distance / 400)), [distance])
   
   // Animate gentle floating
   useFrame((state) => {
@@ -182,37 +232,65 @@ const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) =
   })
   
   return (
-    <group ref={labelRef} position={[labelPosition.x, labelPosition.y, labelPosition.z]}>
-      <Html
-        center
-        style={{
-          pointerEvents: 'none',
-          userSelect: 'none'
-        }}
-      >
-        <div 
-          className="text-center"
+    <group ref={labelRef}>
+      {/* Connection line from label to cluster center */}
+      <Line
+        ref={lineRef}
+        points={[
+          [labelPosition.x, labelPosition.y - 10, labelPosition.z],
+          [config.center.x, config.center.y + (config.radius || 50) * 0.3, config.center.z]
+        ]}
+        color={config.color || '#6B7280'}
+        lineWidth={1}
+        transparent
+        opacity={opacity * 0.4}
+        dashed
+        dashSize={3}
+        gapSize={2}
+      />
+      
+      {/* Label positioned above cluster */}
+      <group position={[labelPosition.x, labelPosition.y, labelPosition.z]}>
+        <Html
+          center
           style={{
-            opacity: opacity * 0.8,
-            transform: `scale(${Math.min(scale, 1.2)})`,
-            transformOrigin: 'center'
+            pointerEvents: 'none',
+            userSelect: 'none'
           }}
         >
           <div 
-            className="font-bold text-lg mb-1 drop-shadow-lg"
-            style={{ 
-              color: config.color || '#6B7280',
-              textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+            className="text-center"
+            style={{
+              opacity: opacity * 0.9,
+              transform: `scale(${Math.min(scale, 1.2)})`,
+              transformOrigin: 'center'
             }}
           >
-            {config.description || nodeType}
+            <div 
+              className="font-bold text-base mb-1 drop-shadow-lg"
+              style={{ 
+                color: config.color || '#6B7280',
+                textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+              }}
+            >
+              {config.description || nodeType}
+            </div>
+            <div className="text-gray-300 text-xs font-medium drop-shadow-md">
+              {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
+            </div>
           </div>
-          <div className="text-gray-300 text-sm font-medium drop-shadow-md">
-            {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
-          </div>
-        </div>
-      </Html>
-      
+        </Html>
+        
+        {/* Small indicator dot at label position */}
+        <mesh position={[0, -8, 0]}>
+          <sphereGeometry args={[1.5, 8, 8]} />
+          <meshBasicMaterial 
+            color={config.color || '#6B7280'}
+            transparent
+            opacity={opacity * 0.8}
+          />
+        </mesh>
+      </group>
     </group>
   )
 }
@@ -221,23 +299,25 @@ const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) =
 const GraphEdge = ({ edge, visible, distance }) => {
   const lineRef = useRef()
   
-  // Level of Detail for edges
+  // Level of Detail for edges - made more permissive
   const lod = useMemo(() => {
-    if (distance > 800) return 0 // Don't render
-    if (distance > 400) return 1 // Simple line
+    if (distance > 2000) return 0 // Don't render
+    if (distance > 1000) return 1 // Simple line
     return 2 // Full detail with particles
   }, [distance])
   
   if (!visible || lod === 0) return null
   
-  // Edge color based on relationship type
+  // Edge color based on relationship type - business-focused colors
   const edgeColor = useMemo(() => {
     switch (edge.type) {
-      case 'COMPATIBLE_WITH': return '#10B981'
-      case 'REPLACES': return '#EF4444'
-      case 'REQUIRES': return '#F59E0B'
-      case 'BUNDLED_WITH': return '#8B5CF6'
-      default: return '#6B7280'
+      case 'BELONGS_TO': return '#10B981'        // Green - Product → Category
+      case 'BRANDED_AS': return '#F59E0B'        // Orange - Product → Brand  
+      case 'SOLD_IN': return '#3B82F6'           // Blue - Product → Country
+      case 'OPERATES_IN': return '#3B82F6'       // Blue - Product → Country (alternative)
+      case 'MANUFACTURED_AT': return '#8B5CF6'   // Purple - Product → Plant
+      case 'PART_OF': return '#06B6D4'           // Cyan - Country → Region
+      default: return '#6B7280'                  // Gray - Unknown
     }
   }, [edge.type])
   
@@ -260,9 +340,9 @@ const GraphEdge = ({ edge, visible, distance }) => {
       ref={lineRef}
       points={points}
       color={edgeColor}
-      lineWidth={lod === 2 ? 2 : 1}
+      lineWidth={lod === 2 ? 3 : 2}
       transparent
-      opacity={0.5}
+      opacity={0.8}
     />
   )
 }
@@ -498,11 +578,6 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
     showGroups: true
   }
   
-  // Debug filter changes
-  useEffect(() => {
-    console.log('🔧 GamingGraphVisualizer - Filters changed:', filters)
-    console.log('🔧 External filters:', externalNodeFilters)
-  }, [filters, externalNodeFilters])
   
   // Use external edge filters from props, fallback to defaults
   const edgeFilters = externalEdgeFilters || {
@@ -510,14 +585,11 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
     showBrandedAs: true,
     showSoldIn: false,
     showPartOf: true,
+    showManufacturedAt: false,
     focusMode: 'none'
   }
   
-  // Debug edge filters - removed console spam
-  // useEffect(() => {
-  //   console.log('🔧 Edge Filters:', edgeFilters)
-  //   console.log('🔧 External Edge Filters:', externalEdgeFilters)
-  // }, [edgeFilters, externalEdgeFilters])
+  // Debug disabled to prevent build errors
   
   // Use external selected node from props
   const selectedNode = externalSelectedNode
@@ -772,10 +844,16 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
             case 'BRANDED_AS':
               showEdge = edgeFilters.showBrandedAs
               break
-            case 'SOLD_IN':
+            case 'SOLD_IN': // Product -> Country relationship (market presence)
               showEdge = edgeFilters.showSoldIn
               break
-            case 'PART_OF':
+            case 'OPERATES_IN': // Alternative naming for Product -> Country
+              showEdge = edgeFilters.showSoldIn
+              break
+            case 'MANUFACTURED_AT': // Product -> Plant relationship (supply chain)
+              showEdge = edgeFilters.showManufacturedAt
+              break
+            case 'PART_OF': // Country -> Region relationship (geographic hierarchy)
               showEdge = edgeFilters.showPartOf
               break
             default:
@@ -791,10 +869,10 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
             if (!isConnectedToSelected) return null
           }
           
-          // Distance culling with density adjustment
+          // Distance culling with density adjustment - made more permissive
           const distance = (calculateDistance(edge.source.position) + calculateDistance(edge.target.position)) / 2
-          const maxDistance = edgeFilters.edgeDensity === 'high' ? 800 : 
-                             edgeFilters.edgeDensity === 'medium' ? 600 : 400
+          const maxDistance = edgeFilters.edgeDensity === 'high' ? 2000 : 
+                             edgeFilters.edgeDensity === 'medium' ? 1500 : 1000
           
           return (
             <GraphEdge
@@ -806,21 +884,43 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
           )
         })}
         
-        {/* Render Group Labels */}
+        {/* Render Dynamic Group Labels - Only show when node type is visible */}
         {processedData.layoutConfig && processedData.nodesByType && 
           Object.entries(processedData.layoutConfig).map(([nodeType, config]) => {
             const nodeCount = processedData.nodesByType[nodeType]?.length || 0
             if (nodeCount === 0 || !config || !config.center) return null
             
+            // Check if this node type should be visible based on filters
+            const shouldShowLabel = (() => {
+              switch (nodeType) {
+                case 'Product': return filters.showProducts
+                case 'Plant': 
+                case 'ManufacturingPlant': return filters.showPlants
+                case 'StorageLocation': return filters.showStorage
+                case 'Category': return filters.showRevenue || filters.showGroups
+                case 'Brand': return filters.showProfit || filters.showGroups
+                case 'Country':
+                case 'Region': return filters.showGroups
+                case 'Metadata': return filters.showGroups
+                default: return filters.showGroups
+              }
+            })()
+            
+            if (!shouldShowLabel) return null // Hide label if node type is filtered out
+            
             try {
               const labelDistance = calculateDistance(config.center)
+              
+              // Count visible nodes of this type (not just total nodes)
+              const visibleNodeCount = filteredNodes.filter(node => node.type === nodeType).length
+              if (visibleNodeCount === 0) return null // Hide if no visible nodes
               
               return (
                 <GroupLabel
                   key={`label-${nodeType}`}
                   config={config}
                   nodeType={nodeType}
-                  nodeCount={nodeCount}
+                  nodeCount={visibleNodeCount} // Use visible count, not total count
                   distance={labelDistance}
                   cameraPosition={cameraPosition}
                 />
@@ -897,6 +997,7 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
                     className="w-3 h-3 text-green-500 bg-gray-900 border-green-500/30 rounded focus:ring-green-500"
                   />
                   <span className="text-white text-xs">Product → Category</span>
+                  <span className="text-gray-400 text-xs ml-2">Portfolio</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
@@ -906,6 +1007,7 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
                     className="w-3 h-3 text-orange-500 bg-gray-900 border-orange-500/30 rounded focus:ring-orange-500"
                   />
                   <span className="text-white text-xs">Product → Brand</span>
+                  <span className="text-gray-400 text-xs ml-2">Strategy</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
@@ -914,8 +1016,18 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
                     onChange={(e) => setEdgeFilters(prev => ({ ...prev, showSoldIn: e.target.checked }))}
                     className="w-3 h-3 text-blue-500 bg-gray-900 border-blue-500/30 rounded focus:ring-blue-500"
                   />
-                  <span className="text-white text-xs">Product → Country</span>
-                  <span className="text-red-400 text-xs">(Heavy)</span>
+                  <span className="text-white text-xs">Product → Market</span>
+                  <span className="text-yellow-400 text-xs ml-2">Optimized</span>
+                </label>
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={edgeFilters.showManufacturedAt}
+                    onChange={(e) => setEdgeFilters(prev => ({ ...prev, showManufacturedAt: e.target.checked }))}
+                    className="w-3 h-3 text-purple-500 bg-gray-900 border-purple-500/30 rounded focus:ring-purple-500"
+                  />
+                  <span className="text-white text-xs">Product → Plant</span>
+                  <span className="text-gray-400 text-xs ml-2">Supply Chain</span>
                 </label>
                 <label className="flex items-center space-x-3 cursor-pointer">
                   <input
@@ -925,6 +1037,7 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
                     className="w-3 h-3 text-cyan-500 bg-gray-900 border-cyan-500/30 rounded focus:ring-cyan-500"
                   />
                   <span className="text-white text-xs">Country → Region</span>
+                  <span className="text-gray-400 text-xs ml-2">Geographic</span>
                 </label>
               </div>
               
