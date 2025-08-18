@@ -18,7 +18,8 @@ import {
   Layers,
   Gamepad2,
   Cpu,
-  Zap
+  Zap,
+  X
 } from 'lucide-react'
 import GamingGraphVisualizer from '../components/GamingGraphVisualizer'
 import Layout from '../components/Layout'
@@ -409,290 +410,115 @@ const GraphVisualizer = () => {
         </div>
       </div>
 
-      {/* Graph Metadata - Prominently displayed */}
-      <div className="px-6 py-4">
-        <GraphMetadata />
-      </div>
-
-      <div className="flex h-full">
-        {/* Controls Panel - Made narrower for larger visualization */}
-        <div className="w-60 bg-surface border-r border-white border-opacity-10 p-4 space-y-6">
-          {/* Search */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Search Nodes</label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-muted" />
-              <input
-                type="text"
-                placeholder="Search products, plants, storage..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-surface-2 border border-white border-opacity-10 rounded-lg text-white placeholder-dark-muted focus:outline-none focus:ring-2 focus:ring-brand-500"
-              />
-            </div>
-          </div>
-
-          {/* View Mode */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Visualization Engine</label>
-            <div className="space-y-2">
-              {/* Gaming Mode Toggle */}
-              <button
-                onClick={() => {
-                  setUseGamingMode(true)
-                  setViewMode('Gaming')
-                }}
-                className={`w-full px-3 py-3 text-sm rounded-lg transition-colors flex items-center space-x-2 ${
-                  useGamingMode
-                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white border border-purple-500'
-                    : 'bg-surface-2 text-dark-muted hover:text-white border border-gray-600'
-                }`}
-              >
-                <Gamepad2 className="w-4 h-4" />
-                <span className="font-medium">Gaming Engine</span>
-                {useGamingMode && <Zap className="w-4 h-4 text-yellow-400" />}
-              </button>
-              
-              {/* Legacy Modes */}
-              <div className="grid grid-cols-3 gap-1">
-                {['3D', '2D', 'Force'].map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => {
-                      setUseGamingMode(false)
-                      setViewMode(mode)
-                    }}
-                    className={`px-2 py-1 text-xs rounded transition-colors ${
-                      !useGamingMode && viewMode === mode
-                        ? 'bg-brand-500 text-white'
-                        : 'bg-surface-2 text-dark-muted hover:text-white'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-              
-              {!useGamingMode && (
-                <div className="text-xs text-yellow-500 flex items-center space-x-1">
-                  <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
-                  <span>Legacy Mode</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 3D Controls */}
-          {viewMode === '3D' && (
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">3D Controls</label>
-              <div className="space-y-2">
-                <button
-                  onClick={resetCamera}
-                  className="w-full px-3 py-2 text-sm bg-surface-2 hover:bg-surface-3 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  <span>Reset Camera</span>
-                </button>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={zoomIn}
-                    className="px-3 py-2 text-sm bg-surface-2 hover:bg-surface-3 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
-                  >
-                    <ZoomIn className="w-4 h-4" />
-                    <span>Zoom In</span>
-                  </button>
-                  <button
-                    onClick={zoomOut}
-                    className="px-3 py-2 text-sm bg-surface-2 hover:bg-surface-3 text-white rounded-lg transition-colors flex items-center justify-center space-x-2"
-                  >
-                    <ZoomOut className="w-4 h-4" />
-                    <span>Zoom Out</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Filters */}
-          <div>
-            <label className="block text-sm font-medium text-white mb-2">Filters</label>
-            <div className="space-y-2">
+      {/* Compact Controls Header - Replacing GraphMetadata */}
+      <div className="bg-surface border-b border-white border-opacity-10 px-6 py-3">
+        <div className="grid grid-cols-12 gap-4 items-center">
+          
+          {/* Node Filters - Column 1-3 */}
+          <div className="col-span-3">
+            <label className="text-xs font-medium text-white mb-1 block">Node Filters</label>
+            <div className="flex flex-wrap gap-1">
               {Object.entries(filters).map(([key, value]) => (
-                <label key={key} className="flex items-center space-x-3 cursor-pointer">
+                <label key={key} className="flex items-center space-x-1 text-xs cursor-pointer">
                   <input
                     type="checkbox"
                     checked={value}
                     onChange={() => toggleFilter(key)}
-                    className="w-4 h-4 text-brand-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-brand-500"
+                    className="w-3 h-3 text-brand-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-brand-500"
                   />
-                  <span className="text-sm text-white capitalize">
+                  <span className="text-white">
                     {key.replace(/([A-Z])/g, ' $1').trim()}
                   </span>
-                  {value ? <Eye className="w-4 h-4 text-green-500" /> : <EyeOff className="w-4 h-4 text-dark-muted" />}
                 </label>
               ))}
             </div>
           </div>
 
-          {/* Edge/Relationship Filters */}
+          {/* Relationships - Column 4-8 */}
           {useGamingMode && (
-            <div className="border-t border-white border-opacity-10 pt-4">
-              <label className="block text-sm font-medium text-white mb-2">Relationships</label>
-              <div className="space-y-2">
-                <label className="flex items-center space-x-3 cursor-pointer">
+            <div className="col-span-5">
+              <label className="text-xs font-medium text-white mb-1 block">Relationships</label>
+              <div className="flex flex-wrap gap-2">
+                <label className="flex items-center space-x-1 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={edgeFilters.showBelongsTo}
-                    onChange={(e) => {
-                      setEdgeFilters(prev => ({ ...prev, showBelongsTo: e.target.checked }))
-                    }}
-                    className="w-4 h-4 text-green-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-green-500"
+                    onChange={(e) => setEdgeFilters(prev => ({ ...prev, showBelongsTo: e.target.checked }))}
+                    className="w-3 h-3 text-green-500 bg-surface-2 border-white border-opacity-10 rounded"
                   />
-                  <span className="text-xs text-white">Product → Category</span>
+                  <span className="text-xs text-white">Product→Category</span>
                   <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-xs text-gray-400">Portfolio Analysis</span>
                 </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex items-center space-x-1 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={edgeFilters.showBrandedAs}
-                    onChange={(e) => {
-                      setEdgeFilters(prev => ({ ...prev, showBrandedAs: e.target.checked }))
-                    }}
-                    className="w-4 h-4 text-orange-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-orange-500"
+                    onChange={(e) => setEdgeFilters(prev => ({ ...prev, showBrandedAs: e.target.checked }))}
+                    className="w-3 h-3 text-orange-500 bg-surface-2 border-white border-opacity-10 rounded"
                   />
-                  <span className="text-xs text-white">Product → Brand</span>
+                  <span className="text-xs text-white">Product→Brand</span>
                   <div className="w-2 h-2 bg-orange-500 rounded-full" />
-                  <span className="text-xs text-gray-400">Brand Strategy</span>
                 </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex items-center space-x-1 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={edgeFilters.showSoldIn}
-                    onChange={(e) => {
-                      setEdgeFilters(prev => ({ ...prev, showSoldIn: e.target.checked }))
-                    }}
-                    className="w-4 h-4 text-blue-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-blue-500"
+                    onChange={(e) => setEdgeFilters(prev => ({ ...prev, showSoldIn: e.target.checked }))}
+                    className="w-3 h-3 text-blue-500 bg-surface-2 border-white border-opacity-10 rounded"
                   />
-                  <span className="text-xs text-white">Product → Market</span>
+                  <span className="text-xs text-white">Product→Market</span>
                   <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  <span className="text-xs text-gray-400">Market Presence</span>
                 </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex items-center space-x-1 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={edgeFilters.showPartOf}
-                    onChange={(e) => {
-                      setEdgeFilters(prev => ({ ...prev, showPartOf: e.target.checked }))
-                    }}
-                    className="w-4 h-4 text-cyan-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-cyan-500"
+                    onChange={(e) => setEdgeFilters(prev => ({ ...prev, showPartOf: e.target.checked }))}
+                    className="w-3 h-3 text-cyan-500 bg-surface-2 border-white border-opacity-10 rounded"
                   />
-                  <span className="text-xs text-white">Country → Region</span>
+                  <span className="text-xs text-white">Country→Region</span>
                   <div className="w-2 h-2 bg-cyan-500 rounded-full" />
-                  <span className="text-xs text-gray-400">Geographic Hierarchy</span>
                 </label>
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="flex items-center space-x-1 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={edgeFilters.showManufacturedAt}
-                    onChange={(e) => {
-                      setEdgeFilters(prev => ({ ...prev, showManufacturedAt: e.target.checked }))
-                    }}
-                    className="w-4 h-4 text-purple-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-purple-500"
+                    onChange={(e) => setEdgeFilters(prev => ({ ...prev, showManufacturedAt: e.target.checked }))}
+                    className="w-3 h-3 text-purple-500 bg-surface-2 border-white border-opacity-10 rounded"
                   />
-                  <span className="text-xs text-white">Product → Plant</span>
-                  <div className="w-2 h-2 bg-purple-500 rounded-full" />
-                  <span className="text-xs text-gray-400">Supply Chain</span>
-                </label>
-              </div>
-              
-              {/* Focus Mode Toggle */}
-              <div className="mt-3">
-                <label className="flex items-center space-x-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={edgeFilters.focusMode === 'selected'}
-                    onChange={(e) => {
-                      setEdgeFilters(prev => ({ ...prev, focusMode: e.target.checked ? 'selected' : 'none' }))
-                    }}
-                    className="w-4 h-4 text-purple-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-purple-500"
-                  />
-                  <span className="text-xs text-white">Focus on Selected Node</span>
+                  <span className="text-xs text-white">Product→Plant</span>
                   <div className="w-2 h-2 bg-purple-500 rounded-full" />
                 </label>
               </div>
             </div>
           )}
 
-          {/* Selected Node Details */}
-          {selectedNode && (
-            <div className="border-t border-white border-opacity-10 pt-4">
-              <h3 className="text-sm font-medium text-white mb-2">Selected Node</h3>
-              <div className="bg-surface-2 rounded-lg p-3 space-y-2">
-                <div>
-                  <span className="text-xs text-dark-muted">Type:</span>
-                  <p className="text-sm text-white font-medium">{selectedNode.type}</p>
-                </div>
-                <div>
-                  <span className="text-xs text-dark-muted">Name:</span>
-                  <p className="text-sm text-white">{selectedNode.name}</p>
-                </div>
-                {selectedNode.revenue && (
-                  <div>
-                    <span className="text-xs text-dark-muted">Revenue:</span>
-                    <p className="text-sm text-green-500 font-medium">${selectedNode.revenue.toLocaleString()}</p>
-                  </div>
-                )}
-                {selectedNode.profit && (
-                  <div>
-                    <span className="text-xs text-dark-muted">Profit:</span>
-                    <p className="text-sm text-blue-500 font-medium">${selectedNode.profit.toLocaleString()}</p>
-                  </div>
-                )}
-                <button
-                  onClick={clearSelection}
-                  className="w-full mt-2 px-3 py-1 text-xs bg-surface-3 text-white rounded hover:bg-surface-4 transition-colors"
-                >
-                  Clear Selection
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Graph Stats */}
+          {/* Graph Statistics - Column 9-12 */}
           {graphData && (
-            <div className="border-t border-white border-opacity-10 pt-4">
-              <h3 className="text-sm font-medium text-white mb-2">Graph Statistics</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-dark-muted">Total Nodes:</span>
-                  <span className="text-white">{graphData.stats?.totalNodes || 0}</span>
+            <div className="col-span-4">
+              <label className="text-xs font-medium text-white mb-1 block">Graph Statistics</label>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="text-center">
+                  <div className="text-white font-medium">{graphData.stats?.totalNodes || 0}</div>
+                  <div className="text-dark-muted">Nodes</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-dark-muted">Total Edges:</span>
-                  <span className="text-white">{graphData.stats?.totalEdges || 0}</span>
+                <div className="text-center">
+                  <div className="text-white font-medium">{graphData.stats?.totalEdges || 0}</div>
+                  <div className="text-dark-muted">Edges</div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-dark-muted">Products:</span>
-                  <span className="text-white">{graphData.stats?.products || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-dark-muted">Plants:</span>
-                  <span className="text-white">{graphData.stats?.plants || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-dark-muted">Storage:</span>
-                  <span className="text-white">{graphData.stats?.storage || 0}</span>
+                <div className="text-center">
+                  <div className="text-white font-medium">{graphData.stats?.products || 0}</div>
+                  <div className="text-dark-muted">Products</div>
                 </div>
               </div>
             </div>
           )}
         </div>
+      </div>
 
-        {/* Graph Visualization Area */}
-        <div className="flex-1 relative min-h-screen">
-          <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
+      {/* Full-width Graph Visualization Area */}
+      <div className="flex-1 relative min-h-screen">
+        <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
             {useGamingMode ? (
               // Gaming Mode Visualization
               <Suspense fallback={
@@ -711,6 +537,43 @@ const GraphVisualizer = () => {
                   selectedNode={selectedNode}
                   nodeFilters={filters}
                 />
+                
+                {/* Selected Node Details - Floating Panel */}
+                {selectedNode && (
+                  <div className="absolute top-4 right-4 z-40">
+                    <div className="bg-surface-2 border border-white border-opacity-10 rounded-lg p-4 space-y-2 min-w-64">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-sm font-medium text-white">Selected Node</h3>
+                        <button
+                          onClick={clearSelection}
+                          className="text-gray-400 hover:text-white transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div>
+                        <span className="text-xs text-dark-muted">Type:</span>
+                        <p className="text-sm text-white font-medium">{selectedNode.type}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-dark-muted">Name:</span>
+                        <p className="text-sm text-white">{selectedNode.name}</p>
+                      </div>
+                      {selectedNode.revenue && (
+                        <div>
+                          <span className="text-xs text-dark-muted">Revenue:</span>
+                          <p className="text-sm text-green-500 font-medium">${selectedNode.revenue.toLocaleString()}</p>
+                        </div>
+                      )}
+                      {selectedNode.profit && (
+                        <div>
+                          <span className="text-xs text-dark-muted">Profit:</span>
+                          <p className="text-sm text-blue-500 font-medium">${selectedNode.profit.toLocaleString()}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
                 
                 {/* Guided Tutorial Overlay */}
                 {showTutorial && (
