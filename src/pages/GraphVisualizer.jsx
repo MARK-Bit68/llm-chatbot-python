@@ -385,56 +385,27 @@ const GraphVisualizer = () => {
 
   return (
     <div className="flex-1 overflow-hidden" data-testid="graph-visualizer">
-      {/* Header */}
-      <div className="bg-surface border-b border-white border-opacity-10 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-3">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                useGamingMode 
-                  ? 'bg-gradient-to-r from-purple-500 to-blue-600' 
-                  : 'bg-gradient-to-r from-brand-500 to-brand-600'
-              }`}>
-                {useGamingMode ? (
-                  <Gamepad2 className="w-6 h-6 text-white" />
-                ) : (
-                  <Network className="w-6 h-6 text-white" />
-                )}
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">
-                  {useGamingMode ? 'Gaming Graph Explorer' : 'Graph Visualizer'}
-                </h1>
-                <p className="text-sm text-dark-muted">
-                  {useGamingMode 
-                    ? 'Immersive 3D Graph Navigation' 
-                    : 'Interactive 3D Supply Chain Network'
-                  }
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={toggleFullscreen}
-              className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
-              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="w-5 h-5" />
-              ) : (
-                <Maximize2 className="w-5 h-5" />
-              )}
-            </button>
-            <button
-              onClick={fetchGraphData}
-              className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
-              title="Refresh Data"
-            >
-              <RefreshCw className="w-5 h-5" />
-            </button>
-          </div>
+      {/* Collapsed Mini Header - Essential controls only */}
+      <div className="bg-surface border-b border-white border-opacity-10 px-4 py-2">
+        <div className="flex items-center justify-end space-x-2">
+          <button
+            onClick={toggleFullscreen}
+            className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? (
+              <Minimize2 className="w-4 h-4 text-gray-400 hover:text-white" />
+            ) : (
+              <Maximize2 className="w-4 h-4 text-gray-400 hover:text-white" />
+            )}
+          </button>
+          <button
+            onClick={fetchGraphData}
+            className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
+            title="Refresh Data"
+          >
+            <RefreshCw className="w-4 h-4 text-gray-400 hover:text-white" />
+          </button>
         </div>
       </div>
 
