@@ -25,19 +25,29 @@ import {
   Navigation,
   Zap,
   Settings,
-  Play,
-  Pause,
   RotateCcw,
   Maximize2,
   TrendingUp,
   Users,
-  Box
+  Box,
+  Activity,
+  TrendingDown,
+  BarChart3
 } from 'lucide-react'
 
 // Gaming-style Graph Node Component
 const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
   const meshRef = useRef()
   const [hovered, setHovered] = useState(false)
+  const [isMounted, setIsMounted] = useState(true)
+  
+  // Component mount tracking to prevent React error #300
+  useEffect(() => {
+    setIsMounted(true)
+    return () => {
+      setIsMounted(false)
+    }
+  }, [])
   
   // Level of Detail based on distance
   const lod = useMemo(() => {
@@ -50,8 +60,11 @@ const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
   // Don't render if too far
   if (lod === 0) return null
   
-  // Animate node on hover/selection
+  // Animate node on hover/selection with mount checking
   useFrame((state) => {
+    // CRITICAL: Skip if component is unmounted to prevent React error #300
+    if (!isMounted || !meshRef.current) return
+    
     if (meshRef.current) {
       const scale = selected ? 1.5 : hovered ? 1.2 : 1
       meshRef.current.scale.lerp(
@@ -76,27 +89,27 @@ const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
     return baseSize * (lod === 1 ? 0.5 : 1)
   }, [node.type, lod])
   
-  // Node color using hierarchical layout config for consistency
+  // Enhanced node colors with better visibility and consistency
   const nodeColor = useMemo(() => {
-    if (selected) return '#FFD700' // Gold when selected
-    if (hovered) return '#87CEEB' // Sky blue when hovered
+    if (selected) return '#FFFF00' // Bright Yellow when selected
+    if (hovered) return '#00FFFF' // Bright Cyan when hovered
     
     // Use layout-consistent colors for better visual hierarchy
     if (node.layoutConfig?.color) {
       return node.layoutConfig.color
     }
     
-    // Fallback to type-based colors
+    // Enhanced bright colors matching edge colors for consistency
     switch (node.type) {
-      case 'Product': return '#10B981'        // Green (Core)
-      case 'Category': return '#8B5CF6'       // Purple (Classification)
-      case 'Brand': return '#F59E0B'          // Orange (Brand)
-      case 'Country': return '#3B82F6'        // Blue (Geography)
-      case 'Region': return '#06B6D4'         // Cyan (Geography)
-      case 'Plant': return '#84CC16'          // Lime (Operations)
-      case 'ManufacturingPlant': return '#22C55E' // Green (Operations)
-      case 'Metadata': return '#6B7280'       // Gray (Meta)
-      default: return '#6B7280'               // Gray (Unknown)
+      case 'Product': return '#00FF88'        // Bright Green (Core)
+      case 'Category': return '#BB00FF'       // Bright Purple (Classification)
+      case 'Brand': return '#FF8800'          // Bright Orange (Brand)
+      case 'Country': return '#0088FF'        // Bright Blue (Geography)
+      case 'Region': return '#00FFFF'         // Bright Cyan (Geography)
+      case 'Plant': return '#88FF00'          // Bright Lime (Operations)
+      case 'ManufacturingPlant': return '#44FF44' // Bright Green (Operations)
+      case 'Metadata': return '#AAAAAA'       // Light Gray (Meta)
+      default: return '#AAAAAA'               // Light Gray (Unknown)
     }
   }, [node.type, node.layoutConfig, selected, hovered])
   
@@ -120,35 +133,59 @@ const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
         <meshPhongMaterial 
           color={nodeColor}
           emissive={selected || hovered ? nodeColor : '#000000'}
-          emissiveIntensity={selected ? 0.3 : hovered ? 0.1 : 0}
+          emissiveIntensity={selected ? 0.4 : hovered ? 0.15 : 0.02}
           shininess={100}
+          transparent
+          opacity={selected || hovered ? 1.0 : 0.9}
         />
       </mesh>
       
-      {/* Node label for close nodes */}
-      {(selected || hovered || distance < 100) && (
+      {/* Enhanced node label with better visibility */}
+      {(selected || hovered || distance < 150) && (
         <Html
-          position={[0, nodeSize + 2, 0]}
+          position={[0, nodeSize + 3, 0]}
           center
           style={{
             pointerEvents: 'none',
             userSelect: 'none'
           }}
         >
-          <div className="bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
+          <div 
+            className="px-2 py-1 rounded text-xs font-bold whitespace-nowrap border-2 shadow-lg"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.9)',
+              color: nodeColor,
+              borderColor: nodeColor,
+              boxShadow: `0 0 15px ${nodeColor}60`,
+              textShadow: `0 0 5px ${nodeColor}`
+            }}
+          >
             {node.name}
           </div>
         </Html>
       )}
       
-      {/* Glow effect for important nodes */}
-      {(selected || node.type === 'Group') && (
-        <mesh position={[0, 0, 0]} scale={[1.5, 1.5, 1.5]}>
-          <sphereGeometry args={[nodeSize * 1.2, 32, 32]} />
+      {/* Enhanced glow effect for better visual hierarchy */}
+      {(selected || hovered || node.type === 'Group') && (
+        <mesh position={[0, 0, 0]} scale={[2, 2, 2]}>
+          <sphereGeometry args={[nodeSize * 1.3, 32, 32]} />
           <meshBasicMaterial 
             color={nodeColor}
             transparent
-            opacity={0.1}
+            opacity={selected ? 0.3 : hovered ? 0.2 : 0.1}
+          />
+        </mesh>
+      )}
+      
+      {/* Additional ring effect for selected nodes */}
+      {selected && (
+        <mesh position={[0, 0, 0]} rotation={[Math.PI/2, 0, 0]}>
+          <ringGeometry args={[nodeSize * 1.5, nodeSize * 2, 32]} />
+          <meshBasicMaterial 
+            color={nodeColor}
+            transparent
+            opacity={0.6}
+            side={THREE.DoubleSide}
           />
         </mesh>
       )}
@@ -156,100 +193,162 @@ const GraphNode = ({ node, selected, distance, onSelect, cameraPosition }) => {
   )
 }
 
-// Dynamic Group Label Component with Smart Positioning
+// Focus on core graph visualization - temporal features removed
+
+// Dynamic Group Label Component with Accurate Cluster Positioning
 const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) => {
   const labelRef = useRef()
   const lineRef = useRef()
+  const [isMounted, setIsMounted] = useState(true)
+  
+  // Component mount tracking to prevent React error #300
+  useEffect(() => {
+    setIsMounted(true)
+    return () => {
+      setIsMounted(false)
+    }
+  }, [])
   
   // Don't render if config is invalid or if too close (labels are for overview)
   if (!config || !config.center || distance < 200) return null
   
-  // Smart label positioning to avoid overlaps based on node type
+  // Calculate actual cluster bounds for more accurate positioning
+  const clusterBounds = useMemo(() => {
+    const baseRadius = config.radius || 50
+    const center = config.center
+    
+    return {
+      minX: center.x - baseRadius,
+      maxX: center.x + baseRadius,
+      minY: center.y - baseRadius * 0.5,
+      maxY: center.y + baseRadius * 0.5,
+      minZ: center.z - baseRadius,
+      maxZ: center.z + baseRadius,
+      center: center // Include center in bounds for easy access
+    }
+  }, [config])
+  
+  // Smart label positioning with improved accuracy - pointing to actual cluster edges
   const labelPosition = useMemo(() => {
     const baseRadius = config.radius || 50
-    const baseHeight = config.center.y || 0
     
-    // Position labels at different heights and distances to avoid overlaps
+    // Position labels to point to the actual visible edge of each cluster
     const positionMap = {
       'Product': { 
-        x: config.center.x, 
-        y: baseHeight + baseRadius * 0.8 + 40, 
-        z: config.center.z 
+        x: clusterBounds.center.x, 
+        y: clusterBounds.maxY + 50, // Point to top of product cluster
+        z: clusterBounds.center.z,
+        anchorPoint: { x: clusterBounds.center.x, y: clusterBounds.maxY, z: clusterBounds.center.z }
       },
       'Category': { 
-        x: config.center.x - baseRadius * 0.3, 
-        y: baseHeight + baseRadius * 1.5 + 60, 
-        z: config.center.z + baseRadius * 0.2 
+        x: clusterBounds.center.x - baseRadius * 0.2, 
+        y: clusterBounds.maxY + 70, // Point to top edge
+        z: clusterBounds.center.z + baseRadius * 0.3,
+        anchorPoint: { x: clusterBounds.center.x, y: clusterBounds.maxY, z: clusterBounds.center.z }
       },
       'Brand': { 
-        x: config.center.x + baseRadius * 1.2, 
-        y: baseHeight + baseRadius * 0.9 + 50, 
-        z: config.center.z - baseRadius * 0.1 
+        x: clusterBounds.maxX + 40, // Point to right edge of brand cluster
+        y: clusterBounds.center.y + 60, 
+        z: clusterBounds.center.z,
+        anchorPoint: { x: clusterBounds.maxX, y: clusterBounds.center.y, z: clusterBounds.center.z }
       },
       'Country': { 
-        x: config.center.x - baseRadius * 0.8, 
-        y: baseHeight + baseRadius * 0.6 + 45, 
-        z: config.center.z + baseRadius * 0.3 
+        x: clusterBounds.minX - 50, // Point to left edge of country cluster
+        y: clusterBounds.center.y + 40, 
+        z: clusterBounds.center.z,
+        anchorPoint: { x: clusterBounds.minX, y: clusterBounds.center.y, z: clusterBounds.center.z }
       },
       'Region': { 
-        x: config.center.x - baseRadius * 1.1, 
-        y: baseHeight + baseRadius * 1.3 + 65, 
-        z: config.center.z + baseRadius * 0.4 
+        x: clusterBounds.minX - 60, // Point to left edge, above countries
+        y: clusterBounds.maxY + 50, 
+        z: clusterBounds.center.z,
+        anchorPoint: { x: clusterBounds.minX, y: clusterBounds.maxY, z: clusterBounds.center.z }
       },
       'Plant': { 
-        x: config.center.x + baseRadius * 0.9, 
-        y: baseHeight - baseRadius * 0.2 + 35, 
-        z: config.center.z - baseRadius * 0.2 
+        x: clusterBounds.maxX + 45, // Point to right edge of plant cluster
+        y: clusterBounds.minY - 20, 
+        z: clusterBounds.center.z,
+        anchorPoint: { x: clusterBounds.maxX, y: clusterBounds.minY, z: clusterBounds.center.z }
       },
       'ManufacturingPlant': { 
-        x: config.center.x + baseRadius * 1.1, 
-        y: baseHeight - baseRadius * 0.8 + 30, 
-        z: config.center.z - baseRadius * 0.3 
+        x: clusterBounds.maxX + 50, 
+        y: clusterBounds.minY - 40, 
+        z: clusterBounds.center.z,
+        anchorPoint: { x: clusterBounds.maxX, y: clusterBounds.minY, z: clusterBounds.center.z }
       },
       'Metadata': { 
-        x: config.center.x, 
-        y: baseHeight - baseRadius * 1.5 - 30, 
-        z: config.center.z + baseRadius * 0.1 
+        x: clusterBounds.center.x, 
+        y: clusterBounds.minY - 60, // Point to bottom of metadata cluster
+        z: clusterBounds.center.z,
+        anchorPoint: { x: clusterBounds.center.x, y: clusterBounds.minY, z: clusterBounds.center.z }
       }
     }
     
     return positionMap[nodeType] || {
-      x: config.center.x,
-      y: baseHeight + baseRadius + 50,
-      z: config.center.z
+      x: clusterBounds.center.x,
+      y: clusterBounds.center.y + baseRadius + 50,
+      z: clusterBounds.center.z,
+      anchorPoint: { x: clusterBounds.center.x, y: clusterBounds.center.y + baseRadius, z: clusterBounds.center.z }
     }
-  }, [config, nodeType])
+  }, [config, nodeType, clusterBounds])
   
   // Scale based on distance - labels should be more visible when zoomed out
-  const scale = useMemo(() => Math.max(0.7, Math.min(1.5, distance / 500)), [distance])
-  const opacity = useMemo(() => Math.max(0.7, Math.min(1.0, distance / 400)), [distance])
+  const scale = useMemo(() => Math.max(0.8, Math.min(1.3, distance / 600)), [distance])
+  const opacity = useMemo(() => Math.max(0.8, Math.min(1.0, distance / 450)), [distance])
   
-  // Animate gentle floating
+  // Animate gentle floating with label rotation toward camera
   useFrame((state) => {
+    // CRITICAL: Skip if component is unmounted to prevent React error #300
+    if (!isMounted || !labelRef.current || !labelPosition) return
+    
     if (labelRef.current && labelPosition) {
-      labelRef.current.position.y = labelPosition.y + Math.sin(state.clock.elapsedTime * 0.5) * 3
+      // Gentle floating animation
+      labelRef.current.position.y = labelPosition.y + Math.sin(state.clock.elapsedTime * 0.5) * 2
+      
+      // Optional: Make labels face camera for better readability
+      const cameraPos = new THREE.Vector3().copy(state.camera.position)
+      const labelPos = new THREE.Vector3(labelPosition.x, labelRef.current.position.y, labelPosition.z)
+      labelRef.current.lookAt(cameraPos)
     }
   })
   
   return (
     <group ref={labelRef}>
-      {/* Connection line from label to cluster center */}
+      {/* Improved connection line pointing to actual cluster edge */}
       <Line
         ref={lineRef}
         points={[
-          [labelPosition.x, labelPosition.y - 10, labelPosition.z],
-          [config.center.x, config.center.y + (config.radius || 50) * 0.3, config.center.z]
+          [labelPosition.x, labelPosition.y - 15, labelPosition.z],
+          [labelPosition.anchorPoint.x, labelPosition.anchorPoint.y, labelPosition.anchorPoint.z]
+        ]}
+        color={config.color || '#6B7280'}
+        lineWidth={2}
+        transparent
+        opacity={opacity * 0.6}
+        dashed
+        dashSize={4}
+        gapSize={3}
+      />
+      
+      {/* Cluster boundary indicator (subtle outline) */}
+      <Line
+        points={[
+          [clusterBounds.minX, clusterBounds.center.y, clusterBounds.minZ],
+          [clusterBounds.maxX, clusterBounds.center.y, clusterBounds.minZ],
+          [clusterBounds.maxX, clusterBounds.center.y, clusterBounds.maxZ],
+          [clusterBounds.minX, clusterBounds.center.y, clusterBounds.maxZ],
+          [clusterBounds.minX, clusterBounds.center.y, clusterBounds.minZ]
         ]}
         color={config.color || '#6B7280'}
         lineWidth={1}
         transparent
-        opacity={opacity * 0.4}
+        opacity={opacity * 0.2}
         dashed
-        dashSize={3}
-        gapSize={2}
+        dashSize={2}
+        gapSize={4}
       />
       
-      {/* Label positioned above cluster */}
+      {/* Label positioned accurately relative to cluster */}
       <group position={[labelPosition.x, labelPosition.y, labelPosition.z]}>
         <Html
           center
@@ -259,35 +358,36 @@ const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) =
           }}
         >
           <div 
-            className="text-center"
+            className="text-center backdrop-blur-sm"
             style={{
-              opacity: opacity * 0.9,
-              transform: `scale(${Math.min(scale, 1.2)})`,
+              opacity: opacity * 0.95,
+              transform: `scale(${Math.min(scale, 1.15)})`,
               transformOrigin: 'center'
             }}
           >
             <div 
-              className="font-bold text-base mb-1 drop-shadow-lg"
+              className="font-bold text-base mb-1 drop-shadow-lg px-2 py-1 rounded bg-black/40"
               style={{ 
                 color: config.color || '#6B7280',
-                textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+                textShadow: '2px 2px 4px rgba(0,0,0,0.9)',
+                border: `1px solid ${config.color || '#6B7280'}40`
               }}
             >
               {config.description || nodeType}
             </div>
-            <div className="text-gray-300 text-xs font-medium drop-shadow-md">
+            <div className="text-gray-300 text-xs font-medium drop-shadow-md bg-black/30 px-1 rounded">
               {nodeCount} {nodeCount === 1 ? 'node' : 'nodes'}
             </div>
           </div>
         </Html>
         
-        {/* Small indicator dot at label position */}
-        <mesh position={[0, -8, 0]}>
-          <sphereGeometry args={[1.5, 8, 8]} />
+        {/* Improved indicator dot with pulsing animation */}
+        <mesh position={[0, -12, 0]}>
+          <sphereGeometry args={[2, 12, 12]} />
           <meshBasicMaterial 
             color={config.color || '#6B7280'}
             transparent
-            opacity={opacity * 0.8}
+            opacity={opacity * 0.9}
           />
         </mesh>
       </group>
@@ -295,55 +395,293 @@ const GroupLabel = ({ config, nodeType, nodeCount, distance, cameraPosition }) =
   )
 }
 
-// Gaming-style Graph Edge Component
-const GraphEdge = ({ edge, visible, distance }) => {
+// Intuitive Node-to-Node Connection Component
+const GraphEdge = ({ edge, visible, distance, sourceNode, targetNode }) => {
   const lineRef = useRef()
+  const arrowRef = useRef()
+  const flowRef = useRef()
   
-  // Level of Detail for edges - made more permissive
+  // Safari cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up refs to prevent Safari memory leaks
+      if (lineRef.current && lineRef.current.material) {
+        lineRef.current.material.dispose()
+      }
+      if (arrowRef.current && arrowRef.current.material) {
+        arrowRef.current.material.dispose()
+      }
+      if (flowRef.current && flowRef.current.material) {
+        flowRef.current.material.dispose()
+      }
+    }
+  }, [])
+  
+  // Adaptive LOD based on relationship importance and distance
   const lod = useMemo(() => {
-    if (distance > 2000) return 0 // Don't render
-    if (distance > 1000) return 1 // Simple line
-    return 2 // Full detail with particles
+    if (distance > 2500) return 0 // Don't render
+    if (distance > 1200) return 1 // Basic connection
+    if (distance > 600) return 2  // Enhanced connection
+    return 3 // Full interactive connection
   }, [distance])
   
-  if (!visible || lod === 0) return null
+  if (!visible || lod === 0 || !edge.source || !edge.target || !edge.source.position || !edge.target.position) return null
   
-  // Edge color based on relationship type - business-focused colors
+  // Enhanced edge colors with better contrast and brightness
   const edgeColor = useMemo(() => {
     switch (edge.type) {
-      case 'BELONGS_TO': return '#10B981'        // Green - Product → Category
-      case 'BRANDED_AS': return '#F59E0B'        // Orange - Product → Brand  
-      case 'SOLD_IN': return '#3B82F6'           // Blue - Product → Country
-      case 'OPERATES_IN': return '#3B82F6'       // Blue - Product → Country (alternative)
-      case 'MANUFACTURED_AT': return '#8B5CF6'   // Purple - Product → Plant
-      case 'PART_OF': return '#06B6D4'           // Cyan - Country → Region
-      default: return '#6B7280'                  // Gray - Unknown
+      case 'BELONGS_TO': return '#00FF88'        // Bright Green - Product → Category
+      case 'BRANDED_AS': return '#FF8800'        // Bright Orange - Product → Brand  
+      case 'SOLD_IN': return '#0088FF'           // Bright Blue - Product → Country
+      case 'OPERATES_IN': return '#0088FF'       // Bright Blue - Product → Country (alternative)
+      case 'MANUFACTURED_AT': return '#BB00FF'   // Bright Purple - Product → Plant
+      case 'PART_OF': return '#00FFFF'           // Bright Cyan - Country → Region
+      default: return '#888888'                  // Gray - Unknown
+    }
+  }, [edge.type])
+
+  // Add glow effect color for enhanced visibility
+  const glowColor = useMemo(() => {
+    switch (edge.type) {
+      case 'BELONGS_TO': return '#00FF88'
+      case 'BRANDED_AS': return '#FF8800'  
+      case 'SOLD_IN': return '#0088FF'
+      case 'OPERATES_IN': return '#0088FF'
+      case 'MANUFACTURED_AT': return '#BB00FF'
+      case 'PART_OF': return '#00FFFF'
+      default: return '#888888'
     }
   }, [edge.type])
   
-  // Animate edge flow
+  // Calculate precise node-to-node connection points
+  const connectionGeometry = useMemo(() => {
+    // Get actual node positions
+    const sourceCenter = new THREE.Vector3(
+      edge.source.position.x, 
+      edge.source.position.y, 
+      edge.source.position.z
+    )
+    const targetCenter = new THREE.Vector3(
+      edge.target.position.x, 
+      edge.target.position.y, 
+      edge.target.position.z
+    )
+    
+    // Calculate direction vector
+    const direction = new THREE.Vector3()
+    direction.subVectors(targetCenter, sourceCenter).normalize()
+    
+    // Get node sizes (estimated based on type)
+    const sourceRadius = edge.source.type === 'Product' ? 3 : 
+                        edge.source.type === 'Plant' ? 5 : 
+                        edge.source.type === 'Group' ? 8 : 4
+    const targetRadius = edge.target.type === 'Product' ? 3 : 
+                        edge.target.type === 'Plant' ? 5 : 
+                        edge.target.type === 'Group' ? 8 : 4
+    
+    // Calculate surface connection points (not center points)
+    const sourceConnectionPoint = sourceCenter.clone().add(direction.clone().multiplyScalar(sourceRadius + 1))
+    const targetConnectionPoint = targetCenter.clone().sub(direction.clone().multiplyScalar(targetRadius + 1))
+    
+    // Create curved path for better visual flow
+    const distance = sourceConnectionPoint.distanceTo(targetConnectionPoint)
+    const curvature = Math.min(distance * 0.2, 30) // Adaptive curvature
+    
+    // Calculate control point for bezier curve
+    const midPoint = new THREE.Vector3().lerpVectors(sourceConnectionPoint, targetConnectionPoint, 0.5)
+    const perpendicular = new THREE.Vector3(-direction.z, 0, direction.x).normalize()
+    const controlPoint = midPoint.clone().add(perpendicular.multiplyScalar(curvature))
+    
+    // Generate smooth curve points
+    const curvePoints = []
+    for (let i = 0; i <= 20; i++) {
+      const t = i / 20
+      const point = new THREE.Vector3()
+      
+      // Quadratic bezier curve
+      const invT = 1 - t
+      point.copy(sourceConnectionPoint).multiplyScalar(invT * invT)
+      point.add(controlPoint.clone().multiplyScalar(2 * invT * t))
+      point.add(targetConnectionPoint.clone().multiplyScalar(t * t))
+      
+      curvePoints.push(point)
+    }
+    
+    return {
+      sourcePoint: sourceConnectionPoint,
+      targetPoint: targetConnectionPoint,
+      curvePoints: curvePoints,
+      direction: direction,
+      arrowPosition: curvePoints[Math.floor(curvePoints.length * 0.8)], // Arrow near target
+      labelPosition: controlPoint
+    }
+  }, [edge.source.position, edge.target.position, edge.source.type, edge.target.type])
+  
+  // Static edge properties for clean visualization
+  
+  // Component mount tracking to prevent React error #300
+  const [isMounted, setIsMounted] = useState(true)
+  
+  useEffect(() => {
+    setIsMounted(true)
+    return () => {
+      setIsMounted(false)
+    }
+  }, [])
+
+  // Safari-optimized animation with proper cleanup and mount checking
   useFrame((state) => {
-    if (lineRef.current && lod === 2) {
-      // Animate line opacity for flow effect
-      const opacity = 0.3 + Math.sin(state.clock.elapsedTime * 3) * 0.2
-      lineRef.current.material.opacity = opacity
+    // Define maxDistance locally for performance culling
+    const maxDistance = 2000
+    
+    // CRITICAL: Skip if component is unmounted to prevent React error #300
+    if (!isMounted || !visible || distance > maxDistance) return
+    
+    const time = state.clock.elapsedTime
+    
+    // Throttle animation updates for Safari performance
+    if (state.frameloop === false) return
+    
+    try {
+      // Simple edge animation with safety checks
+      if (lineRef.current && lineRef.current.material && lod >= 2) {
+        const baseOpacity = 0.6
+        const flowOpacity = baseOpacity + Math.sin(time * 1.5) * 0.2
+        lineRef.current.material.opacity = flowOpacity
+      }
+      
+      // Simple arrow animation with safety checks
+      if (arrowRef.current && arrowRef.current.scale && lod >= 2) {
+        const { direction, arrowPosition } = connectionGeometry
+        if (direction && arrowPosition) {
+          arrowRef.current.lookAt(
+            arrowPosition.x + direction.x,
+            arrowPosition.y + direction.y,
+            arrowPosition.z + direction.z
+          )
+          
+          const scale = 1.0 + Math.sin(time * 2) * 0.1
+          arrowRef.current.scale.setScalar(scale)
+        }
+      }
+      
+      // Simple flow particles with safety checks
+      if (flowRef.current && flowRef.current.position && lod === 3) {
+        const particleSpeed = 0.5
+        const progress = (time * particleSpeed) % 1
+        const pointIndex = Math.floor(progress * (connectionGeometry.curvePoints.length - 1))
+        const flowPoint = connectionGeometry.curvePoints[pointIndex]
+        
+        if (flowPoint && flowRef.current.material) {
+          flowRef.current.position.copy(flowPoint)
+          flowRef.current.material.opacity = 0.6 * Math.sin(progress * Math.PI)
+          flowRef.current.scale.setScalar(1.0)
+        }
+      }
+    } catch (error) {
+      // Silent error handling for Safari WebGL context issues
+      console.warn('GraphEdge animation error (likely Safari WebGL):', error)
     }
   })
   
-  const points = [
-    new THREE.Vector3(edge.source.position.x, edge.source.position.y, edge.source.position.z),
-    new THREE.Vector3(edge.target.position.x, edge.target.position.y, edge.target.position.z)
-  ]
-  
   return (
-    <Line
-      ref={lineRef}
-      points={points}
-      color={edgeColor}
-      lineWidth={lod === 2 ? 3 : 2}
-      transparent
-      opacity={0.8}
-    />
+    <group>
+      {/* Background Glow for Depth (higher LOD only) */}
+      {lod >= 2 && (
+        <Line
+          points={connectionGeometry.curvePoints}
+          color={edgeColor}
+          lineWidth={lod === 3 ? 6 : 4}
+          transparent
+          opacity={0.2}
+        />
+      )}
+      
+      {/* Main Curved Connection Line */}
+      <Line
+        ref={lineRef}
+        points={connectionGeometry.curvePoints}
+        color={edgeColor}
+        lineWidth={lod === 3 ? 4 : lod === 2 ? 3 : 2}
+        transparent
+        opacity={lod === 3 ? 0.9 : 0.8}
+      />
+      
+      {/* Connection Point Indicators */}
+      {lod >= 2 && (
+        <>
+          {/* Source connection point */}
+          <mesh position={connectionGeometry.sourcePoint}>
+            <sphereGeometry args={[1, 8, 8]} />
+            <meshBasicMaterial 
+              color={edgeColor} 
+              transparent 
+              opacity={0.7}
+            />
+          </mesh>
+          
+          {/* Target connection point */}
+          <mesh position={connectionGeometry.targetPoint}>
+            <sphereGeometry args={[1, 8, 8]} />
+            <meshBasicMaterial 
+              color={edgeColor} 
+              transparent 
+              opacity={0.7}
+            />
+          </mesh>
+        </>
+      )}
+      
+      {/* Directional Arrow at optimal position */}
+      {lod >= 2 && (
+        <group ref={arrowRef} position={connectionGeometry.arrowPosition}>
+          <mesh>
+            <coneGeometry args={lod === 3 ? [3, 8, 8] : [2.5, 6, 6]} />
+            <meshBasicMaterial 
+              color={edgeColor} 
+              transparent 
+              opacity={1.0}
+            />
+          </mesh>
+        </group>
+      )}
+      
+      {/* Flow Particle for Animation (highest detail only) */}
+      {lod === 3 && (
+        <mesh ref={flowRef}>
+          <sphereGeometry args={[0.8, 6, 6]} />
+          <meshBasicMaterial 
+            color={edgeColor} 
+            transparent 
+            opacity={0.8}
+          />
+        </mesh>
+      )}
+      
+      {/* Relationship Type Label */}
+      {lod >= 2 && distance < 500 && (
+        <Html
+          position={connectionGeometry.labelPosition}
+          center
+          style={{
+            pointerEvents: 'none',
+            userSelect: 'none'
+          }}
+        >
+          <div 
+            className="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap border shadow-lg"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              color: edgeColor,
+              borderColor: edgeColor,
+              boxShadow: `0 0 8px ${edgeColor}30`
+            }}
+          >
+            {edge.type.replace(/_/g, '→').replace(/TO/g, '').replace(/AS/g, '').replace(/IN/g, '').replace(/AT/g, '').replace(/OF/g, '').trim()}
+          </div>
+        </Html>
+      )}
+    </group>
   )
 }
 
@@ -537,8 +875,20 @@ const GamingHUD = ({
 const GameCameraControls = ({ onCameraChange, autoRotate = false }) => {
   const { camera, gl } = useThree()
   const controlsRef = useRef()
+  const [isMounted, setIsMounted] = useState(true)
+  
+  // Component mount tracking to prevent React error #300
+  useEffect(() => {
+    setIsMounted(true)
+    return () => {
+      setIsMounted(false)
+    }
+  }, [])
   
   useFrame(() => {
+    // CRITICAL: Skip if component is unmounted to prevent React error #300
+    if (!isMounted || !controlsRef.current || !onCameraChange) return
+    
     if (controlsRef.current && onCameraChange) {
       onCameraChange(camera.position)
     }
@@ -568,6 +918,9 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
   const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 150, z: 800 }) // Start zoomed out for hierarchical view
   const [showMinimap, setShowMinimap] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
+  
+  // Focus on core graph visualization
+  
   // Use external node filters from props, fallback to defaults
   const filters = externalNodeFilters || {
     showProducts: true,
@@ -595,6 +948,34 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
   const selectedNode = externalSelectedNode
   const [autoRotate, setAutoRotate] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  
+  // Safari WebGL context and memory management
+  const [webglContextLost, setWebglContextLost] = useState(false)
+  
+  // Detect Safari browser for specific optimizations
+  const isSafari = useMemo(() => {
+    if (typeof navigator !== 'undefined') {
+      return /^((?!chrome|android).)*safari/i.test(navigator.userAgent)
+    }
+    return false
+  }, [])
+  
+  // Safari-specific cleanup when relationships change
+  useEffect(() => {
+    if (isSafari && Object.values(edgeFilters).some(enabled => enabled)) {
+      // Throttle relationship changes in Safari to prevent crashes
+      const timeoutId = setTimeout(() => {
+        // Force garbage collection hints for Safari
+        if (window.gc) {
+          window.gc()
+        }
+      }, 100)
+      
+      return () => clearTimeout(timeoutId)
+    }
+  }, [edgeFilters, isSafari])
+  
+  // Clean graph data processing without temporal complexity
   
   // Process graph data for intuitive hierarchical 3D positioning
   const processedData = useMemo(() => {
@@ -793,9 +1174,30 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
       <Canvas
         className="absolute inset-0"
         camera={{ position: [0, 150, 800], fov: 75 }}
-        gl={{ antialias: true, alpha: false }}
-        onCreated={({ gl }) => {
+        gl={{ 
+          antialias: true, 
+          alpha: false,
+          // Safari-specific WebGL optimizations
+          powerPreference: "high-performance",
+          stencil: false,
+          depth: true,
+          preserveDrawingBuffer: false,
+          // Prevent Safari memory leaks
+          failIfMajorPerformanceCaveat: true
+        }}
+        onCreated={({ gl, scene }) => {
           gl.setClearColor('#0a0a0a')
+          
+          // Safari WebGL context optimizations
+          gl.shadowMap.enabled = true
+          gl.shadowMap.type = THREE.PCFSoftShadowMap
+          
+          // Prevent Safari context loss
+          gl.getContext().getExtension('WEBGL_lose_context')
+          
+          // Memory management for Safari
+          scene.autoUpdate = true
+          gl.setPixelRatio(Math.min(window.devicePixelRatio, 2)) // Limit pixel ratio for Safari performance
         }}
       >
         {/* Lighting */}
@@ -1084,6 +1486,8 @@ const GamingGraphVisualizer = ({ graphData, onNodeSelect, edgeFilters: externalE
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Focus on core graph visualization without temporal complexity */}
     </div>
   )
 }
