@@ -56,7 +56,7 @@ export const fetchDashboardData = async () => {
     console.log('Dashboard API response:', dashboard) // Debug log
     
     return {
-      totalSKUs: dashboard.totalProducts || dashboard.totalSKUs,
+      totalSKUs: dashboard.totalProducts,
       totalRevenue: dashboard.totalRevenue,
       supplyIssues: dashboard.supplyIssues || 0,
       performanceScore: dashboard.performanceScore,
