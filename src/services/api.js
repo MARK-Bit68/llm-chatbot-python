@@ -56,11 +56,12 @@ export const fetchDashboardData = async () => {
     console.log('Dashboard API response:', dashboard) // Debug log
     
     return {
-      totalSKUs: dashboard.totalProducts,
+      totalSKUs: dashboard.totalProducts || dashboard.totalSKUs,
       totalRevenue: dashboard.totalRevenue,
       supplyIssues: dashboard.supplyIssues || 0,
       performanceScore: dashboard.performanceScore,
-      recentActivity: dashboard.recentActivity || []
+      recentActivity: dashboard.recentActivity || [],
+      schemaValidation: dashboard.schema_validation
     }
   } catch (error) {
     console.error('Dashboard API unavailable:', error)
