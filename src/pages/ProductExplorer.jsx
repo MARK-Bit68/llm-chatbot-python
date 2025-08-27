@@ -179,7 +179,7 @@ const ProductExplorer = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-dark-muted text-sm">Total Products</p>
-              <p className="text-2xl font-bold text-white">{productData?.total || 40}</p>
+              <p className="text-2xl font-bold text-white">{productData?.total || "Loading..."}</p>
             </div>
             <div className="p-3 bg-brand-500/20 rounded-lg">
               <Package className="w-6 h-6 text-brand-500" />
@@ -191,7 +191,7 @@ const ProductExplorer = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-dark-muted text-sm">Groups</p>
-              <p className="text-2xl font-bold text-white">5</p>
+              <p className="text-2xl font-bold text-white">Loading...</p>
             </div>
             <div className="p-3 bg-blue-500/20 rounded-lg">
               <TrendingUp className="w-6 h-6 text-blue-500" />
@@ -203,7 +203,7 @@ const ProductExplorer = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-dark-muted text-sm">Plants</p>
-              <p className="text-2xl font-bold text-white">25</p>
+              <p className="text-2xl font-bold text-white">Loading...</p>
             </div>
             <div className="p-3 bg-green-500/20 rounded-lg">
               <Factory className="w-6 h-6 text-green-500" />
@@ -215,7 +215,7 @@ const ProductExplorer = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-dark-muted text-sm">Storage Locations</p>
-              <p className="text-2xl font-bold text-white">13</p>
+              <p className="text-2xl font-bold text-white">Loading...</p>
             </div>
             <div className="p-3 bg-purple-500/20 rounded-lg">
               <Warehouse className="w-6 h-6 text-purple-500" />
