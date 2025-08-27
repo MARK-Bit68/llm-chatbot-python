@@ -16,6 +16,14 @@ from langchain_neo4j import Neo4jGraph
 import os
 import json
 
+# Import schema validation
+try:
+    from schema_validator import DashboardSchemaValidator
+    SCHEMA_VALIDATOR_AVAILABLE = True
+except ImportError:
+    SCHEMA_VALIDATOR_AVAILABLE = False
+    st.warning("Schema validator not available. Dashboard validation will be disabled.")
+
 def create_plotly_chart(chart_func, *args, **kwargs):
     """Create a plotly chart with fallback if plotly is not available"""
     if not PLOTLY_AVAILABLE:
@@ -470,6 +478,19 @@ def render_dashboard():
     # Show loading state with user-friendly message
     with st.spinner("🔄 Loading your dashboard data from the database..."):
         st.info("📊 **Building your personalized dashboard** - This may take a moment while I fetch your latest data.")
+        
+        # Schema validation check
+        if SCHEMA_VALIDATOR_AVAILABLE:
+            try:
+                validation_status = DashboardSchemaValidator.get_validation_status()
+                if not validation_status['is_valid']:
+                    st.warning("⚠️ **Schema Validation Warning**: " + validation_status['message'])
+                    if validation_status.get('recommendations'):
+                        with st.expander("🔧 Schema Recommendations"):
+                            for rec in validation_status['recommendations']:
+                                st.write(f"• {rec}")
+            except Exception as e:
+                st.warning(f"⚠️ Schema validation check failed: {e}")
         
         # Load data
         monthly_df, category_summary, financial_summary, sku_df = get_dashboard_data()

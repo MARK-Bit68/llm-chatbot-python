@@ -152,6 +152,73 @@ with st.sidebar:
     
     Note: Customer orders, plant utilization, and capacity across plants require extending the graph schema and are not listed here yet.
     """)
+    
+    # Data Management Section
+    st.header("📊 Data Management")
+    
+    # Schema validation status
+    try:
+        from schema_validator import DashboardSchemaValidator
+        validation_status = DashboardSchemaValidator.get_validation_status()
+        if validation_status['is_valid']:
+            st.success("✅ Schema validation passed")
+        else:
+            st.warning(f"⚠️ Schema issues: {validation_status['message']}")
+    except ImportError:
+        st.info("ℹ️ Schema validation not available")
+    
+    # Data ingestion options
+    st.subheader("🔄 Data Ingestion")
+    
+    # File upload for new data
+    uploaded_file = st.file_uploader("Upload Excel file for ingestion", type=['xlsx', 'xls'])
+    if uploaded_file is not None:
+        try:
+            from standardized_ingestion import StandardizedIngester
+            ingester = StandardizedIngester()
+            
+            with st.spinner("Processing uploaded file..."):
+                # Save uploaded file temporarily
+                import tempfile
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                    tmp_file.write(uploaded_file.getvalue())
+                    tmp_path = tmp_file.name
+                
+                # Process with standardized ingester
+                result = ingester.ingest_excel_file(tmp_path)
+                
+                # Clean up temp file
+                import os
+                os.unlink(tmp_path)
+                
+                if result['success']:
+                    st.success(f"✅ Successfully ingested {result['products_created']} products")
+                    st.rerun()  # Refresh to show new data
+                else:
+                    st.error(f"❌ Ingestion failed: {result['error']}")
+        except ImportError:
+            st.error("❌ Standardized ingestion not available")
+        except Exception as e:
+            st.error(f"❌ Error processing file: {e}")
+    
+    # Migration option
+    if st.button("🔄 Migrate Existing Data"):
+        try:
+            from standardized_ingestion import StandardizedIngester
+            ingester = StandardizedIngester()
+            
+            with st.spinner("Migrating existing data to standardized schema..."):
+                result = ingester.migrate_existing_data()
+                
+                if result['success']:
+                    st.success(f"✅ Migration completed: {result['products_migrated']} products migrated")
+                    st.rerun()
+                else:
+                    st.error(f"❌ Migration failed: {result['error']}")
+        except ImportError:
+            st.error("❌ Migration tools not available")
+        except Exception as e:
+            st.error(f"❌ Migration error: {e}")
 
 # Main chat interface
 st.header("💬 Chat with the Assistant")
