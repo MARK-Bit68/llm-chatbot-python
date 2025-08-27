@@ -106,7 +106,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total SKUs"
-          value={dashboardData?.totalSKUs || "247"}
+          value={dashboardData?.totalSKUs || "Loading..."}
           change="+12 this month"
           changeType="positive"
           icon={Package}

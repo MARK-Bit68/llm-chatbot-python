@@ -249,13 +249,13 @@ const AdvancedDashboard = () => {
 
   // Fallback data when API is not available
   const fallbackData = {
-    totalProducts: '40',
-    totalGroups: '5',
-    totalPlants: '25',
-    totalStorageLocations: '13',
-    totalCategories: '4',
-    performanceScore: '94.2%',
-    insights_generated: '0',
+    totalProducts: 'Loading...',
+    totalGroups: 'Loading...',
+    totalPlants: 'Loading...',
+    totalStorageLocations: 'Loading...',
+    totalCategories: 'Loading...',
+    performanceScore: 'Loading...',
+    insights_generated: 'Loading...',
     recommendations: [
       'Advanced analytics not available',
       'Please ensure backend services are running'
