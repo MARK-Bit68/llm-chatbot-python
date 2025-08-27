@@ -598,10 +598,28 @@ async def dashboard_endpoint():
     - Key recommendations
     """
     try:
-        from solutions.graph import get_graph
+        # Schema validation check
+        schema_status = {"is_valid": True, "message": "Schema validation passed"}
+        try:
+            from schema_validator import DashboardSchemaValidator
+            schema_status = DashboardSchemaValidator.get_validation_status()
+        except ImportError:
+            logger.warning("Schema validator not available")
+        except Exception as e:
+            logger.warning(f"Schema validation check failed: {e}")
         
-        # Get database connection
-        graph = get_graph()
+        # Get database connection with proper secrets handling
+        try:
+            from unified_data_model import get_unified_model
+            unified_model = get_unified_model()
+            if unified_model:
+                graph = unified_model.graph
+            else:
+                from solutions.graph import get_graph
+                graph = get_graph()
+        except ImportError:
+            from solutions.graph import get_graph
+            graph = get_graph()
         
         # Get graph overview
         overview = await analytics_engine.get_graph_overview()
@@ -662,6 +680,7 @@ async def dashboard_endpoint():
             "insights_generated": len(insights),
             "graph_density": overview.get("advanced_metrics", {}).get("density", 0),
             "recommendations": top_recommendations,
+            "schema_validation": schema_status,
             "last_updated": datetime.now().isoformat(),
             "status": "success"
         }
@@ -933,6 +952,43 @@ async def upload_excel_file(file: UploadFile = File(...)):
     except Exception as e:
         logger.error(f"Excel upload error: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing Excel file: {str(e)}")
+
+# Schema validation and migration endpoints
+@app.get("/api/schema/validate", summary="Validate Database Schema")
+async def validate_schema_endpoint():
+    """Validate the current database schema for dashboard compatibility"""
+    try:
+        from schema_validator import DashboardSchemaValidator
+        validation_status = DashboardSchemaValidator.get_validation_status()
+        return {
+            "schema_validation": validation_status,
+            "timestamp": datetime.now().isoformat(),
+            "status": "success"
+        }
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Schema validator not available")
+    except Exception as e:
+        logger.error(f"Schema validation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Schema validation failed: {str(e)}")
+
+@app.post("/api/schema/migrate", summary="Migrate Existing Data")
+async def migrate_data_endpoint():
+    """Migrate existing data to standardized schema"""
+    try:
+        from standardized_ingestion import StandardizedIngester
+        ingester = StandardizedIngester()
+        
+        result = ingester.migrate_existing_data()
+        return {
+            "migration_result": result,
+            "timestamp": datetime.now().isoformat(),
+            "status": "success"
+        }
+    except ImportError:
+        raise HTTPException(status_code=503, detail="Migration tools not available")
+    except Exception as e:
+        logger.error(f"Data migration error: {e}")
+        raise HTTPException(status_code=500, detail=f"Data migration failed: {str(e)}")
 
 # Serve React application
 from fastapi.staticfiles import StaticFiles

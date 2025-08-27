@@ -16,7 +16,14 @@ import json
 # Neo4j and Graph Libraries
 from neo4j import GraphDatabase
 from langchain_neo4j import Neo4jGraph
-import igraph as ig
+
+# Optional igraph import
+try:
+    import igraph as ig
+    IGRAPH_AVAILABLE = True
+except ImportError:
+    IGRAPH_AVAILABLE = False
+    ig = None
 
 # Machine Learning Libraries
 from sklearn.cluster import DBSCAN, KMeans
@@ -26,7 +33,12 @@ from sklearn.metrics import silhouette_score
 import networkx.algorithms.community as nx_comm
 
 # Time Series and Forecasting
-from prophet import Prophet
+try:
+    from prophet import Prophet
+    PROPHET_AVAILABLE = True
+except ImportError:
+    PROPHET_AVAILABLE = False
+    Prophet = None
 import scipy.stats as stats
 
 # Setup logging
