@@ -59,183 +59,76 @@ def get_dashboard_data():
             password=get_neo4j_config("NEO4J_PASSWORD"),
         )
         
-        # Get all SKUs with their data including supply and inventory
+        # Get all Products with their data - Updated to work with existing Product nodes
         result = graph.query("""
-            MATCH (sku:SKU)
-            OPTIONAL MATCH (sku)-[:HAS_DEMAND_PLAN]->(dp:DemandPlan)
-            OPTIONAL MATCH (sku)-[:HAS_SUPPLY_PLAN]->(sp:SupplyPlan)
-            OPTIONAL MATCH (sku)-[:HAS_INVENTORY]->(inv:Inventory)
-            OPTIONAL MATCH (sku)-[:BELONGS_TO_CATEGORY]->(cat:Category)
-            RETURN sku.sku_id as sku_id, 
-                   sku.name as name,
-                   sku.plot as plot_data,
-                   sku.plotEmbedding as embedding,
-                   dp.monthly_data as demand_data,
-                   sp.monthly_data as supply_data,
-                   inv.monthly_data as inventory_data,
+            MATCH (p:Product)
+            OPTIONAL MATCH (p)-[:BELONGS_TO]->(cat:Category)
+            RETURN p.sku_code as sku_id, 
+                   p.name as name,
+                   p.unit_price as unit_price,
+                   p.unit_cost as unit_cost,
+                   p.annual_revenue as annual_revenue,
+                   p.annual_profit as annual_profit,
+                   p.gross_margin_pct as gross_margin,
+                   p.safety_stock as safety_stock,
+                   p.lead_time_days as lead_time,
+                   p.abc_classification as abc_class,
+                   p.xyz_classification as xyz_class,
+                   p.overall_risk_rating as risk_rating,
+                   p.uom as uom,
                    cat.name as category
-            ORDER BY sku.sku_id
+            ORDER BY p.sku_code
         """)
         
         if not result:
             return None, None, None, None
         
-        # Parse the enhanced data for each SKU
+        # Parse the enhanced data for each Product
         sku_data = []
         for row in result:
             sku_id = row['sku_id']
             name = row['name']
-            plot_data = row['plot_data']
             category = row['category'] or 'Unknown'
             
-            # Parse the plot data string
+            # Extract data directly from Product node properties
             data_dict = {}
-            if plot_data:
-                # Split by | and parse key-value pairs
-                pairs = plot_data.split(' | ')
-                for pair in pairs:
-                    if ':' in pair:
-                        key, value = pair.split(':', 1)
-                        key = key.strip()
-                        value = value.strip()
-                        
-                        # Try to convert to numeric if possible
-                        try:
-                            if '.' in value:
-                                data_dict[key] = float(value)
-                            else:
-                                data_dict[key] = int(value)
-                        except:
-                            data_dict[key] = value
             
-            # Parse monthly data from plot_data
+            # Financial data
+            if row['unit_price'] is not None:
+                data_dict['unit_price'] = float(row['unit_price'])
+            if row['unit_cost'] is not None:
+                data_dict['unit_cost'] = float(row['unit_cost'])
+            if row['annual_revenue'] is not None:
+                data_dict['total_revenue'] = float(row['annual_revenue'])
+            if row['annual_profit'] is not None:
+                data_dict['gross_profit'] = float(row['annual_profit'])
+            if row['gross_margin'] is not None:
+                data_dict['gross_margin'] = float(row['gross_margin'])
+            # Note: forecasted_volume not available in current Product structure
+            data_dict['forecasted_volume'] = 0.0
+            
+            # Inventory and operational data
+            if row['safety_stock'] is not None:
+                data_dict['safety_stock'] = float(row['safety_stock'])
+            if row['lead_time'] is not None:
+                data_dict['lead_time'] = int(row['lead_time'])
+            
+            # Classification data
+            if row['abc_class'] is not None:
+                data_dict['abc_classification'] = row['abc_class']
+            if row['xyz_class'] is not None:
+                data_dict['xyz_classification'] = row['xyz_class']
+            if row['risk_rating'] is not None:
+                data_dict['risk_rating'] = row['risk_rating']
+            
+            # Initialize empty monthly data (not available in current Product structure)
             demand_data = {}
             supply_data = {}
             inventory_data = {}
-            
-            try:
-                # First try to parse from dedicated fields
-                if row['demand_data'] and row['demand_data'] != 'Unknown':
-                    if isinstance(row['demand_data'], str):
-                        demand_data = json.loads(row['demand_data'])
-                    else:
-                        demand_data = row['demand_data']
-                if row['supply_data'] and row['supply_data'] != 'Unknown':
-                    if isinstance(row['supply_data'], str):
-                        supply_data = json.loads(row['supply_data'])
-                    else:
-                        supply_data = row['supply_data']
-                if row['inventory_data'] and row['inventory_data'] != 'Unknown':
-                    if isinstance(row['inventory_data'], str):
-                        inventory_data = json.loads(row['inventory_data'])
-                    else:
-                        inventory_data = row['inventory_data']
-            except Exception as e:
-                print(f"Warning: Could not parse dedicated data for {sku_id}: {e}")
-            
-            # Extract from plot data when needed
-            plot_data = row.get('plot_data', '')
-            if plot_data:
-                # Parse the plot data format: "jan_2024: 724 | Supply Plan: 664 | Inventory Plan: 911 | total_revenue: 123.45"
-                for line in plot_data.split(' | '):
-                    if ':' not in line:
-                        continue
-                    key, value = line.split(':', 1)
-                    key = key.strip()
-                    value = value.strip()
-
-                    # Robust numeric parsing (strip $/%/,)
-                    def _parse_num(s):
-                        try:
-                            s2 = str(s).replace(',', '').replace('$', '').replace('%', '').strip()
-                            return float(s2)
-                        except Exception:
-                            return None
-
-                    # Normalize financial key variants from Excel headers (e.g., total_revenue_$, gross_margin_%)
-                    import re as _re
-                    norm = _re.sub(r"[^a-z0-9]+", "_", key.lower()).strip('_')
-                    # Collapse common suffixes
-                    for suff in ("_$", "_usd", "_percent", "_pct", "_%"):
-                        if norm.endswith(suff):
-                            norm = norm[: -len(suff)]
-                    # Map synonyms
-                    aliases = {
-                        'revenue': 'total_revenue',
-                        'total_revenue': 'total_revenue',
-                        'total_revenue_$': 'total_revenue',
-                        'cogs': 'total_cogs',
-                        'total_cogs': 'total_cogs',
-                        'gross_profit': 'gross_profit',
-                        'gross_profit_$': 'gross_profit',
-                        'gross_margin': 'gross_margin',
-                        'gross_margin_%': 'gross_margin',
-                        'unit_price': 'unit_price',
-                        'unit_cost': 'unit_cost',
-                        'total_volume': 'forecasted_volume',
-                        'forecasted_volume': 'forecasted_volume',
-                    }
-
-                    # Monthly demand entries present as jan_2024, feb_2024 etc.; only add if dicts are empty (dedicated nodes preferred)
-                    if not demand_data and any(m in key for m in ['jan_', 'feb_', 'mar_', 'apr_', 'may_', 'jun_', 'jul_', 'aug_', 'sep_', 'oct_', 'nov_', 'dec_']):
-                        try:
-                            num = _parse_num(value)
-                            if num is not None:
-                                demand_data[key] = num
-                        except Exception:
-                            pass
-                    elif key == 'Supply Plan' and not supply_data:
-                        try:
-                            if demand_data:
-                                last_month = list(demand_data.keys())[-1]
-                                num = _parse_num(value)
-                                if num is not None:
-                                    supply_data[last_month] = num
-                        except Exception:
-                            pass
-                    elif key == 'Inventory Plan' and not inventory_data:
-                        try:
-                            if demand_data:
-                                last_month = list(demand_data.keys())[-1]
-                                num = _parse_num(value)
-                                if num is not None:
-                                    inventory_data[last_month] = num
-                        except Exception:
-                            pass
-
-                    # ALWAYS extract financial metrics regardless of monthly data source
-                    canonical = aliases.get(norm, norm)
-                    if canonical in ['forecasted_volume', 'total_revenue', 'total_cogs', 'gross_profit', 'gross_margin', 'unit_price', 'unit_cost']:
-                        num = _parse_num(value)
-                        if num is not None:
-                            data_dict[canonical] = num
-                        else:
-                            data_dict.setdefault(canonical, 0.0)
-            
-            # Normalize month keys to use underscores consistently and coerce to numeric
-            def _normalize_month_dict(month_dict):
-                if not isinstance(month_dict, dict):
-                    return {}
-                normalized = {}
-                for mk, mv in month_dict.items():
-                    key_str = str(mk).replace('-', '_').lower()
-                    try:
-                        normalized[key_str] = float(mv) if mv not in [None, "", "Unknown"] else 0.0
-                    except (ValueError, TypeError):
-                        normalized[key_str] = 0.0
-                return normalized
-
-            demand_data = _normalize_month_dict(demand_data)
-            supply_data = _normalize_month_dict(supply_data)
-            inventory_data = _normalize_month_dict(inventory_data)
 
             # Compute fallbacks if core financials missing
             if 'forecasted_volume' not in data_dict or not data_dict.get('forecasted_volume'):
-                # Sum monthly demand as a proxy
-                try:
-                    data_dict['forecasted_volume'] = sum(float(v or 0) for v in demand_data.values())
-                except Exception:
-                    data_dict['forecasted_volume'] = 0.0
+                data_dict['forecasted_volume'] = 0.0
             if ('total_revenue' not in data_dict or not data_dict.get('total_revenue')) and data_dict.get('unit_price'):
                 try:
                     data_dict['total_revenue'] = float(data_dict.get('unit_price', 0)) * float(data_dict.get('forecasted_volume', 0))
