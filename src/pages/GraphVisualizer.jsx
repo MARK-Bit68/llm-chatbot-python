@@ -191,7 +191,7 @@ const GraphVisualizer = () => {
       </div>
 
       {/* Main Content Area - FULL HEIGHT */}
-      <div className="flex-1 relative flex" style={{ height: 'calc(100vh - 60px)' }}>
+      <div className="flex-1 relative flex" style={{ height: 'calc(100vh - 44px)' }}>
         {/* Minimal Sidebar */}
         <div className={`flex-shrink-0 transition-all duration-300 ${
           sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'
@@ -275,7 +275,7 @@ const GraphVisualizer = () => {
         </div>
 
         {/* Full-Screen Visualization - TAKES ALL REMAINING SPACE */}
-        <div className="flex-1 relative" style={{ width: '100%', height: '100%' }}>
+        <div className="flex-1 relative" style={{ width: '100%', height: '100%', minHeight: '100%' }}>
           {visualizationMode === 'enhanced' ? (
             <EnhancedGraphVisualizer
               data={graphData}
