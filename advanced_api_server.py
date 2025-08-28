@@ -726,29 +726,106 @@ async def graph_visualization_endpoint():
         
         nodes_result = graph.query(nodes_query)
         
-        # Query relationships (using elementId for Neo4j compatibility) 
-        # Sample different relationship types for better visualization diversity
-        edges_query = """
-        MATCH (p:Product)-[r:BELONGS_TO]->(c:Category)
-        RETURN elementId(p) as source, elementId(c) as target, type(r) as type,
-               p.name as source_name, c.name as target_name
-        LIMIT 500
-        UNION ALL
-        MATCH (p:Product)-[r:BRANDED_AS]->(b:Brand)
-        RETURN elementId(p) as source, elementId(b) as target, type(r) as type,
-               p.name as source_name, b.name as target_name  
-        LIMIT 500
-        UNION ALL
-        MATCH (p:Product)-[r:SOLD_IN]->(ct:Country)
-        RETURN elementId(p) as source, elementId(ct) as target, type(r) as type,
-               p.name as source_name, ct.name as target_name
-        LIMIT 400
-        UNION ALL
-        MATCH (ct:Country)-[r:PART_OF]->(rg:Region)
-        RETURN elementId(ct) as source, elementId(rg) as target, type(r) as type,
-               ct.name as source_name, rg.name as target_name
-        LIMIT 100
+        # First, discover what relationships actually exist in the database
+        discover_relationships_query = """
+        CALL db.relationshipTypes() YIELD relationshipType
+        RETURN relationshipType
         """
+        
+        try:
+            relationship_types_result = graph.query(discover_relationships_query)
+            available_relationships = [r['relationshipType'] for r in relationship_types_result]
+            print(f"🔍 Available relationship types: {available_relationships}")
+        except Exception as e:
+            print(f"⚠️ Could not discover relationship types: {e}")
+            # Fallback to manual discovery
+            discover_manual_query = """
+            MATCH ()-[r]->()
+            RETURN DISTINCT type(r) as relationshipType
+            LIMIT 20
+            """
+            try:
+                relationship_types_result = graph.query(discover_manual_query)
+                available_relationships = [r['relationshipType'] for r in relationship_types_result]
+                print(f"🔍 Manually discovered relationship types: {available_relationships}")
+            except Exception as e2:
+                print(f"❌ Could not discover relationships manually: {e2}")
+                available_relationships = []
+        
+        # Build dynamic edges query based on available relationships
+        edges_query_parts = []
+        
+        # Map UI relationship names to actual database relationship types
+        relationship_mapping = {
+            'showBelongsTo': ['BELONGS_TO', 'BELONGS_TO_CATEGORY', 'IN_GROUP'],
+            'showBrandedAs': ['BRANDED_AS'],
+            'showSoldIn': ['SOLD_IN', 'OPERATES_IN'],
+            'showPartOf': ['PART_OF'],
+            'showManufacturedAt': ['MANUFACTURED_AT', 'PRODUCED_AT', 'AT_PLANT']
+        }
+        
+        # Find actual relationships that exist in the database
+        actual_relationships = []
+        for ui_name, possible_types in relationship_mapping.items():
+            for rel_type in possible_types:
+                if rel_type in available_relationships:
+                    actual_relationships.append(rel_type)
+                    break
+        
+        print(f"🎯 Using actual relationships: {actual_relationships}")
+        
+        # Build query parts for each actual relationship type
+        for rel_type in actual_relationships:
+            if rel_type in ['BELONGS_TO', 'BELONGS_TO_CATEGORY', 'IN_GROUP']:
+                edges_query_parts.append(f"""
+                MATCH (p:Product)-[r:{rel_type}]->(c:Category)
+                RETURN elementId(p) as source, elementId(c) as target, type(r) as type,
+                       p.name as source_name, c.name as target_name
+                LIMIT 300
+                """)
+            elif rel_type == 'BRANDED_AS':
+                edges_query_parts.append(f"""
+                MATCH (p:Product)-[r:{rel_type}]->(b:Brand)
+                RETURN elementId(p) as source, elementId(b) as target, type(r) as type,
+                       p.name as source_name, b.name as target_name
+                LIMIT 300
+                """)
+            elif rel_type in ['SOLD_IN', 'OPERATES_IN']:
+                edges_query_parts.append(f"""
+                MATCH (p:Product)-[r:{rel_type}]->(ct:Country)
+                RETURN elementId(p) as source, elementId(ct) as target, type(r) as type,
+                       p.name as source_name, ct.name as target_name
+                LIMIT 300
+                """)
+            elif rel_type == 'PART_OF':
+                edges_query_parts.append(f"""
+                MATCH (ct:Country)-[r:{rel_type}]->(rg:Region)
+                RETURN elementId(ct) as source, elementId(rg) as target, type(r) as type,
+                       ct.name as source_name, rg.name as target_name
+                LIMIT 100
+                """)
+            elif rel_type in ['MANUFACTURED_AT', 'PRODUCED_AT', 'AT_PLANT']:
+                edges_query_parts.append(f"""
+                MATCH (p:Product)-[r:{rel_type}]->(plant:Plant)
+                RETURN elementId(p) as source, elementId(plant) as target, type(r) as type,
+                       p.name as source_name, plant.name as target_name
+                LIMIT 200
+                """)
+        
+        # If no specific relationships found, try a generic approach
+        if not edges_query_parts:
+            print("⚠️ No specific relationships found, using generic query")
+            edges_query_parts.append("""
+            MATCH (n1)-[r]->(n2)
+            WHERE labels(n1) CONTAINS 'Product' OR labels(n2) CONTAINS 'Product'
+            RETURN elementId(n1) as source, elementId(n2) as target, type(r) as type,
+                   n1.name as source_name, n2.name as target_name
+            LIMIT 500
+            """)
+        
+        # Combine all query parts
+        edges_query = " UNION ALL ".join(edges_query_parts)
+        print(f"🔍 Final edges query: {edges_query[:200]}...")
         
         edges_result = graph.query(edges_query)
         
@@ -808,7 +885,8 @@ async def graph_visualization_endpoint():
             'categories': node_types.get('Category', 0)
         }
         
-
+        print(f"📊 Graph stats: {len(nodes)} nodes, {len(edges)} edges")
+        print(f"🔗 Edge types found: {list(set([e['type'] for e in edges]))}")
         
         visualization_data = {
             'nodes': nodes,
