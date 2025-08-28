@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
+import { useImportStatus } from '../hooks/useImportStatus';
+import ImportVisualization from './ImportVisualization';
 
 const ExcelUpload = () => {
   const [file, setFile] = useState(null);
@@ -8,6 +10,9 @@ const ExcelUpload = () => {
   const [uploadResult, setUploadResult] = useState(null);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [uploadProgress, setUploadProgress] = useState('');
+  
+  // Import visualization hook
+  const { importStatus, isImporting, error, startImport, resetImport } = useImportStatus();
 
   const handleFileChange = (event) => {
     const selectedFile = event.target.files[0];
@@ -30,38 +35,25 @@ const ExcelUpload = () => {
 
     setUploading(true);
     setUploadProgress('📤 Uploading file...');
-    const formData = new FormData();
-    formData.append('file', file);
-
+    
     try {
-      setUploadProgress('🔍 Analyzing Excel structure...');
-      const response = await fetch('/api/upload/excel', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        setUploadProgress('✅ Processing complete!');
-        setUploadResult(result);
-        
-        // Show analysis results if available
-        if (result.excel_analysis) {
-          setAnalysisResult(result.excel_analysis);
-        }
-        
-        toast.success('Excel file uploaded and processed successfully!');
-        
-        // Refresh the page after a short delay to show updated graph
-        setTimeout(() => {
-          setUploadProgress('🔄 Refreshing application...');
-          window.location.reload();
-        }, 3000);
-      } else {
-        toast.error(result.detail || 'Upload failed');
-        setUploadProgress('');
+      // Use the import visualization hook
+      await startImport(file);
+      
+      setUploadProgress('✅ Processing complete!');
+      
+      // Show analysis results if available
+      if (importStatus?.message) {
+        setUploadResult({ success: true, message: importStatus.message });
       }
+      
+      toast.success('Excel file uploaded and processed successfully!');
+      
+      // Refresh the page after a short delay to show updated graph
+      setTimeout(() => {
+        setUploadProgress('🔄 Refreshing application...');
+        window.location.reload();
+      }, 3000);
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Upload failed. Please try again.');
@@ -328,6 +320,20 @@ const ExcelUpload = () => {
             <p>• The graph visualization will be updated automatically</p>
           </div>
         </div>
+        
+        {/* Import Visualization Modal */}
+        <ImportVisualization
+          isVisible={isImporting || (importStatus && !importStatus.completed)}
+          importStatus={importStatus}
+          onComplete={() => {
+            resetImport();
+            // Optionally refresh the page or update UI
+          }}
+          onError={(error) => {
+            console.error('Import error:', error);
+            resetImport();
+          }}
+        />
       </motion.div>
     </div>
   );
