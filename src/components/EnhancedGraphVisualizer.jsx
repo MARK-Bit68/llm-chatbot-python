@@ -1,72 +1,40 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import * as THREE from 'three'
-import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { 
   OrbitControls, 
   Text, 
   Sphere, 
   Line, 
   Html,
-  PerspectiveCamera,
   Stats,
   Environment,
-  Float,
-  Sparkles,
   Stars
 } from '@react-three/drei'
 import { 
   Network, 
-  Gamepad2, 
   Compass, 
-  Target, 
   Search, 
   Filter,
-  Map,
-  Layers,
   Eye,
-  Navigation,
-  Zap,
-  Settings,
   RotateCcw,
-  Maximize2,
-  TrendingUp,
-  Users,
-  Box,
-  Activity,
-  TrendingDown,
   BarChart3,
+  Package,
+  Box,
   Globe,
   Factory,
-  Package,
-  Building2,
   MapPin
 } from 'lucide-react'
 
-// Enhanced Node Component with rich interactions
-const EnhancedNode = ({ node, selected, distance, onSelect, cameraPosition, isHovered }) => {
+// Enhanced Node Component
+const EnhancedNode = ({ node, selected, onSelect, isHovered }) => {
   const meshRef = useRef()
   const [hovered, setHovered] = useState(false)
-  const [isMounted, setIsMounted] = useState(true)
   
-  useEffect(() => {
-    setIsMounted(true)
-    return () => setIsMounted(false)
-  }, [])
-  
-  // Level of Detail based on distance and node importance
-  const lod = useMemo(() => {
-    if (distance > 1500) return 0 // Don't render
-    if (distance > 800) return 1  // Simple sphere
-    if (distance > 400) return 2  // Basic geometry
-    return 3 // Full detail with labels
-  }, [distance])
-  
-  if (lod === 0) return null
-  
-  // Node size and color based on type and importance
+  // Node configuration based on type
   const nodeConfig = useMemo(() => {
-    const baseSize = 3
+    const baseSize = 2
     const baseColor = '#6B7280'
     
     switch (node.type) {
@@ -74,232 +42,112 @@ const EnhancedNode = ({ node, selected, distance, onSelect, cameraPosition, isHo
         return {
           size: baseSize * 1.2,
           color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#10B981',
-          icon: Package,
-          glow: true
+          icon: Package
         }
       case 'Category':
         return {
           size: baseSize * 2.5,
           color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#8B5CF6',
-          icon: Box,
-          glow: true
+          icon: Box
         }
       case 'Country':
         return {
           size: baseSize * 2,
           color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#3B82F6',
-          icon: Globe,
-          glow: true
+          icon: Globe
         }
       case 'Plant':
         return {
           size: baseSize * 2.2,
           color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#84CC16',
-          icon: Factory,
-          glow: true
+          icon: Factory
         }
-      case 'Brand':
+      case 'Storage':
         return {
           size: baseSize * 1.8,
           color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#F59E0B',
-          icon: Building2,
-          glow: true
+          icon: MapPin
         }
       default:
         return {
           size: baseSize,
           color: selected ? '#FFFF00' : hovered ? '#00FFFF' : baseColor,
-          icon: MapPin,
-          glow: false
+          icon: Network
         }
     }
   }, [node.type, selected, hovered])
   
-  // Animate node
-  useFrame((state) => {
-    if (!isMounted || !meshRef.current) return
-    
-    const scale = selected ? 1.8 : hovered ? 1.4 : 1
-    meshRef.current.scale.lerp(new THREE.Vector3(scale, scale, scale), 0.1)
-    
-    // Floating animation
-    if (selected || hovered) {
-      meshRef.current.position.y = node.position.y + Math.sin(state.clock.elapsedTime * 2) * 0.8
-    } else {
-      meshRef.current.position.y = node.position.y
-    }
-    
-    // Rotation for selected nodes
-    if (selected) {
-      meshRef.current.rotation.y += 0.02
-    }
-  })
+  const handleClick = useCallback(() => {
+    onSelect(node)
+  }, [node, onSelect])
+  
+  const handlePointerOver = useCallback(() => {
+    setHovered(true)
+  }, [])
+  
+  const handlePointerOut = useCallback(() => {
+    setHovered(false)
+  }, [])
   
   return (
-    <group>
-      {/* Main node sphere */}
-      <Sphere
+    <group position={[node.x || 0, node.y || 0, node.z || 0]}>
+      <mesh
         ref={meshRef}
-        args={[nodeConfig.size, 16, 16]}
-        position={[node.position.x, node.position.y, node.position.z]}
-        onClick={() => onSelect(node)}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
+        onClick={handleClick}
+        onPointerOver={handlePointerOver}
+        onPointerOut={handlePointerOut}
       >
-        <meshStandardMaterial
+        <sphereGeometry args={[nodeConfig.size, 16, 16]} />
+        <meshStandardMaterial 
           color={nodeConfig.color}
-          emissive={nodeConfig.glow ? nodeConfig.color : '#000000'}
-          emissiveIntensity={nodeConfig.glow ? 0.3 : 0}
-          metalness={0.8}
-          roughness={0.2}
+          emissive={nodeConfig.color}
+          emissiveIntensity={selected ? 0.3 : hovered ? 0.2 : 0}
+          transparent
+          opacity={0.8}
         />
-      </Sphere>
+      </mesh>
       
-      {/* Glow effect for important nodes */}
-      {nodeConfig.glow && (selected || hovered) && (
-        <Sphere
-          args={[nodeConfig.size * 1.5, 16, 16]}
-          position={[node.position.x, node.position.y, node.position.z]}
-        >
-          <meshStandardMaterial
-            color={nodeConfig.color}
-            transparent
-            opacity={0.3}
-            emissive={nodeConfig.color}
-            emissiveIntensity={0.5}
-          />
-        </Sphere>
-      )}
-      
-      {/* Node label for close-up view */}
-      {lod === 3 && (selected || hovered) && (
-        <Html
-          position={[node.position.x, node.position.y + nodeConfig.size + 2, node.position.z]}
-          center
-          distanceFactor={50}
-        >
+      {/* Node Label */}
+      {selected && (
+        <Html position={[0, nodeConfig.size + 2, 0]} center>
           <div className="bg-black/80 text-white px-2 py-1 rounded text-xs whitespace-nowrap">
             {node.name || node.id}
           </div>
         </Html>
       )}
-      
-      {/* Sparkles for selected nodes */}
-      {selected && (
-        <Sparkles
-          position={[node.position.x, node.position.y, node.position.z]}
-          count={20}
-          scale={nodeConfig.size * 2}
-          size={2}
-          speed={0.5}
-          color={nodeConfig.color}
-        />
-      )}
     </group>
   )
 }
 
-// Enhanced Edge Component with flow animations
-const EnhancedEdge = ({ edge, visible, distance, sourceNode, targetNode }) => {
-  const lineRef = useRef()
-  const [isMounted, setIsMounted] = useState(true)
-  
-  useEffect(() => {
-    setIsMounted(true)
-    return () => setIsMounted(false)
-  }, [])
-  
-  const lod = useMemo(() => {
-    if (distance > 2000) return 0
-    if (distance > 1000) return 1
-    if (distance > 500) return 2
-    return 3
-  }, [distance])
-  
-  if (!visible || lod === 0 || !edge.source || !edge.target) return null
-  
-  // Edge color and style based on type
-  const edgeConfig = useMemo(() => {
-    switch (edge.type) {
-      case 'BELONGS_TO':
-        return { color: '#00FF88', width: 2, dashArray: [0, 0] }
-      case 'BRANDED_AS':
-        return { color: '#FF8800', width: 2, dashArray: [5, 5] }
-      case 'SOLD_IN':
-        return { color: '#0088FF', width: 2, dashArray: [10, 5] }
-      case 'OPERATES_IN':
-        return { color: '#0088FF', width: 2, dashArray: [10, 5] }
-      case 'MANUFACTURED_AT':
-        return { color: '#BB00FF', width: 2, dashArray: [15, 5] }
-      case 'PART_OF':
-        return { color: '#00FFFF', width: 2, dashArray: [20, 5] }
-      default:
-        return { color: '#888888', width: 1, dashArray: [0, 0] }
-    }
-  }, [edge.type])
-  
-  // Animate edge flow
-  useFrame((state) => {
-    if (!isMounted || !lineRef.current || !lineRef.current.material) return
+// Enhanced Edge Component
+const EnhancedEdge = ({ edge, sourceNode, targetNode }) => {
+  const points = useMemo(() => {
+    if (!sourceNode || !targetNode) return []
     
-    const time = state.clock.elapsedTime
-    const flowOpacity = 0.6 + Math.sin(time * 2) * 0.2
-    lineRef.current.material.opacity = flowOpacity
-  })
+    const start = new THREE.Vector3(sourceNode.x || 0, sourceNode.y || 0, sourceNode.z || 0)
+    const end = new THREE.Vector3(targetNode.x || 0, targetNode.y || 0, targetNode.z || 0)
+    
+    return [start, end]
+  }, [sourceNode, targetNode])
   
-  // Create curved path for edges
-  const curvePoints = useMemo(() => {
-    if (!edge.source.position || !edge.target.position) return []
-    
-    const start = new THREE.Vector3(edge.source.position.x, edge.source.position.y, edge.source.position.z)
-    const end = new THREE.Vector3(edge.target.position.x, edge.target.position.y, edge.target.position.z)
-    
-    // Create a curved path
-    const midPoint = start.clone().lerp(end, 0.5)
-    midPoint.y += Math.random() * 20 - 10 // Random height variation
-    
-    return [start, midPoint, end]
-  }, [edge.source.position, edge.target.position])
-  
-  if (curvePoints.length < 3) return null
+  if (points.length < 2) return null
   
   return (
-    <group>
-      {/* Main edge line */}
-      <Line
-        ref={lineRef}
-        points={curvePoints}
-        color={edgeConfig.color}
-        lineWidth={edgeConfig.width}
-        dashed={edgeConfig.dashArray[0] > 0}
-        dashScale={edgeConfig.dashArray[0]}
-        dashSize={edgeConfig.dashArray[0]}
-        dashOffset={edgeConfig.dashArray[1]}
-        transparent
-        opacity={0.6}
-      />
-      
-      {/* Flow particles for high LOD */}
-      {lod === 3 && (
-        <Float speed={1} rotationIntensity={0.5} floatIntensity={0.5}>
-          <Sphere args={[0.3, 8, 8]} position={curvePoints[1]}>
-            <meshStandardMaterial
-              color={edgeConfig.color}
-              emissive={edgeConfig.color}
-              emissiveIntensity={0.5}
-            />
-          </Sphere>
-        </Float>
-      )}
-    </group>
+    <Line
+      points={points}
+      color="#4B5563"
+      lineWidth={1}
+      transparent
+      opacity={0.6}
+    />
   )
 }
 
-// Enhanced Camera Controls
-const EnhancedCameraControls = ({ onCameraChange, autoRotate = false }) => {
-  const { camera, gl } = useThree()
+// Camera Controls Component
+const EnhancedCameraControls = ({ onCameraChange, autoRotate }) => {
+  const { camera } = useThree()
   
-  useEffect(() => {
+  useFrame(() => {
     if (onCameraChange) {
       onCameraChange({
         x: camera.position.x,
@@ -307,207 +155,102 @@ const EnhancedCameraControls = ({ onCameraChange, autoRotate = false }) => {
         z: camera.position.z
       })
     }
-  }, [camera.position, onCameraChange])
+  })
   
   return (
     <OrbitControls
-      args={[camera, gl.domElement]}
-      enableDamping
-      dampingFactor={0.05}
-      enableZoom
-      enablePan
-      enableRotate
+      enablePan={true}
+      enableZoom={true}
+      enableRotate={true}
       autoRotate={autoRotate}
       autoRotateSpeed={0.5}
-      minDistance={50}
-      maxDistance={3000}
-      maxPolarAngle={Math.PI}
-      minPolarAngle={0}
+      maxDistance={1000}
+      minDistance={10}
     />
   )
 }
 
 // Main Enhanced Graph Visualizer Component
 const EnhancedGraphVisualizer = ({ 
-  graphData, 
-  onNodeSelect, 
-  edgeFilters, 
-  selectedNode, 
-  nodeFilters 
+  data, 
+  selectedRelationships = [], 
+  onNodeSelect,
+  className = "" 
 }) => {
-  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 200, z: 1000 })
   const [autoRotate, setAutoRotate] = useState(false)
-  const [showStats, setShowStats] = useState(true)
-  const [showLabels, setShowLabels] = useState(false)
+  const [showStats, setShowStats] = useState(false)
+  const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 0, z: 0 })
+  const [selectedNode, setSelectedNode] = useState(null)
   
-  // Process graph data with enhanced positioning
+  // Process and filter data
   const processedData = useMemo(() => {
-    if (!graphData?.nodes) return { nodes: [], edges: [] }
-    
-    // Group nodes by type for intelligent positioning
-    const nodesByType = {}
-    graphData.nodes.forEach(node => {
-      const type = node.type || 'Unknown'
-      if (!nodesByType[type]) nodesByType[type] = []
-      nodesByType[type].push(node)
-    })
-    
-    // Enhanced hierarchical layout
-    const layoutConfig = {
-      'Product': { 
-        center: { x: 0, y: 0, z: 0 }, 
-        radius: 200, 
-        layers: 4,
-        color: '#10B981'
-      },
-      'Category': { 
-        center: { x: 0, y: 150, z: 0 }, 
-        radius: 120, 
-        layers: 2,
-        color: '#8B5CF6'
-      },
-      'Country': { 
-        center: { x: -200, y: 0, z: 100 }, 
-        radius: 150, 
-        layers: 3,
-        color: '#3B82F6'
-      },
-      'Plant': { 
-        center: { x: 250, y: -100, z: -50 }, 
-        radius: 80, 
-        layers: 2,
-        color: '#84CC16'
-      },
-      'Brand': { 
-        center: { x: 180, y: 120, z: 0 }, 
-        radius: 100, 
-        layers: 2,
-        color: '#F59E0B'
-      }
+    if (!data || !data.nodes || !data.links) {
+      return { nodes: [], edges: [] }
     }
     
-    const nodes = []
+    // Process nodes
+    const nodes = data.nodes.map((node, index) => ({
+      ...node,
+      id: node.id || `node-${index}`,
+      x: node.x || (Math.random() - 0.5) * 200,
+      y: node.y || (Math.random() - 0.5) * 200,
+      z: node.z || (Math.random() - 0.5) * 200
+    }))
     
-    // Position nodes using enhanced clustering
-    Object.entries(nodesByType).forEach(([type, typeNodes]) => {
-      const config = layoutConfig[type] || layoutConfig['Product']
-      
-      typeNodes.forEach((node, index) => {
-        let position
-        
-        if (type === 'Product') {
-          // Spiral layout for products
-          const layer = index % config.layers
-          const layerRadius = config.radius * (0.2 + (layer * 0.25))
-          const nodesInLayer = Math.ceil(typeNodes.length / config.layers)
-          const layerIndex = Math.floor(index / config.layers)
-          const angle = (layerIndex / nodesInLayer) * Math.PI * 2
-          const yOffset = (layer - 1.5) * 60
-          
-          position = {
-            x: config.center.x + Math.cos(angle) * layerRadius,
-            y: config.center.y + yOffset + (Math.random() - 0.5) * 30,
-            z: config.center.z + Math.sin(angle) * layerRadius
-          }
-        } else {
-          // Organized clusters for other types
-          const angle = (index / typeNodes.length) * Math.PI * 2
-          const radius = config.radius * (0.6 + Math.random() * 0.4)
-          
-          position = {
-            x: config.center.x + Math.cos(angle) * radius,
-            y: config.center.y + (Math.random() - 0.5) * 40,
-            z: config.center.z + Math.sin(angle) * radius
-          }
-        }
-        
-        nodes.push({
-          ...node,
-          position,
-          layoutType: type,
-          layoutConfig: config
-        })
+    // Process edges and filter by selected relationships
+    const edges = data.links
+      .filter(edge => {
+        if (selectedRelationships.length === 0) return true
+        return selectedRelationships.includes(edge.type)
       })
-    })
-    
-    // Process edges
-    const edges = (graphData.links || graphData.edges || [])
-      .map(edge => ({
-        ...edge,
-        source: nodes.find(n => n.id === edge.source),
-        target: nodes.find(n => n.id === edge.target)
-      }))
+      .map(edge => {
+        const sourceNode = nodes.find(n => n.id === edge.source)
+        const targetNode = nodes.find(n => n.id === edge.target)
+        return {
+          ...edge,
+          source: sourceNode,
+          target: targetNode
+        }
+      })
       .filter(edge => edge.source && edge.target)
     
-    return { nodes, edges, layoutConfig, nodesByType }
-  }, [graphData])
-  
-  // Filter nodes and edges based on current filters
-  const filteredNodes = useMemo(() => {
-    return processedData.nodes.filter(node => {
-      switch (node.type) {
-        case 'Product': return nodeFilters?.showProducts !== false
-        case 'Plant': return nodeFilters?.showPlants !== false
-        case 'StorageLocation': return nodeFilters?.showStorage !== false
-        case 'Category': return nodeFilters?.showRevenue !== false || nodeFilters?.showGroups !== false
-        case 'Brand': return nodeFilters?.showProfit !== false || nodeFilters?.showGroups !== false
-        case 'Country': return nodeFilters?.showGroups !== false
-        default: return nodeFilters?.showGroups !== false
-      }
-    })
-  }, [processedData.nodes, nodeFilters])
-  
-  const filteredEdges = useMemo(() => {
-    return processedData.edges.filter(edge => {
-      const edgeType = edge.type
-      switch (edgeType) {
-        case 'BELONGS_TO': return edgeFilters?.showBelongsTo
-        case 'BRANDED_AS': return edgeFilters?.showBrandedAs
-        case 'SOLD_IN': return edgeFilters?.showSoldIn
-        case 'OPERATES_IN': return edgeFilters?.showSoldIn
-        case 'MANUFACTURED_AT': return edgeFilters?.showManufacturedAt
-        case 'PART_OF': return edgeFilters?.showPartOf
-        default: return false
-      }
-    })
-  }, [processedData.edges, edgeFilters])
-  
-  // Calculate distances for LOD
-  const calculateDistance = useCallback((nodePosition) => {
-    return Math.sqrt(
-      Math.pow(nodePosition.x - cameraPosition.x, 2) +
-      Math.pow(nodePosition.y - cameraPosition.y, 2) +
-      Math.pow(nodePosition.z - cameraPosition.z, 2)
-    )
-  }, [cameraPosition])
+    return { nodes, edges }
+  }, [data, selectedRelationships])
   
   const handleNodeSelect = useCallback((node) => {
-    if (onNodeSelect) onNodeSelect(node)
+    setSelectedNode(node)
+    if (onNodeSelect) {
+      onNodeSelect(node)
+    }
   }, [onNodeSelect])
   
   const handleReset = useCallback(() => {
-    setCameraPosition({ x: 0, y: 200, z: 1000 })
-    if (onNodeSelect) onNodeSelect(null)
-  }, [onNodeSelect])
+    setSelectedNode(null)
+    setAutoRotate(false)
+  }, [])
+  
+  if (!data) {
+    return (
+      <div className={`flex items-center justify-center h-96 bg-gray-900 rounded-lg ${className}`}>
+        <div className="text-white text-center">
+          <Network className="w-12 h-12 mx-auto mb-4 text-gray-400" />
+          <p>No graph data available</p>
+        </div>
+      </div>
+    )
+  }
   
   return (
-    <div className="relative w-full h-full bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 overflow-hidden">
-      {/* 3D Canvas */}
+    <div className={`relative w-full h-96 bg-gray-900 rounded-lg overflow-hidden ${className}`}>
       <Canvas
-        className="absolute inset-0"
-        camera={{ position: [0, 200, 1000], fov: 75 }}
+        camera={{ position: [0, 0, 100], fov: 60 }}
         gl={{ 
           antialias: true, 
-          alpha: false,
-          powerPreference: "high-performance",
-          stencil: false,
-          depth: true,
-          preserveDrawingBuffer: false
+          alpha: true,
+          powerPreference: "high-performance"
         }}
-        onCreated={({ gl, scene }) => {
-          gl.setClearColor('#0a0a0a')
-          gl.shadowMap.enabled = true
-          gl.shadowMap.type = THREE.PCFSoftShadowMap
+        onCreated={({ gl }) => {
+          gl.setClearColor('#0F172A', 1)
           gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         }}
       >
@@ -528,41 +271,27 @@ const EnhancedGraphVisualizer = ({
         />
         
         {/* Render Nodes */}
-        {filteredNodes.map(node => {
-          const distance = calculateDistance(node.position)
-          return (
-            <EnhancedNode
-              key={node.id}
-              node={node}
-              selected={selectedNode?.id === node.id}
-              distance={distance}
-              onSelect={handleNodeSelect}
-              cameraPosition={cameraPosition}
-            />
-          )
-        })}
+        {processedData.nodes.map(node => (
+          <EnhancedNode
+            key={node.id}
+            node={node}
+            selected={selectedNode?.id === node.id}
+            onSelect={handleNodeSelect}
+          />
+        ))}
         
         {/* Render Edges */}
-        {filteredEdges.map((edge, index) => {
-          if (!edge.source || !edge.target) return null
-          
-          const distance = (calculateDistance(edge.source.position) + calculateDistance(edge.target.position)) / 2
-          const maxDistance = 2000
-          
-          return (
-            <EnhancedEdge
-              key={`edge-${index}`}
-              edge={edge}
-              visible={distance < maxDistance}
-              distance={distance}
-              sourceNode={edge.source}
-              targetNode={edge.target}
-            />
-          )
-        })}
+        {processedData.edges.map((edge, index) => (
+          <EnhancedEdge
+            key={`edge-${index}`}
+            edge={edge}
+            sourceNode={edge.source}
+            targetNode={edge.target}
+          />
+        ))}
         
         {/* Stats */}
-        {showStats && <Stats />
+        {showStats && <Stats />}
       </Canvas>
       
       {/* Overlay Controls */}
@@ -597,8 +326,8 @@ const EnhancedGraphVisualizer = ({
           <span className="font-semibold">Graph Info</span>
         </div>
         <div className="space-y-1">
-          <div>Nodes: {filteredNodes.length}</div>
-          <div>Edges: {filteredEdges.length}</div>
+          <div>Nodes: {processedData.nodes.length}</div>
+          <div>Edges: {processedData.edges.length}</div>
           <div>Camera: [{Math.round(cameraPosition.x)}, {Math.round(cameraPosition.y)}, {Math.round(cameraPosition.z)}]</div>
         </div>
       </div>
