@@ -259,8 +259,15 @@ class EnhancedGraphImporterV2:
         logger.info("🏗️ Importing FMCG format...")
         
         try:
-            df = pd.read_excel(excel_file_path, sheet_name='Sheet1')
-            logger.info(f"📦 Processing {len(df)} SKU records...")
+            # Determine the correct sheet name from analysis
+            sheet_name = 'Sheet1'  # Default
+            if 'SOP_Dataset' in analysis.get('sheets', []):
+                sheet_name = 'SOP_Dataset'
+            elif 'Sheet1' in analysis.get('sheets', []):
+                sheet_name = 'Sheet1'
+            
+            df = pd.read_excel(excel_file_path, sheet_name=sheet_name)
+            logger.info(f"📦 Processing {len(df)} SKU records from sheet '{sheet_name}'...")
             
             stats = {"products": 0, "categories": 0, "countries": 0, "plants": 0, "relationships": 0}
             
