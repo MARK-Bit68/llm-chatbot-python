@@ -22,6 +22,7 @@ import {
   X
 } from 'lucide-react'
 import GamingGraphVisualizer from '../components/GamingGraphVisualizer'
+import EnhancedGraphVisualizer from '../components/EnhancedGraphVisualizer'
 import Layout from '../components/Layout'
 import GraphMetadata from '../components/GraphMetadata'
 
@@ -39,10 +40,10 @@ const GraphVisualizer = () => {
   })
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedNode, setSelectedNode] = useState(null)
-  const [viewMode, setViewMode] = useState('Gaming') // Gaming, 3D, 2D, Force
-  const [useGamingMode, setUseGamingMode] = useState(true)
+  const [viewMode, setViewMode] = useState('Enhanced') // Enhanced, Gaming, 3D, 2D, Force
+  const [useGamingMode, setUseGamingMode] = useState(false)
   
-  // Edge filtering state for Gaming mode - START WITH NOTHING for guided experience
+  // Edge filtering state - START WITH NOTHING for guided experience
   const [edgeFilters, setEdgeFilters] = useState({
     showBelongsTo: false,        // Product → Category (start hidden)
     showBrandedAs: false,        // Product → Brand (start hidden)
@@ -70,12 +71,12 @@ const GraphVisualizer = () => {
       if (typeof ForceGraph3D === 'undefined') {
         console.warn('⚠️ ForceGraph3D not available, falling back to 2D')
         setForceGraph3DError(true)
-        setViewMode('2D')
+        setViewMode('Enhanced')
       }
     } catch (error) {
       console.error('❌ Error checking ForceGraph3D:', error)
       setForceGraph3DError(true)
-      setViewMode('2D')
+      setViewMode('Enhanced')
     }
   }, [])
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -100,232 +101,34 @@ const GraphVisualizer = () => {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  // 3D Graph visualization with ForceGraph3D
-  const graphRef = useRef()
-  const [graphConfig, setGraphConfig] = useState({
-    showNavInfo: false, // Disable nav info to reduce GPU load
-    enableNodeDrag: true,
-    enableNavigationControls: true, // Enable built-in controls for dragging
-    backgroundColor: '#0F172A',
-    nodeRelSize: 8, // Increase node size for better visibility
-    linkWidth: 4, // Increase link width for better visibility
-    linkOpacity: 0.8, // Increase opacity for better visibility
-    d3AlphaDecay: 0.02, // Slower simulation for better stability
-    d3VelocityDecay: 0.1, // Less damping for more dynamic movement
-    cooldownTicks: 100, // More ticks for better simulation
-    // Performance optimizations
-    enablePointerInteraction: true,
-    enableNodeInteraction: true,
-    enableLinkInteraction: true, // Enable link interaction
-    // WebGL optimizations
-    antialias: true, // Enable antialiasing for better quality
-    pixelRatio: 1, // Use 1:1 pixel ratio
-    // Force simulation settings
-    d3Force: 'link',
-    d3ForceLink: {
-      distance: 100, // Increase distance between nodes
-      iterations: 20 // More iterations for better layout
-    },
-    // Enable camera controls
-    enableCameraInteraction: true,
-    enableZoomInteraction: true,
-    enablePanInteraction: true
-  })
-
-  // Prepare graph data for visualization with focus on dense parts
-  const prepareGraphData = useCallback(() => {
-    if (!graphData || !graphData.nodes) {
-      return null
-    }
-
-    try {
-      // Simple and robust node processing
-      const enhancedNodes = graphData.nodes.slice(0, 50).map((node, index) => {
-        const nodeId = node.id || node.code || `node-${index}`
-        
-        // Simple color mapping
-        let color = '#6B7280' // default gray
-        let size = 5 // default size
-        
-        if (node.type === 'Product') {
-          color = '#10B981' // green
-          size = 8
-        } else if (node.type === 'Plant') {
-          color = '#3B82F6' // blue
-          size = 12
-        } else if (node.type === 'StorageLocation') {
-          color = '#F59E0B' // yellow
-          size = 10
-        } else if (node.type === 'Group') {
-          color = '#8B5CF6' // purple
-          size = 15
-        } else if (node.type === 'SubGroup') {
-          color = '#EF4444' // red
-          size = 12
-        }
-        
-        return {
-          id: nodeId,
-          name: node.name || node.code || nodeId,
-          type: node.type || 'Unknown',
-          val: size,
-          color: color,
-          // Simple positioning
-          x: Math.cos(index * 0.5) * 100,
-          y: Math.sin(index * 0.5) * 100,
-          z: Math.sin(index * 0.3) * 50
-        }
-      })
-
-      // Simple and robust edge processing
-      const enhancedEdges = []
-      const processedEdges = new Set()
-      
-      ;(graphData.links || []).slice(0, 1000).forEach((edge, index) => {
-        const sourceId = edge.source || edge.source_id
-        const targetId = edge.target || edge.target_id
-        
-        if (!sourceId || !targetId) return
-        
-        const edgeKey = `${sourceId}-${targetId}`
-        if (processedEdges.has(edgeKey)) return
-        processedEdges.add(edgeKey)
-        
-        // Find source and target nodes
-        const sourceNode = enhancedNodes.find(node => 
-          node.id === sourceId || 
-          node.code === sourceId || 
-          node.name === sourceId
-        )
-        const targetNode = enhancedNodes.find(node => 
-          node.id === targetId || 
-          node.code === targetId || 
-          node.name === targetId
-        )
-        
-        if (sourceNode && targetNode) {
-          enhancedEdges.push({
-            id: `edge-${index}`,
-            source: sourceNode,
-            target: targetNode,
-            color: '#FFFFFF',
-            width: 1,
-            opacity: 0.6
-          })
-        }
-      })
-
-      const result = {
-        nodes: enhancedNodes,
-        links: enhancedEdges
-      }
-
-
-      return result
-    } catch (error) {
-      console.error('❌ Error preparing graph data:', error)
-      // Return a simple fallback with just a few nodes
-      return {
-        nodes: [
-          { id: 'node1', name: 'Product 1', type: 'Product', val: 8, color: '#10B981' },
-          { id: 'node2', name: 'Plant 1', type: 'Plant', val: 12, color: '#3B82F6' },
-          { id: 'node3', name: 'Storage 1', type: 'StorageLocation', val: 10, color: '#F59E0B' }
-        ],
-        links: [
-          { id: 'edge1', source: 'node1', target: 'node2', color: '#FFFFFF', width: 1, opacity: 0.6 },
-          { id: 'edge2', source: 'node2', target: 'node3', color: '#FFFFFF', width: 1, opacity: 0.6 }
-        ]
-      }
-    }
-  }, [graphData, viewMode])
-
-  const graphData3D = prepareGraphData()
-  const [webglError, setWebglError] = useState(false)
-  const [graphReady, setGraphReady] = useState(false)
-
-  // Graph interaction handlers
-  const handleNodeClick = useCallback((node) => {
-    setSelectedNode(node)
-  }, [])
-
-  // Handle WebGL errors
-  const handleWebGLError = useCallback((error) => {
-    console.error('WebGL Error:', error)
-    setWebglError(true)
-  }, [])
-
-  // Handle graph ready
-  const handleGraphReady = useCallback(() => {
-    setGraphReady(true)
-  }, [])
-
-  const handleBackgroundClick = useCallback(() => {
-    setSelectedNode(null)
-  }, [])
-
-  const handleNodeHover = useCallback((node, previousNode) => {
-    if (node) {
-      document.body.style.cursor = 'pointer'
-    } else {
-      document.body.style.cursor = 'default'
-    }
-  }, [])
-
-  // Graph controls
-  const resetCamera = useCallback(() => {
-    if (graphRef.current) {
-      graphRef.current.cameraPosition({ x: 0, y: 0, z: 200 })
-    }
-  }, [])
-
-  const zoomIn = useCallback(() => {
-    if (graphRef.current) {
-      const currentPos = graphRef.current.cameraPosition()
-      graphRef.current.cameraPosition({
-        x: currentPos.x * 0.8,
-        y: currentPos.y * 0.8,
-        z: currentPos.z * 0.8
-      })
-    }
-  }, [])
-
-  const zoomOut = useCallback(() => {
-    if (graphRef.current) {
-      const currentPos = graphRef.current.cameraPosition()
-      graphRef.current.cameraPosition({
-        x: currentPos.x * 1.2,
-        y: currentPos.y * 1.2,
-        z: currentPos.z * 1.2
-      })
-    }
-  }, [])
-
+  // Fetch graph data from API
   const fetchGraphData = async () => {
     try {
       setLoading(true)
       setError(null)
       
-      // Fetch graph data from the backend with cache-busting
-      const response = await fetch(`/api/graph/visualization?t=${Date.now()}`, {
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      })
+      const response = await fetch('/api/graph/visualization')
       if (!response.ok) {
-        throw new Error('Failed to fetch graph data')
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
       
       const data = await response.json()
+      console.log('📊 Graph data loaded:', {
+        nodes: data.nodes?.length || 0,
+        edges: data.links?.length || 0,
+        edgeTypes: [...new Set(data.links?.map(e => e.type) || [])]
+      })
+      
       setGraphData(data)
-    } catch (err) {
-      console.error('Error fetching graph data:', err)
-      setError(err.message)
+    } catch (error) {
+      console.error('❌ Error fetching graph data:', error)
+      setError(error.message)
     } finally {
       setLoading(false)
     }
   }
 
+  // Toggle filter
   const toggleFilter = (filterName) => {
     setFilters(prev => ({
       ...prev,
@@ -333,109 +136,146 @@ const GraphVisualizer = () => {
     }))
   }
 
+  // Handle node selection
+  const handleNodeSelect = (node) => {
+    setSelectedNode(node)
+    console.log('🎯 Selected node:', node)
+  }
 
-
-  const clearSelection = () => {
+  // Handle background click
+  const handleBackgroundClick = () => {
     setSelectedNode(null)
   }
 
+  // Handle node hover
+  const handleNodeHover = (node) => {
+    // Optional: Add hover effects
+  }
+
+  // Handle graph ready
+  const handleGraphReady = () => {
+    console.log('✅ Graph visualization ready')
+  }
+
+  // Handle WebGL error
+  const handleWebGLError = () => {
+    console.error('❌ WebGL context lost')
+    setForceGraph3DError(true)
+  }
+
+  // Toggle fullscreen
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen)
   }
 
   if (loading) {
     return (
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <RefreshCw className="w-8 h-8 text-brand-500 animate-spin mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-white mb-2">Loading Graph Data</h3>
-              <p className="text-dark-muted">Fetching supply chain network visualization...</p>
-            </div>
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen bg-dark-bg">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <h3 className="text-lg font-semibold text-white mb-2">Loading Graph Data</h3>
+            <p className="text-dark-muted">Fetching supply chain network visualization...</p>
           </div>
         </div>
-      </div>
+      </Layout>
     )
   }
 
   if (error) {
     return (
-      <div className="flex-1 overflow-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-center h-96">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Network className="w-8 h-8 text-red-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-white mb-2">Error Loading Graph</h3>
-              <p className="text-dark-muted mb-4">{error}</p>
-              <button
-                onClick={fetchGraphData}
-                className="btn-primary px-4 py-2"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Retry
-              </button>
+      <Layout>
+        <div className="flex items-center justify-center min-h-screen bg-dark-bg">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Network className="w-8 h-8 text-red-500" />
             </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Error Loading Graph</h3>
+            <p className="text-dark-muted mb-4">{error}</p>
+            <button
+              onClick={fetchGraphData}
+              className="btn-primary px-4 py-2"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry
+            </button>
           </div>
         </div>
-      </div>
+      </Layout>
     )
   }
 
   return (
-    <div className="flex-1 overflow-hidden" data-testid="graph-visualizer">
-      {/* Collapsed Mini Header - Essential controls only */}
-      <div className="bg-surface border-b border-white border-opacity-10 px-4 py-2">
-        <div className="flex items-center justify-end space-x-2">
-          <button
-            onClick={toggleFullscreen}
-            className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
-            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-          >
-            {isFullscreen ? (
-              <Minimize2 className="w-4 h-4 text-gray-400 hover:text-white" />
-            ) : (
-              <Maximize2 className="w-4 h-4 text-gray-400 hover:text-white" />
-            )}
-          </button>
-          <button
-            onClick={fetchGraphData}
-            className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
-            title="Refresh Data"
-          >
-            <RefreshCw className="w-4 h-4 text-gray-400 hover:text-white" />
-          </button>
-        </div>
-      </div>
-
-      {/* Compact Controls Header - Replacing GraphMetadata */}
-      <div className="bg-surface border-b border-white border-opacity-10 px-6 py-3">
-        <div className="grid grid-cols-12 gap-4 items-center">
-          
-          {/* Node Filters - Column 1-3 */}
-          <div className="col-span-3">
-            <label className="text-xs font-medium text-white mb-1 block">Node Filters</label>
-            <div className="flex flex-wrap gap-1">
-              {Object.entries(filters).map(([key, value]) => (
-                <label key={key} className="flex items-center space-x-1 text-xs cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={value}
-                    onChange={() => toggleFilter(key)}
-                    className="w-3 h-3 text-brand-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-brand-500"
-                  />
-                  <span className="text-white">
-                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                  </span>
-                </label>
-              ))}
+    <Layout>
+      <div className="min-h-screen bg-dark-bg">
+        {/* Header Controls */}
+        <div className="bg-surface border-b border-white border-opacity-10 px-6 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-xl font-bold text-white">Supply Chain Graph Visualization</h1>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-dark-muted">Mode:</span>
+                <select
+                  value={viewMode}
+                  onChange={(e) => setViewMode(e.target.value)}
+                  className="bg-surface-2 border border-white border-opacity-10 rounded px-2 py-1 text-white text-sm"
+                >
+                  <option value="Enhanced">Enhanced 3D</option>
+                  <option value="Gaming">Gaming Mode</option>
+                  <option value="3D">Legacy 3D</option>
+                  <option value="2D">2D</option>
+                  <option value="Force">Force Layout</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleFullscreen}
+                className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="w-4 h-4 text-gray-400 hover:text-white" />
+                ) : (
+                  <Maximize2 className="w-4 h-4 text-gray-400 hover:text-white" />
+                )}
+              </button>
+              <button
+                onClick={fetchGraphData}
+                className="p-2 hover:bg-surface-2 rounded-lg transition-colors"
+                title="Refresh Data"
+              >
+                <RefreshCw className="w-4 h-4 text-gray-400 hover:text-white" />
+              </button>
             </div>
           </div>
+        </div>
 
-          {/* Relationships - Column 4-8 */}
-          {useGamingMode && (
+        {/* Compact Controls Header */}
+        <div className="bg-surface border-b border-white border-opacity-10 px-6 py-3">
+          <div className="grid grid-cols-12 gap-4 items-center">
+            
+            {/* Node Filters - Column 1-3 */}
+            <div className="col-span-3">
+              <label className="text-xs font-medium text-white mb-1 block">Node Filters</label>
+              <div className="flex flex-wrap gap-1">
+                {Object.entries(filters).map(([key, value]) => (
+                  <label key={key} className="flex items-center space-x-1 text-xs cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={value}
+                      onChange={() => toggleFilter(key)}
+                      className="w-3 h-3 text-brand-500 bg-surface-2 border-white border-opacity-10 rounded focus:ring-brand-500"
+                    />
+                    <span className="text-white">
+                      {key.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Relationships - Column 4-8 */}
             <div className="col-span-5">
               <label className="text-xs font-medium text-white mb-1 block">Relationships</label>
               <div className="flex flex-wrap gap-2">
@@ -491,570 +331,100 @@ const GraphVisualizer = () => {
                 </label>
               </div>
             </div>
-          )}
 
-          {/* Graph Statistics - Column 9-12 */}
-          {graphData && (
-            <div className="col-span-4">
-              <label className="text-xs font-medium text-white mb-1 block">Graph Statistics</label>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="text-center">
-                  <div className="text-white font-medium">{graphData.stats?.totalNodes || 0}</div>
-                  <div className="text-dark-muted">Nodes</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-white font-medium">{graphData.stats?.totalEdges || 0}</div>
-                  <div className="text-dark-muted">Edges</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-white font-medium">{graphData.stats?.products || 0}</div>
-                  <div className="text-dark-muted">Products</div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Full-width Graph Visualization Area */}
-      <div className="flex-1 relative min-h-screen">
-        <div className="absolute inset-0 bg-gradient-to-br from-dark-bg to-surface">
-            {useGamingMode ? (
-              // Gaming Mode Visualization
-              <Suspense fallback={
-                <div className="flex items-center justify-center h-full">
+            {/* Graph Statistics - Column 9-12 */}
+            {graphData && (
+              <div className="col-span-4">
+                <label className="text-xs font-medium text-white mb-1 block">Graph Statistics</label>
+                <div className="grid grid-cols-3 gap-2 text-xs">
                   <div className="text-center">
-                    <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                    <h3 className="text-lg font-semibold text-white mb-2">Initializing Gaming Engine</h3>
-                    <p className="text-dark-muted">Loading 3D gaming visualization...</p>
+                    <div className="text-white font-semibold">{graphData.stats?.totalNodes || 0}</div>
+                    <div className="text-dark-muted">Nodes</div>
                   </div>
-                </div>
-              }>
-                <GamingGraphVisualizer 
-                  graphData={graphData}
-                  onNodeSelect={setSelectedNode}
-                  edgeFilters={edgeFilters}
-                  selectedNode={selectedNode}
-                  nodeFilters={filters}
-                />
-                
-                {/* Selected Node Details - Floating Panel */}
-                {selectedNode && (
-                  <div className="absolute top-4 right-4 z-40">
-                    <div className="bg-surface-2 border border-white border-opacity-10 rounded-lg p-4 space-y-2 min-w-64">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-sm font-medium text-white">Selected Node</h3>
-                        <button
-                          onClick={clearSelection}
-                          className="text-gray-400 hover:text-white transition-colors"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                      <div>
-                        <span className="text-xs text-dark-muted">Type:</span>
-                        <p className="text-sm text-white font-medium">{selectedNode.type}</p>
-                      </div>
-                      <div>
-                        <span className="text-xs text-dark-muted">Name:</span>
-                        <p className="text-sm text-white">{selectedNode.name}</p>
-                      </div>
-                      {selectedNode.revenue && (
-                        <div>
-                          <span className="text-xs text-dark-muted">Revenue:</span>
-                          <p className="text-sm text-green-500 font-medium">${selectedNode.revenue.toLocaleString()}</p>
-                        </div>
-                      )}
-                      {selectedNode.profit && (
-                        <div>
-                          <span className="text-xs text-dark-muted">Profit:</span>
-                          <p className="text-sm text-blue-500 font-medium">${selectedNode.profit.toLocaleString()}</p>
-                        </div>
-                      )}
-                    </div>
+                  <div className="text-center">
+                    <div className="text-white font-semibold">{graphData.stats?.totalEdges || 0}</div>
+                    <div className="text-dark-muted">Edges</div>
                   </div>
-                )}
-                
-                {/* Guided Tutorial Overlay */}
-                {showTutorial && (
-                  <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50 pointer-events-auto">
-                    <div className="bg-gradient-to-r from-purple-900 to-blue-900 rounded-xl p-6 max-w-md mx-4 border border-purple-500/30">
-                      {tutorialStep === 0 && (
-                        <div className="text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">🎯 Welcome to Graph Explorer!</h3>
-                          <p className="text-purple-200 mb-4">
-                            You're looking at 2000 products with no relationships visible yet. 
-                            Let's light up the graph step by step!
-                          </p>
-                          <button
-                            onClick={() => setTutorialStep(1)}
-                            className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg transition-colors"
-                          >
-                            Start Tutorial →
-                          </button>
-                          <button
-                            onClick={() => {
-                              localStorage.setItem('graphTutorialSkipped', 'true')
-                              setShowTutorial(false)
-                            }}
-                            className="ml-2 text-purple-300 hover:text-white transition-colors"
-                          >
-                            Skip
-                          </button>
-                        </div>
-                      )}
-                      
-                      {tutorialStep === 1 && (
-                        <div className="text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">🟢 Step 1: Categories</h3>
-                          <p className="text-purple-200 mb-4">
-                            Click "Product → Category" in the left panel to see how products connect to their business categories.
-                          </p>
-                          <button
-                            onClick={() => {
-                              setEdgeFilters(prev => ({ ...prev, showBelongsTo: true }))
-                              setTutorialStep(2)
-                            }}
-                            className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg transition-colors"
-                          >
-                            Show Categories ✨
-                          </button>
-                        </div>
-                      )}
-                      
-                      {tutorialStep === 2 && (
-                        <div className="text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">🟠 Step 2: Brands</h3>
-                          <p className="text-purple-200 mb-4">
-                            Now add brand relationships to see how products connect to their brands.
-                          </p>
-                          <button
-                            onClick={() => {
-                              setEdgeFilters(prev => ({ ...prev, showBrandedAs: true }))
-                              setTutorialStep(3)
-                            }}
-                            className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg transition-colors"
-                          >
-                            Show Brands ✨
-                          </button>
-                        </div>
-                      )}
-                      
-                      {tutorialStep === 3 && (
-                        <div className="text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">🔷 Step 3: Geography</h3>
-                          <p className="text-purple-200 mb-4">
-                            Add regional hierarchy to understand the geographic structure.
-                          </p>
-                          <button
-                            onClick={() => {
-                              setEdgeFilters(prev => ({ ...prev, showPartOf: true }))
-                              setTutorialStep(4)
-                            }}
-                            className="bg-cyan-500 hover:bg-cyan-600 text-white px-6 py-2 rounded-lg transition-colors"
-                          >
-                            Show Regions ✨
-                          </button>
-                        </div>
-                      )}
-                      
-                      {tutorialStep === 4 && (
-                        <div className="text-center">
-                          <h3 className="text-xl font-bold text-white mb-4">🎉 Excellent!</h3>
-                          <p className="text-purple-200 mb-4">
-                            You now see the core relationships! Use the checkboxes in the left panel to explore different combinations.
-                          </p>
-                          <button
-                            onClick={() => {
-                              localStorage.setItem('graphTutorialCompleted', 'true')
-                              setShowTutorial(false)
-                            }}
-                            className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg transition-colors"
-                          >
-                            Start Exploring! 🚀
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                  <div className="text-center">
+                    <div className="text-white font-semibold">{graphData.stats?.products || 0}</div>
+                    <div className="text-dark-muted">Products</div>
                   </div>
-                )}
-                
-                {/* Enhanced Hierarchical Visualization Guide */}
-                <div className="absolute top-4 right-4 bg-surface/95 backdrop-blur-sm rounded-lg p-4 max-w-sm border border-white/10">
-                  <h3 className="text-white font-semibold mb-3 flex items-center">
-                    <Gamepad2 className="w-4 h-4 mr-2 text-purple-400" />
-                    Graph Layout Guide
-                  </h3>
-                  
-                  <div className="space-y-3 text-sm text-dark-muted">
-                    <div>
-                      <div className="text-white font-medium mb-2">🎯 Hierarchical Structure</div>
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                            <span>Products</span>
-                          </div>
-                          <span className="text-xs text-green-400">Center (Core)</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
-                            <span>Categories</span>
-                          </div>
-                          <span className="text-xs text-purple-400">Top Ring</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-orange-500 rounded-full mr-2"></div>
-                            <span>Brands</span>
-                          </div>
-                          <span className="text-xs text-orange-400">Right Cluster</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
-                            <span>Countries</span>
-                          </div>
-                          <span className="text-xs text-blue-400">Left Side</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-cyan-500 rounded-full mr-2"></div>
-                            <span>Regions</span>
-                          </div>
-                          <span className="text-xs text-cyan-400">Above Countries</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className="w-2 h-2 bg-lime-500 rounded-full mr-2"></div>
-                            <span>Plants</span>
-                          </div>
-                          <span className="text-xs text-lime-400">Right Bottom</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <hr className="border-white/10" />
-                    
-                    <div>
-                      <div className="text-white font-medium mb-2">🔗 Relationship Flow</div>
-                      <div className="text-xs space-y-1">
-                        <div>Product → Category (Classification)</div>
-                        <div>Product → Brand (Branding)</div>
-                        <div>Product → Country (Geography)</div>
-                        <div>Country → Region (Hierarchy)</div>
-                      </div>
-                    </div>
-                    
-                    <hr className="border-white/10" />
-                    
-                    <div className="space-y-1">
-                      <div className="text-white font-medium">⚡ Navigation</div>
-                      <div>• <span className="text-yellow-400">Drag</span>: Rotate around center</div>
-                      <div>• <span className="text-yellow-400">Scroll</span>: Zoom to explore layers</div>
-                      <div>• <span className="text-yellow-400">Click</span>: Select & inspect</div>
-                      <div>• <span className="text-green-400">Tip</span>: Start at center (Products)</div>
-                    </div>
-                    
-                    <hr className="border-white/10" />
-                    
-                    <div className="text-xs text-dark-muted">
-                      <strong>Performance:</strong> 1434/6034 edges visible<br/>
-                      <strong>Layout:</strong> Intelligent hierarchy<br/>
-                      <strong>Optimization:</strong> LOD + Distance culling
-                    </div>
-                  </div>
-                </div>
-              </Suspense>
-            ) : graphData3D && graphData3D.nodes && graphData3D.nodes.length > 0 ? (
-              // Legacy Mode Visualization
-              <div className="w-full h-full relative">
-                {/* Loading State */}
-                {!graphReady && !webglError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-dark-bg/50 z-10">
-                    <div className="text-center">
-                      <div className="w-16 h-16 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <h3 className="text-lg font-semibold text-white mb-2">Loading 3D Visualization</h3>
-                      <p className="text-dark-muted">Initializing WebGL renderer...</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* WebGL Error Fallback */}
-                {webglError && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-dark-bg/50 z-10">
-                    <div className="text-center">
-                      <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Network className="w-8 h-8 text-red-500" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-white mb-2">WebGL Not Supported</h3>
-                      <p className="text-dark-muted mb-4">Your browser doesn't support WebGL 3D rendering</p>
-                      <button
-                        onClick={() => {
-                          setWebglError(false)
-                          setGraphReady(false)
-                        }}
-                        className="btn-primary px-4 py-2"
-                      >
-                        <RefreshCw className="w-4 h-4 mr-2" />
-                        Retry
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {(() => {
-                  try {
-                    
-                    // Different visualization based on view mode
-                    if (viewMode === '3D' && !forceGraph3DError) {
-                      try {
-                        return (
-                          <ForceGraph3D
-                            ref={graphRef}
-                            graphData={graphData3D}
-                            nodeLabel="name"
-                            nodeColor="color"
-                            nodeVal="val"
-                            linkColor="color"
-                            linkWidth="width"
-                            linkOpacity={graphConfig.linkOpacity}
-                            backgroundColor={graphConfig.backgroundColor}
-                            showNavInfo={graphConfig.showNavInfo}
-                            enableNodeDrag={graphConfig.enableNodeDrag}
-                            enableNavigationControls={graphConfig.enableNavigationControls}
-                            enablePointerInteraction={graphConfig.enablePointerInteraction}
-                            enableNodeInteraction={graphConfig.enableNodeInteraction}
-                            enableLinkInteraction={graphConfig.enableLinkInteraction}
-                            antialias={graphConfig.antialias}
-                            pixelRatio={graphConfig.pixelRatio}
-                            d3AlphaDecay={graphConfig.d3AlphaDecay}
-                            d3VelocityDecay={graphConfig.d3VelocityDecay}
-                            cooldownTicks={graphConfig.cooldownTicks}
-                            onNodeClick={handleNodeClick}
-                            onBackgroundClick={handleBackgroundClick}
-                            onNodeHover={handleNodeHover}
-                            onEngineStop={handleGraphReady}
-                            onWebGlContextLost={handleWebGLError}
-                            width={windowDimensions.width - 320}
-                            height={windowDimensions.height - 100}
-                          />
-                        )
-                      } catch (error) {
-                        console.error('❌ ForceGraph3D error:', error)
-                        setForceGraph3DError(true)
-                        setViewMode('2D')
-                        // Fall through to 2D rendering
-                      }
-                    }
-                    
-                    // Use 2D as fallback for 3D or when 3D is selected
-                    if (viewMode === '2D' || forceGraph3DError) {
-                       return (
-                         <ForceGraph2D
-                           ref={graphRef}
-                           graphData={graphData3D}
-                           nodeLabel="name"
-                           linkLabel="type"
-                           nodeColor={node => node.color}
-                           linkColor={link => link.color}
-                           linkWidth={link => link.width}
-                           linkOpacity={link => link.opacity}
-                           nodeRelSize={6}
-                           linkDirectionalParticles={2}
-                           linkDirectionalParticleSpeed={0.005}
-                           backgroundColor={graphConfig.backgroundColor}
-                           onNodeClick={handleNodeClick}
-                           onBackgroundClick={handleBackgroundClick}
-                           onNodeHover={handleNodeHover}
-                           width={windowDimensions.width - 320}
-                           height={windowDimensions.height - 100}
-                         />
-                       )
-                    } else if (viewMode === 'Force') {
-                      return (
-                        <ForceGraph2D
-                          ref={graphRef}
-                          graphData={graphData3D}
-                          nodeLabel="name"
-                          linkLabel="type"
-                          nodeColor={node => node.color}
-                          linkColor={link => link.color}
-                          linkWidth={link => link.width}
-                          linkOpacity={link => link.opacity}
-                          nodeRelSize={8}
-                          backgroundColor={graphConfig.backgroundColor}
-                          d3Force="charge"
-                          d3ForceLink={{
-                            distance: 80,
-                            iterations: 30
-                          }}
-                          d3ForceCharge={{
-                            strength: -300,
-                            distanceMin: 30,
-                            distanceMax: 200
-                          }}
-                          onNodeClick={handleNodeClick}
-                          onBackgroundClick={handleBackgroundClick}
-                          onNodeHover={handleNodeHover}
-                          width={windowDimensions.width - 320}
-                          height={windowDimensions.height - 100}
-                        />
-                      )
-                    }
-                  } catch (error) {
-                    console.error('❌ Graph rendering error:', error)
-                    return (
-                      <div className="flex items-center justify-center h-full">
-                        <div className="text-center">
-                          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <Network className="w-8 h-8 text-red-500" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-white mb-2">Visualization Error</h3>
-                          <p className="text-dark-muted mb-4">Error: {error.message}</p>
-                          <button
-                            onClick={fetchGraphData}
-                            className="btn-primary px-4 py-2"
-                          >
-                            <RefreshCw className="w-4 h-4 mr-2" />
-                            Retry
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  }
-                })()}
-                
-                {/* 3D Controls Overlay */}
-                <div className="absolute top-4 right-4 flex flex-col space-y-2">
-                  <button
-                    onClick={resetCamera}
-                    className="p-2 bg-surface-2 hover:bg-surface-3 rounded-lg transition-colors"
-                    title="Reset Camera"
-                  >
-                    <RotateCcw className="w-4 h-4 text-white" />
-                  </button>
-                  <button
-                    onClick={zoomIn}
-                    className="p-2 bg-surface-2 hover:bg-surface-3 rounded-lg transition-colors"
-                    title="Zoom In"
-                  >
-                    <ZoomIn className="w-4 h-4 text-white" />
-                  </button>
-                  <button
-                    onClick={zoomOut}
-                    className="p-2 bg-surface-2 hover:bg-surface-3 rounded-lg transition-colors"
-                    title="Zoom Out"
-                  >
-                    <ZoomOut className="w-4 h-4 text-white" />
-                  </button>
-                </div>
-
-                {/* Legend Overlay */}
-                <div className="absolute top-4 left-4 bg-surface-2 rounded-lg p-3 text-white text-sm">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span>Products ({graphData.stats?.products || 0})</span>
-                  </div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                    <span>Plants ({graphData.stats?.plants || 0})</span>
-                  </div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                    <span>Storage ({graphData.stats?.storage || 0})</span>
-                  </div>
-                  <div className="flex items-center space-x-2 mb-2">
-                    <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                    <span>Groups ({graphData.stats?.groups || 0})</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span>Categories ({graphData.stats?.categories || 0})</span>
-                  </div>
-                </div>
-
-                {/* Instructions Overlay */}
-                <div className="absolute bottom-4 left-4 bg-surface-2 rounded-lg p-3 text-white text-xs opacity-80">
-                  <div className="flex items-center space-x-2 mb-1">
-                    <Layers className="w-3 h-3" />
-                    <span className="font-medium">3D Controls</span>
-                  </div>
-                  <div>• Drag to rotate • Scroll to zoom • Click nodes for details</div>
-                </div>
-              </div>
-            ) : (
-              // No Data State
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="w-32 h-32 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    {useGamingMode ? (
-                      <Gamepad2 className="w-16 h-16 text-purple-500" />
-                    ) : (
-                      <Network className="w-16 h-16 text-brand-500" />
-                    )}
-                  </div>
-                  <h3 className="text-2xl font-bold text-white mb-4">
-                    {useGamingMode ? 'Gaming Graph Explorer' : '3D Graph Visualization'}
-                  </h3>
-                  <p className="text-dark-muted mb-6 max-w-md">
-                    {useGamingMode ? (
-                      'Immersive gaming-style 3D exploration of your graph database with advanced navigation controls and real-time interaction.'
-                    ) : (
-                      'Interactive 3D visualization of your supply chain network with revenue and profit data exploration.'
-                    )}
-                  </p>
-                  
-                  {useGamingMode ? (
-                    <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
-                      <div className="bg-surface-2 rounded-lg p-4 border border-purple-500/20">
-                        <Cpu className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-                        <p className="text-sm text-white font-medium">Gaming Engine</p>
-                        <p className="text-xs text-dark-muted">Advanced 3D rendering</p>
-                      </div>
-                      <div className="bg-surface-2 rounded-lg p-4 border border-blue-500/20">
-                        <Zap className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                        <p className="text-sm text-white font-medium">Real-time HUD</p>
-                        <p className="text-xs text-dark-muted">Gaming-style interface</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto">
-                      <div className="bg-surface-2 rounded-lg p-4">
-                        <TrendingUp className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                        <p className="text-sm text-white font-medium">Revenue Analysis</p>
-                        <p className="text-xs text-dark-muted">Explore revenue patterns</p>
-                      </div>
-                      <div className="bg-surface-2 rounded-lg p-4">
-                        <DollarSign className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-                        <p className="text-sm text-white font-medium">Profit Insights</p>
-                        <p className="text-xs text-dark-muted">Analyze profitability</p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {!useGamingMode && (
-                    <div className="mt-6">
-                      <button
-                        onClick={() => {
-                          setUseGamingMode(true)
-                          setViewMode('Gaming')
-                        }}
-                        className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all"
-                      >
-                        <Gamepad2 className="w-4 h-4" />
-                        <span>Try Gaming Engine</span>
-                        <Zap className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
           </div>
         </div>
+
+        {/* Graph Visualization Area */}
+        <div className="relative flex-1" style={{ height: 'calc(100vh - 200px)' }}>
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full bg-dark-bg">
+              <div className="text-center">
+                <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-dark-muted">Loading visualization...</p>
+              </div>
+            </div>
+          }>
+            {viewMode === 'Enhanced' ? (
+              <EnhancedGraphVisualizer
+                graphData={graphData}
+                onNodeSelect={handleNodeSelect}
+                edgeFilters={edgeFilters}
+                selectedNode={selectedNode}
+                nodeFilters={filters}
+              />
+            ) : viewMode === 'Gaming' ? (
+              <GamingGraphVisualizer
+                graphData={graphData}
+                onNodeSelect={handleNodeSelect}
+                edgeFilters={edgeFilters}
+                selectedNode={selectedNode}
+                nodeFilters={filters}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-dark-bg">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Gamepad2 className="w-8 h-8 text-yellow-500" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-white mb-2">Legacy Mode</h3>
+                  <p className="text-dark-muted mb-4">Please use Enhanced 3D mode for the best experience</p>
+                  <button
+                    onClick={() => setViewMode('Enhanced')}
+                    className="btn-primary px-4 py-2"
+                  >
+                    Switch to Enhanced Mode
+                  </button>
+                </div>
+              </div>
+            )}
+          </Suspense>
+        </div>
+
+        {/* Selected Node Info Panel */}
+        {selectedNode && (
+          <div className="absolute top-20 right-4 bg-black/80 p-4 rounded-lg text-white max-w-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-semibold">Selected Node</h3>
+              <button
+                onClick={() => setSelectedNode(null)}
+                className="text-gray-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-1 text-sm">
+              <div><strong>Type:</strong> {selectedNode.type}</div>
+              <div><strong>Name:</strong> {selectedNode.name || selectedNode.id}</div>
+              {selectedNode.category && <div><strong>Category:</strong> {selectedNode.category}</div>}
+              {selectedNode.country && <div><strong>Country:</strong> {selectedNode.country}</div>}
+              {selectedNode.region && <div><strong>Region:</strong> {selectedNode.region}</div>}
+            </div>
+          </div>
+        )}
       </div>
-    )
+    </Layout>
+  )
 }
 
 export default GraphVisualizer
