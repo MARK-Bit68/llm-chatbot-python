@@ -30,3 +30,11 @@ test-results-*.png
 ADVANCED_DEPLOYMENT_GUIDE.md
 CLAUDE.md
 .playwright-mcp/
+# Log files
+*.log
+*_logs.txt
+*_logs.json
+railway_*logs*
+railway_deployment_logs_*
+railway_recent_logs*
+
