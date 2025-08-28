@@ -112,7 +112,7 @@ class EnhancedGraphImporterV2:
                     except Exception as e:
                         logger.error(f"❌ Error analyzing sheet {sheet}: {e}")
             
-            # Check for FMCG format (single sheet with SKU data)
+            # Check for FMCG format (single sheet with SKU data or main dataset sheet)
             elif len(sheets) == 1 and 'Sheet1' in sheets:
                 logger.info("🎯 Detected FMCG format (single sheet)")
                 analysis['import_strategy'] = 'fmcg_format'
@@ -126,6 +126,21 @@ class EnhancedGraphImporterV2:
                     logger.info(f"📋 Sheet1 contains {len(df)} rows with columns: {list(df.columns)}")
                 except Exception as e:
                     logger.error(f"❌ Error analyzing Sheet1: {e}")
+            
+            # Check for Original 2000 SKU format (SOP_Dataset as main sheet)
+            elif 'SOP_Dataset' in sheets:
+                logger.info("🎯 Detected Original 2000 SKU format (SOP_Dataset)")
+                analysis['import_strategy'] = 'fmcg_format'
+                try:
+                    df = pd.read_excel(excel_file_path, sheet_name='SOP_Dataset')
+                    analysis['sheet_analysis']['SOP_Dataset'] = {
+                        'rows': len(df),
+                        'columns': list(df.columns),
+                        'sample_data': df.head(3).to_dict('records') if len(df) > 0 else []
+                    }
+                    logger.info(f"📋 SOP_Dataset contains {len(df)} rows with columns: {list(df.columns)}")
+                except Exception as e:
+                    logger.error(f"❌ Error analyzing SOP_Dataset: {e}")
             
             # Check for Enhanced format (multiple business sheets)
             else:
