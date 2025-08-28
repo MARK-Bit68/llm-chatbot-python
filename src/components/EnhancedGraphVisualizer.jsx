@@ -289,7 +289,7 @@ const EnhancedCameraControls = ({ onCameraChange, autoRotate }) => {
       enableRotate={true}
       autoRotate={autoRotate}
       autoRotateSpeed={0.3}
-      maxDistance={2000}
+      maxDistance={3000}
       minDistance={50}
       dampingFactor={0.05}
       enableDamping={true}
@@ -328,31 +328,31 @@ const EnhancedGraphVisualizer = ({
     const layoutConfig = {
       'Product': { 
         center: { x: 0, y: 0, z: 0 }, 
-        radius: 150, 
+        radius: 200, 
         layers: 3,
         color: '#10B981'
       },
       'Category': { 
-        center: { x: 0, y: 120, z: 0 }, 
-        radius: 100, 
+        center: { x: 0, y: 150, z: 0 }, 
+        radius: 120, 
         layers: 2,
         color: '#8B5CF6'
       },
       'Country': { 
-        center: { x: -180, y: 0, z: 80 }, 
-        radius: 120, 
+        center: { x: -250, y: 0, z: 100 }, 
+        radius: 150, 
         layers: 2,
         color: '#3B82F6'
       },
       'Plant': { 
-        center: { x: 200, y: -80, z: -40 }, 
-        radius: 80, 
+        center: { x: 250, y: -100, z: -50 }, 
+        radius: 100, 
         layers: 2,
         color: '#84CC16'
       },
       'Storage': { 
-        center: { x: 150, y: 100, z: 0 }, 
-        radius: 90, 
+        center: { x: 200, y: 120, z: 0 }, 
+        radius: 110, 
         layers: 2,
         color: '#F59E0B'
       }
@@ -374,11 +374,11 @@ const EnhancedGraphVisualizer = ({
           const nodesInLayer = Math.ceil(typeNodes.length / config.layers)
           const layerIndex = Math.floor(index / config.layers)
           const angle = (layerIndex / nodesInLayer) * Math.PI * 2
-          const yOffset = (layer - 1) * 40
+          const yOffset = (layer - 1) * 50
           
           position = {
             x: config.center.x + Math.cos(angle) * layerRadius,
-            y: config.center.y + yOffset + (Math.random() - 0.5) * 20,
+            y: config.center.y + yOffset + (Math.random() - 0.5) * 30,
             z: config.center.z + Math.sin(angle) * layerRadius
           }
         } else {
@@ -388,7 +388,7 @@ const EnhancedGraphVisualizer = ({
           
           position = {
             x: config.center.x + Math.cos(angle) * radius,
-            y: config.center.y + (Math.random() - 0.5) * 30,
+            y: config.center.y + (Math.random() - 0.5) * 40,
             z: config.center.z + Math.sin(angle) * radius
           }
         }
@@ -437,7 +437,7 @@ const EnhancedGraphVisualizer = ({
   
   if (!data) {
     return (
-      <div className={`flex items-center justify-center h-96 bg-gray-900 rounded-lg ${className}`}>
+      <div className={`flex items-center justify-center h-full bg-gray-900 ${className}`}>
         <div className="text-white text-center">
           <Network className="w-12 h-12 mx-auto mb-4 text-gray-400" />
           <p>No graph data available</p>
@@ -447,9 +447,9 @@ const EnhancedGraphVisualizer = ({
   }
   
   return (
-    <div className={`relative w-full h-96 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 rounded-lg overflow-hidden ${className}`}>
+    <div className={`relative w-full h-full bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 ${className}`}>
       <Canvas
-        camera={{ position: [0, 200, 800], fov: 60 }}
+        camera={{ position: [0, 300, 1200], fov: 60 }}
         gl={{ 
           antialias: true, 
           alpha: true,
@@ -462,13 +462,13 @@ const EnhancedGraphVisualizer = ({
       >
         {/* Environment */}
         <Environment preset="night" />
-        <Stars radius={200} depth={100} count={8000} factor={6} saturation={0} fade speed={1} />
+        <Stars radius={300} depth={150} count={12000} factor={8} saturation={0} fade speed={1} />
         
         {/* Lighting */}
         <ambientLight intensity={0.4} />
-        <pointLight position={[200, 200, 200]} intensity={1.2} color="#4FFFEF" />
-        <pointLight position={[-200, -200, -200]} intensity={0.8} color="#FF6B6B" />
-        <directionalLight position={[0, 200, 0]} intensity={1.0} castShadow />
+        <pointLight position={[300, 300, 300]} intensity={1.5} color="#4FFFEF" />
+        <pointLight position={[-300, -300, -300]} intensity={1.0} color="#FF6B6B" />
+        <directionalLight position={[0, 300, 0]} intensity={1.2} castShadow />
         
         {/* Camera Controls */}
         <EnhancedCameraControls 
@@ -502,71 +502,67 @@ const EnhancedGraphVisualizer = ({
         {showStats && <Stats />}
       </Canvas>
       
-      {/* Overlay Controls */}
-      <div className="absolute top-4 right-4 flex flex-col gap-2">
+      {/* Minimal Overlay Controls */}
+      <div className="absolute top-4 left-4 flex flex-col gap-2">
         <button
           onClick={() => setAutoRotate(!autoRotate)}
-          className="p-3 bg-black/60 hover:bg-black/80 rounded-lg transition-colors backdrop-blur-sm"
+          className="p-2 bg-black/60 hover:bg-black/80 rounded-lg transition-colors backdrop-blur-sm border border-white/10"
           title="Toggle Auto-Rotation"
         >
-          <RotateCcw className={`w-5 h-5 text-white ${autoRotate ? 'text-green-400' : ''}`} />
+          <RotateCcw className={`w-4 h-4 text-white ${autoRotate ? 'text-green-400' : ''}`} />
         </button>
         <button
           onClick={handleReset}
-          className="p-3 bg-black/60 hover:bg-black/80 rounded-lg transition-colors backdrop-blur-sm"
+          className="p-2 bg-black/60 hover:bg-black/80 rounded-lg transition-colors backdrop-blur-sm border border-white/10"
           title="Reset View"
         >
-          <Compass className="w-5 h-5 text-white" />
+          <Compass className="w-4 h-4 text-white" />
         </button>
         <button
           onClick={() => setShowStats(!showStats)}
-          className="p-3 bg-black/60 hover:bg-black/80 rounded-lg transition-colors backdrop-blur-sm"
+          className="p-2 bg-black/60 hover:bg-black/80 rounded-lg transition-colors backdrop-blur-sm border border-white/10"
           title="Toggle Stats"
         >
-          <BarChart3 className="w-5 h-5 text-white" />
+          <BarChart3 className="w-4 h-4 text-white" />
         </button>
       </div>
       
-      {/* Info Panel */}
-      <div className="absolute bottom-4 left-4 bg-black/70 p-4 rounded-lg text-white text-sm backdrop-blur-sm border border-white/10">
-        <div className="flex items-center gap-2 mb-3">
-          <Network className="w-5 h-5" />
-          <span className="font-semibold">Supply Chain Network</span>
+      {/* Minimal Info Panel */}
+      <div className="absolute bottom-4 left-4 bg-black/70 p-3 rounded-lg text-white text-xs backdrop-blur-sm border border-white/10">
+        <div className="flex items-center gap-2 mb-2">
+          <Network className="w-4 h-4" />
+          <span className="font-semibold">Network</span>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1">
           <div className="flex justify-between">
             <span>Nodes:</span>
-            <span className="font-medium text-blue-400">{processedData.nodes.length}</span>
+            <span className="text-blue-400 font-medium">{processedData.nodes.length}</span>
           </div>
           <div className="flex justify-between">
             <span>Connections:</span>
-            <span className="font-medium text-green-400">{processedData.edges.length}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Selected:</span>
-            <span className="font-medium text-yellow-400">{selectedRelationships.length === 0 ? 'All' : selectedRelationships.length}</span>
+            <span className="text-green-400 font-medium">{processedData.edges.length}</span>
           </div>
         </div>
       </div>
       
-      {/* Legend */}
-      <div className="absolute top-4 left-4 bg-black/70 p-4 rounded-lg text-white text-xs backdrop-blur-sm border border-white/10">
+      {/* Minimal Legend */}
+      <div className="absolute top-4 right-4 bg-black/70 p-3 rounded-lg text-white text-xs backdrop-blur-sm border border-white/10">
         <div className="font-semibold mb-2">Node Types</div>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
             <span>Products</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+            <div className="w-2 h-2 rounded-full bg-purple-500"></div>
             <span>Categories</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
             <span>Countries</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-400"></div>
+            <div className="w-2 h-2 rounded-full bg-green-400"></div>
             <span>Plants</span>
           </div>
         </div>
