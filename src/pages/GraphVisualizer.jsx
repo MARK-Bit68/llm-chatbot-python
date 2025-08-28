@@ -147,9 +147,9 @@ const GraphVisualizer = () => {
   }
 
   return (
-    <div className="relative w-full h-full bg-gray-900 flex flex-col">
+    <div className="relative w-full h-full bg-gray-900 flex flex-col" style={{ minHeight: '100vh' }}>
       {/* Minimal Header Bar */}
-      <div className="flex-shrink-0 bg-black/80 backdrop-blur-sm border-b border-white/10 px-4 py-2">
+      <div className="flex-shrink-0 bg-black/80 backdrop-blur-sm border-b border-white/10 px-4 py-2 z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -190,8 +190,8 @@ const GraphVisualizer = () => {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 relative flex">
+      {/* Main Content Area - FULL HEIGHT */}
+      <div className="flex-1 relative flex" style={{ height: 'calc(100vh - 60px)' }}>
         {/* Minimal Sidebar */}
         <div className={`flex-shrink-0 transition-all duration-300 ${
           sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'
@@ -274,8 +274,8 @@ const GraphVisualizer = () => {
           </div>
         </div>
 
-        {/* Full-Screen Visualization */}
-        <div className="flex-1 relative">
+        {/* Full-Screen Visualization - TAKES ALL REMAINING SPACE */}
+        <div className="flex-1 relative" style={{ width: '100%', height: '100%' }}>
           {visualizationMode === 'enhanced' ? (
             <EnhancedGraphVisualizer
               data={graphData}

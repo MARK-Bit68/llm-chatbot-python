@@ -38,7 +38,7 @@ const EnhancedNode = ({ node, selected, onSelect, isHovered, distance }) => {
   const [hovered, setHovered] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   
-  // Node configuration based on type and importance
+  // Node configuration based on type and importance - FIXED COLORS
   const nodeConfig = useMemo(() => {
     const baseSize = 2
     const baseColor = '#6B7280'
@@ -47,7 +47,7 @@ const EnhancedNode = ({ node, selected, onSelect, isHovered, distance }) => {
       case 'Product':
         return {
           size: baseSize * 1.5,
-          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#10B981',
+          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#10B981', // Green
           icon: Package,
           glow: true,
           pulse: true
@@ -55,7 +55,7 @@ const EnhancedNode = ({ node, selected, onSelect, isHovered, distance }) => {
       case 'Category':
         return {
           size: baseSize * 3,
-          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#8B5CF6',
+          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#8B5CF6', // Purple
           icon: Box,
           glow: true,
           pulse: false
@@ -63,7 +63,7 @@ const EnhancedNode = ({ node, selected, onSelect, isHovered, distance }) => {
       case 'Country':
         return {
           size: baseSize * 2.5,
-          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#3B82F6',
+          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#3B82F6', // Blue
           icon: Globe,
           glow: true,
           pulse: false
@@ -71,7 +71,7 @@ const EnhancedNode = ({ node, selected, onSelect, isHovered, distance }) => {
       case 'Plant':
         return {
           size: baseSize * 2.8,
-          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#84CC16',
+          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#F59E0B', // Orange (CHANGED from green)
           icon: Factory,
           glow: true,
           pulse: false
@@ -79,7 +79,7 @@ const EnhancedNode = ({ node, selected, onSelect, isHovered, distance }) => {
       case 'Storage':
         return {
           size: baseSize * 2.2,
-          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#F59E0B',
+          color: selected ? '#FFFF00' : hovered ? '#00FFFF' : '#EF4444', // Red (CHANGED)
           icon: MapPin,
           glow: true,
           pulse: false
@@ -226,14 +226,14 @@ const EnhancedEdge = ({ edge, sourceNode, targetNode, isVisible }) => {
   
   if (!isVisible || !sourceNode || !targetNode) return null
   
-  // Create curved path for edges
+  // Create curved path for edges with proper from-to endpoints
   const curvePoints = useMemo(() => {
     const start = new THREE.Vector3(sourceNode.x || 0, sourceNode.y || 0, sourceNode.z || 0)
     const end = new THREE.Vector3(targetNode.x || 0, targetNode.y || 0, targetNode.z || 0)
     
-    // Create a curved path
+    // Create a curved path that properly connects the nodes
     const midPoint = start.clone().lerp(end, 0.5)
-    midPoint.y += Math.random() * 30 - 15 // Random height variation
+    midPoint.y += Math.random() * 20 - 10 // Reduced height variation for better visibility
     
     return [start, midPoint, end]
   }, [sourceNode, targetNode])
@@ -324,37 +324,37 @@ const EnhancedGraphVisualizer = ({
       nodesByType[type].push(node)
     })
     
-    // Enhanced hierarchical layout
+    // Enhanced hierarchical layout with better spacing
     const layoutConfig = {
       'Product': { 
         center: { x: 0, y: 0, z: 0 }, 
-        radius: 200, 
-        layers: 3,
+        radius: 300, 
+        layers: 4,
         color: '#10B981'
       },
       'Category': { 
-        center: { x: 0, y: 150, z: 0 }, 
-        radius: 120, 
-        layers: 2,
+        center: { x: 0, y: 200, z: 0 }, 
+        radius: 180, 
+        layers: 3,
         color: '#8B5CF6'
       },
       'Country': { 
-        center: { x: -250, y: 0, z: 100 }, 
-        radius: 150, 
+        center: { x: -350, y: 0, z: 150 }, 
+        radius: 200, 
         layers: 2,
         color: '#3B82F6'
       },
       'Plant': { 
-        center: { x: 250, y: -100, z: -50 }, 
-        radius: 100, 
-        layers: 2,
-        color: '#84CC16'
-      },
-      'Storage': { 
-        center: { x: 200, y: 120, z: 0 }, 
-        radius: 110, 
+        center: { x: 350, y: -150, z: -75 }, 
+        radius: 150, 
         layers: 2,
         color: '#F59E0B'
+      },
+      'Storage': { 
+        center: { x: 250, y: 180, z: 0 }, 
+        radius: 160, 
+        layers: 2,
+        color: '#EF4444'
       }
     }
     
@@ -370,25 +370,25 @@ const EnhancedGraphVisualizer = ({
         if (type === 'Product') {
           // Spiral layout for products
           const layer = index % config.layers
-          const layerRadius = config.radius * (0.3 + (layer * 0.3))
+          const layerRadius = config.radius * (0.2 + (layer * 0.25))
           const nodesInLayer = Math.ceil(typeNodes.length / config.layers)
           const layerIndex = Math.floor(index / config.layers)
           const angle = (layerIndex / nodesInLayer) * Math.PI * 2
-          const yOffset = (layer - 1) * 50
+          const yOffset = (layer - 1.5) * 60
           
           position = {
             x: config.center.x + Math.cos(angle) * layerRadius,
-            y: config.center.y + yOffset + (Math.random() - 0.5) * 30,
+            y: config.center.y + yOffset + (Math.random() - 0.5) * 40,
             z: config.center.z + Math.sin(angle) * layerRadius
           }
         } else {
           // Organized clusters for other types
           const angle = (index / typeNodes.length) * Math.PI * 2
-          const radius = config.radius * (0.6 + Math.random() * 0.4)
+          const radius = config.radius * (0.5 + Math.random() * 0.5)
           
           position = {
             x: config.center.x + Math.cos(angle) * radius,
-            y: config.center.y + (Math.random() - 0.5) * 40,
+            y: config.center.y + (Math.random() - 0.5) * 60,
             z: config.center.z + Math.sin(angle) * radius
           }
         }
@@ -449,7 +449,7 @@ const EnhancedGraphVisualizer = ({
   return (
     <div className={`relative w-full h-full bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 ${className}`}>
       <Canvas
-        camera={{ position: [0, 300, 1200], fov: 60 }}
+        camera={{ position: [0, 400, 1500], fov: 60 }}
         gl={{ 
           antialias: true, 
           alpha: true,
@@ -459,16 +459,17 @@ const EnhancedGraphVisualizer = ({
           gl.setClearColor('#0F172A', 1)
           gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))
         }}
+        style={{ width: '100%', height: '100%' }}
       >
         {/* Environment */}
         <Environment preset="night" />
-        <Stars radius={300} depth={150} count={12000} factor={8} saturation={0} fade speed={1} />
+        <Stars radius={400} depth={200} count={15000} factor={10} saturation={0} fade speed={1} />
         
         {/* Lighting */}
         <ambientLight intensity={0.4} />
-        <pointLight position={[300, 300, 300]} intensity={1.5} color="#4FFFEF" />
-        <pointLight position={[-300, -300, -300]} intensity={1.0} color="#FF6B6B" />
-        <directionalLight position={[0, 300, 0]} intensity={1.2} castShadow />
+        <pointLight position={[400, 400, 400]} intensity={1.8} color="#4FFFEF" />
+        <pointLight position={[-400, -400, -400]} intensity={1.2} color="#FF6B6B" />
+        <directionalLight position={[0, 400, 0]} intensity={1.5} castShadow />
         
         {/* Camera Controls */}
         <EnhancedCameraControls 
@@ -562,7 +563,7 @@ const EnhancedGraphVisualizer = ({
             <span>Countries</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400"></div>
+            <div className="w-2 h-2 rounded-full bg-orange-500"></div>
             <span>Plants</span>
           </div>
         </div>
