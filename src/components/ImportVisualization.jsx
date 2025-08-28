@@ -13,7 +13,8 @@ import {
   Factory,
   Package,
   Users,
-  TrendingUp
+  TrendingUp,
+  X
 } from 'lucide-react'
 
 const ImportVisualization = ({ 
@@ -133,13 +134,8 @@ const ImportVisualization = ({
       setShowGraph(true)
     }
 
-    // Complete when done
-    if (step === 6 && progress === 100) {
-      setTimeout(() => {
-        if (onComplete) onComplete()
-      }, 2000)
-    }
-  }, [isVisible, importStatus, onComplete])
+    // Note: Removed auto-dismiss - user must manually dismiss to see all animations
+  }, [isVisible, importStatus])
 
   // Animated graph visualization
   useEffect(() => {
@@ -238,23 +234,34 @@ const ImportVisualization = ({
           animate={{ y: 0 }}
           className="bg-surface-1 border border-white/10 rounded-2xl p-8 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
         >
-          {/* Header */}
-          <div className="text-center mb-8">
-            <motion.div
-              initial={{ rotate: 0 }}
-              animate={{ rotate: 360 }}
-              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-              className="inline-flex items-center justify-center w-16 h-16 bg-brand-500/20 rounded-full mb-4"
-            >
-              <Database className="w-8 h-8 text-brand-500" />
-            </motion.div>
-            <h2 className="text-2xl font-bold text-white mb-2">
-              Transforming Your Data
-            </h2>
-            <p className="text-dark-muted">
-              Converting Excel sheets into a powerful graph database
-            </p>
-          </div>
+                           {/* Header */}
+                 <div className="relative text-center mb-8">
+                   {/* Close button */}
+                   <button
+                     onClick={() => {
+                       if (onComplete) onComplete()
+                     }}
+                     className="absolute top-0 right-0 p-2 text-dark-muted hover:text-white transition-colors"
+                     aria-label="Close visualization"
+                   >
+                     <X className="w-5 h-5" />
+                   </button>
+                   
+                   <motion.div
+                     initial={{ rotate: 0 }}
+                     animate={{ rotate: 360 }}
+                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                     className="inline-flex items-center justify-center w-16 h-16 bg-brand-500/20 rounded-full mb-4"
+                   >
+                     <Database className="w-8 h-8 text-brand-500" />
+                   </motion.div>
+                   <h2 className="text-2xl font-bold text-white mb-2">
+                     Transforming Your Data
+                   </h2>
+                   <p className="text-dark-muted">
+                     Converting Excel sheets into a powerful graph database
+                   </p>
+                 </div>
 
           {/* Progress Steps */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -455,14 +462,24 @@ const ImportVisualization = ({
               animate={{ opacity: 1, y: 0 }}
               className="mt-6 bg-green-500/10 border border-green-500/20 rounded-lg p-4"
             >
-              <div className="flex items-center space-x-3">
-                <CheckCircle className="w-5 h-5 text-green-500" />
-                <div>
-                  <p className="font-medium text-green-400">Import Successful!</p>
-                  <p className="text-sm text-green-300">
-                    Your data has been successfully converted to a graph database and is ready for analysis.
-                  </p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <div>
+                    <p className="font-medium text-green-400">Import Successful!</p>
+                    <p className="text-sm text-green-300">
+                      Your data has been successfully converted to a graph database and is ready for analysis.
+                    </p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => {
+                    if (onComplete) onComplete()
+                  }}
+                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-colors"
+                >
+                  Continue
+                </button>
               </div>
             </motion.div>
           )}
