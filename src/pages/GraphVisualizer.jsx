@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import GamingGraphVisualizer from '../components/GamingGraphVisualizer'
 import EnhancedGraphVisualizer from '../components/EnhancedGraphVisualizer'
+import Simple2DGraph from '../components/Simple2DGraph'
 import GraphMetadata from '../components/GraphMetadata'
 
 const GraphVisualizer = () => {
@@ -33,7 +34,7 @@ const GraphVisualizer = () => {
   const [error, setError] = useState(null)
   const [selectedRelationships, setSelectedRelationships] = useState([])
   const [selectedNode, setSelectedNode] = useState(null)
-  const [visualizationMode, setVisualizationMode] = useState('enhanced') // 'enhanced' or 'gaming'
+  const [visualizationMode, setVisualizationMode] = useState('2d') // '2d', 'enhanced', or 'gaming'
   const [showFilters, setShowFilters] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -147,7 +148,16 @@ const GraphVisualizer = () => {
   }
 
   return (
-    <div className="relative w-full h-full bg-gray-900 flex flex-col" style={{ minHeight: '100vh' }}>
+    <div className="relative w-full h-full bg-gray-900 flex flex-col" style={{ 
+      minHeight: '100vh',
+      height: '100vh',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 50
+    }}>
       {/* Minimal Header Bar */}
       <div className="flex-shrink-0 bg-black/80 backdrop-blur-sm border-b border-white/10 px-4 py-2 z-50">
         <div className="flex items-center justify-between">
@@ -165,6 +175,7 @@ const GraphVisualizer = () => {
               onChange={(e) => setVisualizationMode(e.target.value)}
               className="bg-black/40 border border-white/20 rounded px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
+              <option value="2d">2D Force-Directed</option>
               <option value="enhanced">Enhanced 3D</option>
               <option value="gaming">Gaming Style</option>
             </select>
@@ -191,7 +202,11 @@ const GraphVisualizer = () => {
       </div>
 
       {/* Main Content Area - FULL HEIGHT */}
-      <div className="flex-1 relative flex" style={{ height: 'calc(100vh - 44px)' }}>
+      <div className="flex-1 relative flex" style={{ 
+        height: 'calc(100vh - 44px)',
+        minHeight: 'calc(100vh - 44px)',
+        position: 'relative'
+      }}>
         {/* Minimal Sidebar */}
         <div className={`flex-shrink-0 transition-all duration-300 ${
           sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-64'
@@ -275,13 +290,27 @@ const GraphVisualizer = () => {
         </div>
 
         {/* Full-Screen Visualization - TAKES ALL REMAINING SPACE */}
-        <div className="flex-1 relative" style={{ width: '100%', height: '100%', minHeight: '100%' }}>
-          {visualizationMode === 'enhanced' ? (
+        <div className="flex-1 relative" style={{ 
+          width: '100%', 
+          height: '100%', 
+          minHeight: '100%', 
+          display: 'flex', 
+          flexDirection: 'column',
+          position: 'relative'
+        }}>
+          {visualizationMode === '2d' ? (
+            <Simple2DGraph
+              data={graphData}
+              selectedRelationships={selectedRelationships}
+              onNodeSelect={handleNodeSelect}
+              className="w-full h-full flex-1"
+            />
+          ) : visualizationMode === 'enhanced' ? (
             <EnhancedGraphVisualizer
               data={graphData}
               selectedRelationships={selectedRelationships}
               onNodeSelect={handleNodeSelect}
-              className="w-full h-full"
+              className="w-full h-full flex-1"
             />
           ) : (
             <GamingGraphVisualizer
@@ -296,6 +325,7 @@ const GraphVisualizer = () => {
                 showPartOf: selectedRelationships.includes('PART_OF')
               }}
               selectedNode={selectedNode}
+              className="w-full h-full flex-1"
             />
           )}
         </div>

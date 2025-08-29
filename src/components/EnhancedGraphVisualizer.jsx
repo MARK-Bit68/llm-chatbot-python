@@ -309,6 +309,7 @@ const EnhancedGraphVisualizer = ({
   const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 0, z: 0 })
   const [selectedNode, setSelectedNode] = useState(null)
   const [viewMode, setViewMode] = useState('hierarchical') // 'hierarchical', 'force', 'circular'
+  const containerRef = useRef(null)
   
   // Process and filter data with intelligent layout
   const processedData = useMemo(() => {
@@ -406,7 +407,9 @@ const EnhancedGraphVisualizer = ({
     // Process edges and filter by selected relationships
     const edges = data.links
       .filter(edge => {
-        if (selectedRelationships.length === 0) return true
+        // If no relationships are selected, show NO edges
+        if (selectedRelationships.length === 0) return false
+        // Otherwise, only show edges that match selected relationship types
         return selectedRelationships.includes(edge.type)
       })
       .map(edge => {
@@ -434,6 +437,52 @@ const EnhancedGraphVisualizer = ({
     setSelectedNode(null)
     setAutoRotate(false)
   }, [])
+
+  // Force canvas to take full height on mount and resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current) {
+        const canvas = containerRef.current.querySelector('canvas');
+        if (canvas) {
+          // Force canvas to take full viewport height
+          const viewportHeight = window.innerHeight;
+          const headerHeight = 44; // Account for header
+          const availableHeight = viewportHeight - headerHeight;
+          
+          canvas.style.width = '100%';
+          canvas.style.height = `${availableHeight}px`;
+          canvas.style.minHeight = `${availableHeight}px`;
+          canvas.style.maxHeight = `${availableHeight}px`;
+          
+          // Force Three.js renderer to resize
+          const renderer = canvas.__r3f?.gl;
+          if (renderer) {
+            const rect = containerRef.current.getBoundingClientRect();
+            renderer.setSize(rect.width, availableHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+          }
+        }
+      }
+    };
+
+    handleResize(); // Initial call
+    window.addEventListener('resize', handleResize);
+    
+    // Use ResizeObserver for more reliable sizing
+    if (containerRef.current) {
+      const resizeObserver = new ResizeObserver(handleResize);
+      resizeObserver.observe(containerRef.current);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        resizeObserver.disconnect();
+      };
+    }
+    
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
   
   if (!data) {
     return (
@@ -447,7 +496,17 @@ const EnhancedGraphVisualizer = ({
   }
   
   return (
-    <div className={`relative w-full h-full bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 ${className}`}>
+    <div ref={containerRef} className={`relative w-full h-full bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 ${className}`} style={{ 
+      minHeight: '100vh', 
+      height: '100vh',
+      display: 'flex', 
+      flexDirection: 'column',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0
+    }}>
       <Canvas
         camera={{ position: [0, 400, 1500], fov: 60 }}
         gl={{ 
@@ -455,11 +514,49 @@ const EnhancedGraphVisualizer = ({
           alpha: true,
           powerPreference: "high-performance"
         }}
-        onCreated={({ gl }) => {
+        onCreated={({ gl, camera }) => {
           gl.setClearColor('#0F172A', 1)
           gl.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+          
+          // Force canvas to take full viewport height
+          const viewportHeight = window.innerHeight;
+          const headerHeight = 44; // Account for header
+          const availableHeight = viewportHeight - headerHeight;
+          
+          // Force canvas to take full container height
+          const container = gl.domElement.parentElement;
+          if (container) {
+            // Set initial size with full viewport height
+            const rect = container.getBoundingClientRect();
+            gl.setSize(rect.width, availableHeight);
+            camera.aspect = rect.width / availableHeight;
+            camera.updateProjectionMatrix();
+            
+            // Store renderer reference for external access
+            gl.domElement.__r3f = { gl };
+            
+            const resizeObserver = new ResizeObserver(() => {
+              const rect = container.getBoundingClientRect();
+              const newViewportHeight = window.innerHeight;
+              const newAvailableHeight = newViewportHeight - headerHeight;
+              gl.setSize(rect.width, newAvailableHeight);
+              camera.aspect = rect.width / newAvailableHeight;
+              camera.updateProjectionMatrix();
+            });
+            resizeObserver.observe(container);
+          }
         }}
-        style={{ width: '100%', height: '100%' }}
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          minHeight: '100%', 
+          flex: '1 1 auto',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0
+        }}
       >
         {/* Environment */}
         <Environment preset="night" />
