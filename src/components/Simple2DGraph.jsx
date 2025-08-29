@@ -57,8 +57,8 @@ const Simple2DGraph = ({
       .range(['#10B981', '#8B5CF6', '#3B82F6', '#F59E0B'])
 
     const linkColor = d3.scaleOrdinal()
-      .domain(['BELONGS_TO', 'BRANDED_AS', 'SOLD_IN', 'OPERATES_IN', 'MANUFACTURED_AT', 'PART_OF'])
-      .range(['#10B981', '#F59E0B', '#3B82F6', '#8B5CF6', '#EF4444', '#06B6D4'])
+      .domain(['BELONGS_TO', 'MANUFACTURED_AT', 'OPERATES_IN'])
+      .range(['#10B981', '#EF4444', '#8B5CF6'])
 
     // Create force simulation
     const simulation = d3.forceSimulation(processedData.nodes)
@@ -113,7 +113,7 @@ const Simple2DGraph = ({
           .style("z-index", "1000")
         
         tooltip.html(`
-          <strong>${d.label}</strong><br/>
+          <strong>${d.name || d.label}</strong><br/>
           Type: ${d.type}<br/>
           ID: ${d.id}
         `)
@@ -134,7 +134,7 @@ const Simple2DGraph = ({
       .selectAll("text")
       .data(processedData.nodes)
       .join("text")
-      .text(d => d.label)
+      .text(d => d.name || d.label)
       .attr("font-size", "10px")
       .attr("fill", "white")
       .attr("text-anchor", "middle")
@@ -166,12 +166,26 @@ const Simple2DGraph = ({
 
     svg.call(zoom)
 
+    // Store zoom function for reset
+    svg.node().__zoom = zoom
+
     // Cleanup
     return () => {
       simulation.stop()
       d3.select(".tooltip").remove()
     }
   }, [processedData, onNodeSelect])
+
+  // Reset view function
+  const resetView = () => {
+    const svg = d3.select(svgRef.current)
+    if (svg.node() && svg.node().__zoom) {
+      svg.transition().duration(750).call(
+        svg.node().__zoom.transform,
+        d3.zoomIdentity
+      )
+    }
+  }
 
   if (!data) {
     return (
@@ -189,13 +203,7 @@ const Simple2DGraph = ({
       {/* Controls */}
       <div className="absolute top-4 left-4 z-10 flex gap-2">
         <button
-          onClick={() => {
-            const svg = d3.select(svgRef.current)
-            svg.transition().duration(750).call(
-              d3.zoom().transform,
-              d3.zoomIdentity
-            )
-          }}
+          onClick={resetView}
           className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm"
         >
           Reset View

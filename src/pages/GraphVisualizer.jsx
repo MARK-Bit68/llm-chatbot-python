@@ -43,14 +43,11 @@ const GraphVisualizer = () => {
     'Category→Group': 'PART_OF'
   }
   
-  // Available relationships for UI
+  // Available relationships for UI - only show ones that actually exist in database
   const availableRelationships = [
     'Product→Category',
-    'Product→Brand', 
-    'Product→Market',
-    'Plant→Country',
     'Product→Plant',
-    'Category→Group'
+    'Plant→Country'
   ]
 
   const fetchGraphData = useCallback(async () => {

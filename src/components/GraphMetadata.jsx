@@ -1,8 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Database, Calendar, Hash, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { FileText, Database, Calendar, Hash, CheckCircle, AlertCircle, Info, Tag, MapPin, Factory, Package } from 'lucide-react';
 
-const GraphMetadata = () => {
+const GraphMetadata = ({ node }) => {
+  // If a specific node is provided, show its details
+  if (node) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-black/80 backdrop-blur-sm border border-white/10 rounded-lg p-4"
+      >
+        <div className="flex items-center space-x-2 mb-3">
+          {node.type === 'Product' && <Package className="h-4 w-4 text-green-400" />}
+          {node.type === 'Category' && <Tag className="h-4 w-4 text-purple-400" />}
+          {node.type === 'Country' && <MapPin className="h-4 w-4 text-blue-400" />}
+          {node.type === 'Plant' && <Factory className="h-4 w-4 text-orange-400" />}
+          <h3 className="text-white font-semibold text-sm">{node.type}</h3>
+        </div>
+        
+        <div className="space-y-2 text-xs">
+          <div>
+            <span className="text-gray-400">Name:</span>
+            <span className="text-white ml-2 font-medium">{node.name || node.id}</span>
+          </div>
+          
+          {node.code && (
+            <div>
+              <span className="text-gray-400">Code:</span>
+              <span className="text-white ml-2">{node.code}</span>
+            </div>
+          )}
+          
+          {node.category && (
+            <div>
+              <span className="text-gray-400">Category:</span>
+              <span className="text-white ml-2">{node.category}</span>
+            </div>
+          )}
+          
+          {node.country && (
+            <div>
+              <span className="text-gray-400">Country:</span>
+              <span className="text-white ml-2">{node.country}</span>
+            </div>
+          )}
+          
+          {node.region && (
+            <div>
+              <span className="text-gray-400">Region:</span>
+              <span className="text-white ml-2">{node.region}</span>
+            </div>
+          )}
+          
+          <div>
+            <span className="text-gray-400">ID:</span>
+            <span className="text-white ml-2 font-mono text-xs">{node.id}</span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Original metadata display logic for when no specific node is provided
   const [metadata, setMetadata] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

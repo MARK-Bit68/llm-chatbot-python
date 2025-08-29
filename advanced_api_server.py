@@ -715,9 +715,10 @@ async def graph_visualization_endpoint():
         # Query nodes with basic information (using actual node properties)
         nodes_query = """
         MATCH (n)
+        WHERE NOT labels(n) CONTAINS 'Metadata'
         RETURN elementId(n) as id,
-               n.sku_code as sku_code,
                n.name as name,
+               n.sku_code as sku_code,
                n.category as category,
                n.country as country,
                n.region as region,
@@ -757,59 +758,38 @@ async def graph_visualization_endpoint():
         
         # Map UI relationship names to actual database relationship types
         relationship_mapping = {
-            'showBelongsTo': ['BELONGS_TO', 'BELONGS_TO_CATEGORY', 'IN_GROUP'],
-            'showBrandedAs': ['BRANDED_AS'],
-            'showSoldIn': ['SOLD_IN', 'OPERATES_IN'],
-            'showPartOf': ['PART_OF'],
-            'showManufacturedAt': ['MANUFACTURED_AT', 'PRODUCED_AT', 'AT_PLANT']
+            'BELONGS_TO': 'Product→Category',
+            'MANUFACTURED_AT': 'Product→Plant', 
+            'OPERATES_IN': 'Plant→Country'
         }
         
         # Find actual relationships that exist in the database
         actual_relationships = []
-        for ui_name, possible_types in relationship_mapping.items():
-            for rel_type in possible_types:
-                if rel_type in available_relationships:
-                    actual_relationships.append(rel_type)
-                    break
+        for rel_type in available_relationships:
+            if rel_type in relationship_mapping:
+                actual_relationships.append(rel_type)
         
         print(f"🎯 Using actual relationships: {actual_relationships}")
         
         # Build query parts for each actual relationship type
         for rel_type in actual_relationships:
-            if rel_type in ['BELONGS_TO', 'BELONGS_TO_CATEGORY', 'IN_GROUP']:
+            if rel_type == 'BELONGS_TO':
                 edges_query_parts.append(f"""
                 MATCH (p:Product)-[r:{rel_type}]->(c:Category)
                 RETURN elementId(p) as source, elementId(c) as target, type(r) as type,
                        p.name as source_name, c.name as target_name
-                LIMIT 300
                 """)
-            elif rel_type == 'BRANDED_AS':
-                edges_query_parts.append(f"""
-                MATCH (p:Product)-[r:{rel_type}]->(b:Brand)
-                RETURN elementId(p) as source, elementId(b) as target, type(r) as type,
-                       p.name as source_name, b.name as target_name
-                LIMIT 300
-                """)
-            elif rel_type in ['SOLD_IN', 'OPERATES_IN']:
-                edges_query_parts.append(f"""
-                MATCH (p:Product)-[r:{rel_type}]->(ct:Country)
-                RETURN elementId(p) as source, elementId(ct) as target, type(r) as type,
-                       p.name as source_name, ct.name as target_name
-                LIMIT 300
-                """)
-            elif rel_type == 'PART_OF':
-                edges_query_parts.append(f"""
-                MATCH (ct:Country)-[r:{rel_type}]->(rg:Region)
-                RETURN elementId(ct) as source, elementId(rg) as target, type(r) as type,
-                       ct.name as source_name, rg.name as target_name
-                LIMIT 100
-                """)
-            elif rel_type in ['MANUFACTURED_AT', 'PRODUCED_AT', 'AT_PLANT']:
+            elif rel_type == 'MANUFACTURED_AT':
                 edges_query_parts.append(f"""
                 MATCH (p:Product)-[r:{rel_type}]->(plant:Plant)
                 RETURN elementId(p) as source, elementId(plant) as target, type(r) as type,
                        p.name as source_name, plant.name as target_name
-                LIMIT 200
+                """)
+            elif rel_type == 'OPERATES_IN':
+                edges_query_parts.append(f"""
+                MATCH (plant:Plant)-[r:{rel_type}]->(ct:Country)
+                RETURN elementId(plant) as source, elementId(ct) as target, type(r) as type,
+                       plant.name as source_name, ct.name as target_name
                 """)
         
         # If no specific relationships found, try a generic approach
@@ -817,7 +797,7 @@ async def graph_visualization_endpoint():
             print("⚠️ No specific relationships found, using generic query")
             edges_query_parts.append("""
             MATCH (n1)-[r]->(n2)
-            WHERE labels(n1) CONTAINS 'Product' OR labels(n2) CONTAINS 'Product'
+            WHERE NOT labels(n1) CONTAINS 'Metadata' AND NOT labels(n2) CONTAINS 'Metadata'
             RETURN elementId(n1) as source, elementId(n2) as target, type(r) as type,
                    n1.name as source_name, n2.name as target_name
             LIMIT 500
@@ -837,16 +817,38 @@ async def graph_visualization_endpoint():
             labels = record.get('labels', [])
             node_type = labels[0] if labels else 'Unknown'
             
+            # Skip metadata nodes
+            if 'Metadata' in labels:
+                continue
+            
             # Count node types
             if node_type not in node_types:
                 node_types[node_type] = 0
             node_types[node_type] += 1
             
-            # Create node object (using correct field mappings)
+            # Create node object with proper name handling
+            node_name = record.get('name')
+            if not node_name and node_type == 'Product':
+                # For products without names, use SKU code or generate a readable name
+                sku_code = record.get('sku_code')
+                if sku_code:
+                    node_name = sku_code
+                else:
+                    # Generate a readable name from the ID
+                    node_id = record.get('id')
+                    if node_id and ':' in node_id:
+                        parts = node_id.split(':')
+                        if len(parts) >= 3:
+                            node_name = f"Product_{parts[2]}"
+                        else:
+                            node_name = f"Product_{node_id[-8:]}"
+                    else:
+                        node_name = f"Product_{node_id[-8:] if node_id else 'Unknown'}"
+            
             node_obj = {
-                'id': record.get('id'),  # elementId from query
+                'id': record.get('id'),
                 'type': node_type,
-                'name': record.get('name') or record.get('sku_code'),
+                'name': node_name,
                 'code': record.get('sku_code'),
                 'category': record.get('category'),
                 'country': record.get('country'),
@@ -854,7 +856,7 @@ async def graph_visualization_endpoint():
                 'properties': {
                     'id': record.get('id'),
                     'code': record.get('sku_code'),
-                    'name': record.get('name'),
+                    'name': node_name,
                     'category': record.get('category'),
                     'country': record.get('country'),
                     'region': record.get('region'),
