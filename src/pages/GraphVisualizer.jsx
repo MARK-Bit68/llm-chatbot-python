@@ -16,15 +16,10 @@ import {
   ZoomIn,
   ZoomOut,
   Layers,
-  Gamepad2,
-  Cpu,
-  Zap,
   X,
   ChevronRight,
   ChevronLeft
 } from 'lucide-react'
-import GamingGraphVisualizer from '../components/GamingGraphVisualizer'
-import EnhancedGraphVisualizer from '../components/EnhancedGraphVisualizer'
 import Simple2DGraph from '../components/Simple2DGraph'
 import GraphMetadata from '../components/GraphMetadata'
 
@@ -34,7 +29,6 @@ const GraphVisualizer = () => {
   const [error, setError] = useState(null)
   const [selectedRelationships, setSelectedRelationships] = useState([])
   const [selectedNode, setSelectedNode] = useState(null)
-  const [visualizationMode, setVisualizationMode] = useState('2d') // '2d', 'enhanced', or 'gaming'
   const [showFilters, setShowFilters] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -100,29 +94,28 @@ const GraphVisualizer = () => {
         return [...prev, actualType]
       }
     })
-  }, [])
-
-  const handleNodeSelect = useCallback((node) => {
-    setSelectedNode(node)
-    console.log('Selected node:', node)
-  }, [])
+  }, [relationshipMapping])
 
   const handleReset = useCallback(() => {
     setSelectedRelationships([])
-    setSelectedNode(null)
     setSearchTerm('')
+    setSelectedNode(null)
   }, [])
 
   const handleRefresh = useCallback(() => {
     fetchGraphData()
   }, [fetchGraphData])
 
+  const handleNodeSelect = useCallback((node) => {
+    setSelectedNode(node)
+  }, [])
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Graph Data...</p>
+          <p className="text-white">Loading Graph Data...</p>
         </div>
       </div>
     )
@@ -130,16 +123,13 @@ const GraphVisualizer = () => {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-96">
+      <div className="flex items-center justify-center h-screen bg-gray-900">
         <div className="text-center">
-          <div className="text-red-500 text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Error Loading Graph</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-red-400 mb-4">Error loading graph data: {error}</p>
           <button
-            onClick={handleRefresh}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 mx-auto"
+            onClick={fetchGraphData}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
           >
-            <RefreshCw className="w-4 h-4" />
             Retry
           </button>
         </div>
@@ -158,27 +148,14 @@ const GraphVisualizer = () => {
       bottom: 0,
       zIndex: 50
     }}>
-      {/* Minimal Header Bar */}
-      <div className="flex-shrink-0 bg-black/80 backdrop-blur-sm border-b border-white/10 px-4 py-2 z-50">
+      {/* Header */}
+      <div className="flex-shrink-0 bg-black/90 backdrop-blur-sm border-b border-white/10 px-4 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <Network className="w-5 h-5 text-blue-400" />
-              <h1 className="text-white font-semibold text-sm">
-                Supply Chain Graph Visualization
-              </h1>
+              <h1 className="text-white font-semibold text-lg">Supply Chain Graph Visualization</h1>
             </div>
-            
-            {/* Mode Selector */}
-            <select
-              value={visualizationMode}
-              onChange={(e) => setVisualizationMode(e.target.value)}
-              className="bg-black/40 border border-white/20 rounded px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="2d">2D Force-Directed</option>
-              <option value="enhanced">Enhanced 3D</option>
-              <option value="gaming">Gaming Style</option>
-            </select>
             
             {/* Refresh Button */}
             <button
@@ -298,36 +275,12 @@ const GraphVisualizer = () => {
           flexDirection: 'column',
           position: 'relative'
         }}>
-          {visualizationMode === '2d' ? (
-            <Simple2DGraph
-              data={graphData}
-              selectedRelationships={selectedRelationships}
-              onNodeSelect={handleNodeSelect}
-              className="w-full h-full flex-1"
-            />
-          ) : visualizationMode === 'enhanced' ? (
-            <EnhancedGraphVisualizer
-              data={graphData}
-              selectedRelationships={selectedRelationships}
-              onNodeSelect={handleNodeSelect}
-              className="w-full h-full flex-1"
-            />
-          ) : (
-            <GamingGraphVisualizer
-              graphData={graphData}
-              onNodeSelect={handleNodeSelect}
-              edgeFilters={{
-                showBelongsTo: selectedRelationships.includes('BELONGS_TO'),
-                showBrandedAs: selectedRelationships.includes('BRANDED_AS'),
-                showSoldIn: selectedRelationships.includes('SOLD_IN'),
-                showOperatesIn: selectedRelationships.includes('OPERATES_IN'),
-                showManufacturedAt: selectedRelationships.includes('MANUFACTURED_AT'),
-                showPartOf: selectedRelationships.includes('PART_OF')
-              }}
-              selectedNode={selectedNode}
-              className="w-full h-full flex-1"
-            />
-          )}
+          <Simple2DGraph
+            data={graphData}
+            selectedRelationships={selectedRelationships}
+            onNodeSelect={handleNodeSelect}
+            className="w-full h-full flex-1"
+          />
         </div>
       </div>
 
