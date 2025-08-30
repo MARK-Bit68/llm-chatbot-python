@@ -161,7 +161,7 @@ const Simple2DGraph = ({
         .attr("y", d => d.y)
     })
 
-    // Add zoom behavior
+    // Add zoom behavior with proper D3.js v7 implementation
     const zoom = d3.zoom()
       .scaleExtent([0.1, 10]) // Limit zoom scale
       .on("zoom", (event) => {
@@ -170,8 +170,11 @@ const Simple2DGraph = ({
 
     svg.call(zoom)
 
-    // Store zoom function for reset
-    svg.node().__zoom = zoom
+    // Store zoom behavior for reset - use a more reliable approach
+    const zoomBehavior = svg.node().__zoom
+    if (zoomBehavior) {
+      svg.node().__zoomBehavior = zoomBehavior
+    }
 
     // Cleanup
     return () => {
@@ -180,14 +183,14 @@ const Simple2DGraph = ({
     }
   }, [processedData, onNodeSelect])
 
-  // Reset view function
+  // Reset view function with proper D3.js v7 API
   const resetView = () => {
     const svg = d3.select(svgRef.current)
-    if (svg.node() && svg.node().__zoom) {
-      // Reset zoom and center the view using a simpler approach
+    if (svg.node() && svg.node().__zoomBehavior) {
+      // Reset zoom and center the view using the stored zoom behavior
       try {
         svg.transition().duration(750).call(
-          svg.node().__zoom.transform,
+          svg.node().__zoomBehavior.transform,
           d3.zoomIdentity
         )
       } catch (error) {
