@@ -184,11 +184,17 @@ const Simple2DGraph = ({
   const resetView = () => {
     const svg = d3.select(svgRef.current)
     if (svg.node() && svg.node().__zoom) {
-      // Reset zoom and center the view
-      svg.transition().duration(750).call(
-        svg.node().__zoom.transform,
-        d3.zoomIdentity
-      )
+      // Reset zoom and center the view using a simpler approach
+      try {
+        svg.transition().duration(750).call(
+          svg.node().__zoom.transform,
+          d3.zoomIdentity
+        )
+      } catch (error) {
+        // Fallback: manually reset the transform
+        const g = svg.select("g")
+        g.transition().duration(750).attr("transform", "translate(0,0) scale(1)")
+      }
     }
   }
 
