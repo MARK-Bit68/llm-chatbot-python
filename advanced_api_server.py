@@ -715,7 +715,7 @@ async def graph_visualization_endpoint():
         # Query nodes with basic information (using actual node properties)
         nodes_query = """
         MATCH (n)
-        WHERE NOT labels(n) CONTAINS 'Metadata'
+        WHERE NOT 'Metadata' IN labels(n)
         RETURN elementId(n) as id,
                n.name as name,
                n.sku_code as sku_code,
@@ -797,7 +797,7 @@ async def graph_visualization_endpoint():
             print("⚠️ No specific relationships found, using generic query")
             edges_query_parts.append("""
             MATCH (n1)-[r]->(n2)
-            WHERE NOT labels(n1) CONTAINS 'Metadata' AND NOT labels(n2) CONTAINS 'Metadata'
+            WHERE NOT 'Metadata' IN labels(n1) AND NOT 'Metadata' IN labels(n2)
             RETURN elementId(n1) as source, elementId(n2) as target, type(r) as type,
                    n1.name as source_name, n2.name as target_name
             LIMIT 500
@@ -828,22 +828,17 @@ async def graph_visualization_endpoint():
             
             # Create node object with proper name handling
             node_name = record.get('name')
-            if not node_name and node_type == 'Product':
-                # For products without names, use SKU code or generate a readable name
-                sku_code = record.get('sku_code')
-                if sku_code:
-                    node_name = sku_code
-                else:
-                    # Generate a readable name from the ID
-                    node_id = record.get('id')
-                    if node_id and ':' in node_id:
-                        parts = node_id.split(':')
-                        if len(parts) >= 3:
-                            node_name = f"Product_{parts[2]}"
-                        else:
-                            node_name = f"Product_{node_id[-8:]}"
+            if not node_name:
+                # Generate a readable name from the ID for any node type
+                node_id = record.get('id')
+                if node_id and ':' in node_id:
+                    parts = node_id.split(':')
+                    if len(parts) >= 3:
+                        node_name = f"{node_type}_{parts[2]}"
                     else:
-                        node_name = f"Product_{node_id[-8:] if node_id else 'Unknown'}"
+                        node_name = f"{node_type}_{node_id[-8:]}"
+                else:
+                    node_name = f"{node_type}_{node_id[-8:] if node_id else 'Unknown'}"
             
             node_obj = {
                 'id': record.get('id'),
