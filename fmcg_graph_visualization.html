@@ -14,6 +14,18 @@
         .node:hover { stroke: #333; stroke-width: 2px; }
         .link { stroke: #999; stroke-opacity: 0.6; }
         .tooltip { position: absolute; background: white; border: 1px solid #ddd; padding: 5px; border-radius: 3px; }
+        .zoom-controls { 
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            background: rgba(0,0,0,0.8); 
+            color: white; 
+            padding: 10px; 
+            border-radius: 5px; 
+            font-size: 12px; 
+        }
+        .zoom-controls input { margin: 5px 0; }
+        .zoom-controls label { display: block; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -37,10 +49,30 @@
             <span id="stats"></span>
         </div>
         
-        <div id="graph"></div>
+        <div id="graph" style="position: relative;">
+            <div class="zoom-controls">
+                <label>Min Scale: <span id="minScaleValue">0.05</span></label>
+                <input type="range" id="minScale" min="0.01" max="1" step="0.01" value="0.05">
+                
+                <label>Max Scale: <span id="maxScaleValue">20</span></label>
+                <input type="range" id="maxScale" min="5" max="50" step="1" value="20">
+                
+                <label>Sensitivity: <span id="sensitivityValue">0.5</span></label>
+                <input type="range" id="sensitivity" min="0.1" max="2" step="0.1" value="0.5">
+                
+                <button onclick="updateZoomSettings()" style="margin-top: 10px; padding: 5px 10px;">Update Settings</button>
+            </div>
+        </div>
     </div>
 
     <script>
+        let zoomBehavior; // Store zoom behavior globally
+        let currentZoomSettings = {
+            minScale: 0.05,
+            maxScale: 20,
+            sensitivity: 0.5
+        };
+        
         // Load graph data
         fetch('fmcg_graph_data.json')
             .then(response => response.json())
@@ -134,6 +166,17 @@
                     .attr('cy', d => d.y);
             });
             
+            // Create zoom behavior with improved sensitivity
+            zoomBehavior = d3.zoom()
+                .scaleExtent([currentZoomSettings.minScale, currentZoomSettings.maxScale])
+                .wheelDelta(event => -event.deltaY * currentZoomSettings.sensitivity * 0.01)
+                .on('zoom', (event) => {
+                    g.attr('transform', event.transform);
+                });
+            
+            // Apply zoom to SVG
+            svg.call(zoomBehavior);
+            
             // Drag functions
             function dragstarted(event, d) {
                 if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -158,14 +201,54 @@
         }
         
         function resetZoom() {
-            // Reset zoom functionality
-            location.reload();
+            // Reset zoom functionality with proper D3.js v7 API
+            if (zoomBehavior) {
+                const svg = d3.select('#graph svg');
+                svg.transition()
+                    .duration(750)
+                    .call(zoomBehavior.transform, d3.zoomIdentity);
+            }
+        }
+        
+        function updateZoomSettings() {
+            const minScale = parseFloat(document.getElementById('minScale').value);
+            const maxScale = parseFloat(document.getElementById('maxScale').value);
+            const sensitivity = parseFloat(document.getElementById('sensitivity').value);
+            
+            currentZoomSettings = { minScale, maxScale, sensitivity };
+            
+            // Update display values
+            document.getElementById('minScaleValue').textContent = minScale;
+            document.getElementById('maxScaleValue').textContent = maxScale;
+            document.getElementById('sensitivityValue').textContent = sensitivity;
+            
+            // Recreate zoom behavior with new settings
+            if (zoomBehavior) {
+                const svg = d3.select('#graph svg');
+                const g = svg.select('g');
+                
+                zoomBehavior = d3.zoom()
+                    .scaleExtent([minScale, maxScale])
+                    .wheelDelta(event => -event.deltaY * sensitivity * 0.01)
+                    .on('zoom', (event) => {
+                        g.attr('transform', event.transform);
+                    });
+                
+                svg.call(zoomBehavior);
+            }
         }
         
         function toggleLabels() {
             // Toggle labels functionality
             console.log('Toggle labels clicked');
         }
+        
+        // Update display values on load
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('minScaleValue').textContent = currentZoomSettings.minScale;
+            document.getElementById('maxScaleValue').textContent = currentZoomSettings.maxScale;
+            document.getElementById('sensitivityValue').textContent = currentZoomSettings.sensitivity;
+        });
     </script>
 </body>
 </html>

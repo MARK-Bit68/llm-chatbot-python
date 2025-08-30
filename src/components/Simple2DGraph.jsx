@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react'
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react'
 import * as d3 from 'd3'
 
 const Simple2DGraph = ({ 
@@ -9,6 +9,15 @@ const Simple2DGraph = ({
 }) => {
   const svgRef = useRef()
   const containerRef = useRef()
+  const zoomRef = useRef() // Store zoom behavior reference
+  
+  // Zoom settings state
+  const [zoomSettings, setZoomSettings] = useState({
+    minScale: 0.05,
+    maxScale: 20,
+    sensitivity: 0.5
+  })
+  const [showZoomControls, setShowZoomControls] = useState(false)
 
   const processedData = useMemo(() => {
     if (!data) return { nodes: [], links: [] }
@@ -38,6 +47,36 @@ const Simple2DGraph = ({
 
     return { nodes, links }
   }, [data, selectedRelationships])
+
+  // Reset view function with proper D3.js v7 API
+  const resetView = useCallback(() => {
+    const svg = d3.select(svgRef.current)
+    if (svg.node() && zoomRef.current) {
+      // Use the stored zoom behavior to reset to identity transform
+      svg.transition()
+        .duration(750)
+        .call(zoomRef.current.transform, d3.zoomIdentity)
+    }
+  }, [])
+
+  // Update zoom behavior when settings change
+  const updateZoomBehavior = useCallback(() => {
+    const svg = d3.select(svgRef.current)
+    if (!svg.node() || !zoomRef.current) return
+
+    // Create new zoom behavior with updated settings
+    const newZoom = d3.zoom()
+      .scaleExtent([zoomSettings.minScale, zoomSettings.maxScale])
+      .wheelDelta(event => -event.deltaY * zoomSettings.sensitivity * 0.01)
+      .on("zoom", (event) => {
+        const g = svg.select("g")
+        g.attr("transform", event.transform)
+      })
+
+    // Apply new zoom behavior
+    svg.call(newZoom)
+    zoomRef.current = newZoom
+  }, [zoomSettings])
 
   useEffect(() => {
     if (!processedData.nodes.length || !svgRef.current) return
@@ -161,45 +200,36 @@ const Simple2DGraph = ({
         .attr("y", d => d.y)
     })
 
-    // Add zoom behavior with proper D3.js v7 implementation
+    // Create zoom behavior with improved sensitivity
     const zoom = d3.zoom()
-      .scaleExtent([0.1, 10]) // Limit zoom scale
+      .scaleExtent([zoomSettings.minScale, zoomSettings.maxScale])
+      .wheelDelta(event => -event.deltaY * zoomSettings.sensitivity * 0.01)
       .on("zoom", (event) => {
         g.attr("transform", event.transform)
       })
 
+    // Apply zoom to SVG and store reference
     svg.call(zoom)
-
-    // Store zoom behavior for reset - use a more reliable approach
-    const zoomBehavior = svg.node().__zoom
-    if (zoomBehavior) {
-      svg.node().__zoomBehavior = zoomBehavior
-    }
+    zoomRef.current = zoom
 
     // Cleanup
     return () => {
       simulation.stop()
       d3.select(".tooltip").remove()
     }
-  }, [processedData, onNodeSelect])
+  }, [processedData, onNodeSelect, zoomSettings])
 
-  // Reset view function with proper D3.js v7 API
-  const resetView = () => {
-    const svg = d3.select(svgRef.current)
-    if (svg.node() && svg.node().__zoomBehavior) {
-      // Reset zoom and center the view using the stored zoom behavior
-      try {
-        svg.transition().duration(750).call(
-          svg.node().__zoomBehavior.transform,
-          d3.zoomIdentity
-        )
-      } catch (error) {
-        // Fallback: manually reset the transform
-        const g = svg.select("g")
-        g.transition().duration(750).attr("transform", "translate(0,0) scale(1)")
-      }
-    }
-  }
+  // Update zoom behavior when settings change
+  useEffect(() => {
+    updateZoomBehavior()
+  }, [updateZoomBehavior])
+
+  const handleZoomSettingChange = useCallback((setting, value) => {
+    setZoomSettings(prev => ({
+      ...prev,
+      [setting]: parseFloat(value)
+    }))
+  }, [])
 
   if (!data) {
     return (
@@ -222,7 +252,74 @@ const Simple2DGraph = ({
         >
           Reset View
         </button>
+        <button
+          onClick={() => setShowZoomControls(!showZoomControls)}
+          className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm"
+        >
+          Zoom Settings
+        </button>
       </div>
+
+      {/* Zoom Settings Panel */}
+      {showZoomControls && (
+        <div className="absolute top-16 left-4 z-10 bg-black/90 backdrop-blur-sm border border-white/10 rounded-lg p-4 min-w-64">
+          <h3 className="text-white font-bold mb-3">Zoom Settings</h3>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-white text-sm mb-1">Min Scale: {zoomSettings.minScale}</label>
+              <input
+                type="range"
+                min="0.01"
+                max="1"
+                step="0.01"
+                value={zoomSettings.minScale}
+                onChange={(e) => handleZoomSettingChange('minScale', e.target.value)}
+                className="w-full"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-white text-sm mb-1">Max Scale: {zoomSettings.maxScale}</label>
+              <input
+                type="range"
+                min="5"
+                max="50"
+                step="1"
+                value={zoomSettings.maxScale}
+                onChange={(e) => handleZoomSettingChange('maxScale', e.target.value)}
+                className="w-full"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-white text-sm mb-1">Sensitivity: {zoomSettings.sensitivity}</label>
+              <input
+                type="range"
+                min="0.1"
+                max="2"
+                step="0.1"
+                value={zoomSettings.sensitivity}
+                onChange={(e) => handleZoomSettingChange('sensitivity', e.target.value)}
+                className="w-full"
+              />
+            </div>
+          </div>
+          
+          <div className="mt-3 pt-3 border-t border-white/20">
+            <button
+              onClick={() => setZoomSettings({
+                minScale: 0.05,
+                maxScale: 20,
+                sensitivity: 0.5
+              })}
+              className="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded text-sm"
+            >
+              Reset to Default
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="absolute top-4 right-4 z-10 bg-black/80 text-white p-4 rounded-lg">
