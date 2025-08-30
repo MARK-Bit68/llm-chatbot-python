@@ -60,6 +60,9 @@ const Simple2DGraph = ({
       .domain(['BELONGS_TO', 'MANUFACTURED_AT', 'OPERATES_IN'])
       .range(['#10B981', '#EF4444', '#8B5CF6'])
 
+    // Create a container group for zoom
+    const g = svg.append("g")
+
     // Create force simulation
     const simulation = d3.forceSimulation(processedData.nodes)
       .force("link", d3.forceLink(processedData.links).id(d => d.id).distance(100))
@@ -68,7 +71,7 @@ const Simple2DGraph = ({
       .force("collision", d3.forceCollide().radius(30))
 
     // Create links
-    const link = svg.append("g")
+    const link = g.append("g")
       .selectAll("line")
       .data(processedData.links)
       .join("line")
@@ -77,7 +80,7 @@ const Simple2DGraph = ({
       .attr("stroke-opacity", 0.6)
 
     // Create nodes
-    const node = svg.append("g")
+    const node = g.append("g")
       .selectAll("circle")
       .data(processedData.nodes)
       .join("circle")
@@ -130,7 +133,7 @@ const Simple2DGraph = ({
       })
 
     // Add node labels
-    const label = svg.append("g")
+    const label = g.append("g")
       .selectAll("text")
       .data(processedData.nodes)
       .join("text")
@@ -160,8 +163,9 @@ const Simple2DGraph = ({
 
     // Add zoom behavior
     const zoom = d3.zoom()
+      .scaleExtent([0.1, 10]) // Limit zoom scale
       .on("zoom", (event) => {
-        svg.selectAll("g").attr("transform", event.transform)
+        g.attr("transform", event.transform)
       })
 
     svg.call(zoom)
@@ -180,6 +184,7 @@ const Simple2DGraph = ({
   const resetView = () => {
     const svg = d3.select(svgRef.current)
     if (svg.node() && svg.node().__zoom) {
+      // Reset zoom and center the view
       svg.transition().duration(750).call(
         svg.node().__zoom.transform,
         d3.zoomIdentity
