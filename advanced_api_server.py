@@ -760,7 +760,7 @@ async def graph_visualization_endpoint():
         relationship_mapping = {
             'BELONGS_TO': 'Product→Category',
             'MANUFACTURED_AT': 'Product→Plant', 
-            'OPERATES_IN': 'Plant→Country'
+            'OPERATES_IN': 'Product→Country'
         }
         
         # Find actual relationships that exist in the database
@@ -787,9 +787,9 @@ async def graph_visualization_endpoint():
                 """)
             elif rel_type == 'OPERATES_IN':
                 edges_query_parts.append(f"""
-                MATCH (plant:Plant)-[r:{rel_type}]->(ct:Country)
-                RETURN elementId(plant) as source, elementId(ct) as target, type(r) as type,
-                       plant.name as source_name, ct.name as target_name
+                MATCH (p:Product)-[r:{rel_type}]->(ct:Country)
+                RETURN elementId(p) as source, elementId(ct) as target, type(r) as type,
+                       p.name as source_name, ct.name as target_name
                 """)
         
         # If no specific relationships found, try a generic approach

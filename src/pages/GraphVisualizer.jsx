@@ -38,7 +38,7 @@ const GraphVisualizer = () => {
     'Product→Category': 'BELONGS_TO',
     'Product→Brand': 'BRANDED_AS', 
     'Product→Market': 'SOLD_IN',
-    'Plant→Country': 'OPERATES_IN',
+    'Product→Country': 'OPERATES_IN',
     'Product→Plant': 'MANUFACTURED_AT',
     'Category→Group': 'PART_OF'
   }
@@ -47,7 +47,7 @@ const GraphVisualizer = () => {
   const availableRelationships = [
     'Product→Category',
     'Product→Plant',
-    'Plant→Country'
+    'Product→Country'
   ]
 
   const fetchGraphData = useCallback(async () => {
